@@ -10,9 +10,12 @@ import (
 	"time"
 )
 
-const closeTimeout = 5 * time.Second
-
-const connectPollInterval = 250 * time.Millisecond
+const (
+	closeTimeout            = 5 * time.Second
+	connectPollInterval     = 250 * time.Millisecond
+	powerStatePollInterval  = time.Second
+	powerStateChangeTimeout = 30 * time.Second
+)
 
 // Modem is one opened QMI or MBIM control node.
 type Modem struct {
@@ -140,7 +143,7 @@ func (m *Modem) Bands(ctx context.Context) ([]Band, error) {
 	return b.Bands(ctx)
 }
 
-// SetBands selects radio bands. An empty slice restores all supported bands.
+// SetBands selects radio bands.
 func (m *Modem) SetBands(ctx context.Context, bands []Band) error {
 	b, err := m.currentBackend()
 	if err != nil {
@@ -188,12 +191,35 @@ func (m *Modem) notifyBearersChangedLocked() {
 	m.bearersChanged = make(chan struct{})
 }
 
+// SetPowerState requests a power state and waits for the modem to report it.
 func (m *Modem) SetPowerState(ctx context.Context, state PowerState) error {
 	b, err := m.currentBackend()
 	if err != nil {
 		return err
 	}
-	return b.SetPowerState(ctx, state)
+	return m.setPowerState(ctx, b, state)
+}
+
+func (m *Modem) setPowerState(ctx context.Context, b backend, state PowerState) error {
+	if err := b.SetPowerState(ctx, state); err != nil {
+		return fmt.Errorf("setting modem power state: %w", err)
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, powerStateChangeTimeout)
+	defer cancel()
+	if _, err := pollUntil(waitCtx, powerStatePollInterval, b.PowerState, func(current PowerState) bool {
+		return powerStateReached(m.Protocol(), state, current)
+	}); err != nil {
+		return fmt.Errorf("setting modem power state: waiting for state %d: %w", state, err)
+	}
+	return nil
+}
+
+func powerStateReached(protocol Protocol, requested, current PowerState) bool {
+	if current == requested {
+		return true
+	}
+	// MBIM represents both Off and Low with the same observable radio-off state.
+	return protocol == ProtocolMBIM && requested == PowerStateOff && current == PowerStateLow
 }
 
 func (m *Modem) Reset(ctx context.Context) error {
@@ -582,13 +608,8 @@ func (m *Modem) Connect(ctx context.Context, cfg ConnectConfig) (*Bearer, error)
 		return nil, fmt.Errorf("connecting modem: reading power state: %w", err)
 	}
 	if power != PowerStateOn {
-		if err := b.SetPowerState(ctx, PowerStateOn); err != nil {
+		if err := m.setPowerState(ctx, b, PowerStateOn); err != nil {
 			return nil, fmt.Errorf("connecting modem: powering modem: %w", err)
-		}
-		if _, err := pollUntil(ctx, connectPollInterval, b.PowerState, func(state PowerState) bool {
-			return state == PowerStateOn
-		}); err != nil {
-			return nil, fmt.Errorf("connecting modem: waiting for modem power: %w", err)
 		}
 	}
 	network, err := b.NetworkStatus(ctx)

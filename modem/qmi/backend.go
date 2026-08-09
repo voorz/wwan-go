@@ -188,11 +188,11 @@ func (b *Backend) SetPowerState(ctx context.Context, state PowerState) error {
 }
 
 func (b *Backend) PowerState(ctx context.Context) (PowerState, error) {
-	mode, err := b.client.OperatingMode(ctx)
+	info, err := b.client.OperatingModeInfo(ctx)
 	if err != nil {
 		return PowerStateUnknown, fmt.Errorf("reading QMI power state: %w", err)
 	}
-	return powerState(mode), nil
+	return powerStateFromInfo(info), nil
 }
 
 func (b *Backend) Reset(ctx context.Context) error {
@@ -202,36 +202,6 @@ func (b *Backend) Reset(ctx context.Context) error {
 		return fmt.Errorf("resetting QMI modem: %w", err)
 	}
 	clear(b.ipaReady)
-	return nil
-}
-
-func (b *Backend) Modes(ctx context.Context) ([]Mode, Mode, error) {
-	caps, err := b.Capabilities(ctx)
-	if err != nil {
-		return nil, Mode{}, err
-	}
-	preference, err := b.client.SystemSelectionPreference(ctx)
-	if err != nil {
-		return nil, Mode{}, fmt.Errorf("reading QMI mode preference: %w", err)
-	}
-	current := Mode{Allowed: caps.CurrentTechnologies}
-	if preference.ModePreferenceKnown {
-		current.Allowed = technologyFromModePreference(preference.ModePreference)
-	}
-	return []Mode{{Allowed: caps.SupportedTechnologies}}, current, nil
-}
-
-func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
-	if mode.Allowed == 0 || mode.Allowed&^TechnologyAny != 0 {
-		return fmt.Errorf("setting QMI modes: allowed technologies %#x are invalid", mode.Allowed)
-	}
-	if mode.Preferred&^mode.Allowed != 0 {
-		return errors.New("setting QMI modes: preferred technologies are not a subset of allowed technologies")
-	}
-	preference := modePreferenceFromTechnology(mode.Allowed)
-	if err := b.client.SetSystemSelectionPreference(ctx, qcom.NASSystemSelectionConfig{ModePreference: &preference}); err != nil {
-		return fmt.Errorf("setting QMI modes: %w", err)
-	}
 	return nil
 }
 
@@ -254,7 +224,7 @@ func (b *Backend) SetCapabilities(ctx context.Context, technologies Technology) 
 }
 
 func (b *Backend) Status(ctx context.Context) (Status, error) {
-	mode, err := b.client.OperatingMode(ctx)
+	info, err := b.client.OperatingModeInfo(ctx)
 	if err != nil {
 		return Status{}, fmt.Errorf("reading QMI operating mode: %w", err)
 	}
@@ -262,24 +232,25 @@ func (b *Backend) Status(ctx context.Context) (Status, error) {
 	if err != nil {
 		return Status{}, fmt.Errorf("reading QMI card status: %w", err)
 	}
+	status := Status{
+		Power: powerStateFromInfo(info),
+		SIM:   simStateFromCardStatus(card),
+	}
+	if status.Power != PowerStateOn {
+		applyPowerState(&status, status.Power)
+		return status, nil
+	}
 	network, err := b.NetworkStatus(ctx)
-	if err != nil {
+	if err != nil && !isRadioUnavailable(err) {
 		return Status{}, err
 	}
 	signal, err := b.Signal(ctx)
 	if err != nil {
 		return Status{}, err
 	}
-	return Status{
-		Power:         powerState(mode),
-		SIM:           simStateFromCardStatus(card),
-		Registration:  network.Registration,
-		PacketService: network.PacketService,
-		Technology:    network.Technology,
-		OperatorID:    network.OperatorID,
-		OperatorName:  network.OperatorName,
-		SignalQuality: signal.Quality,
-	}, nil
+	applyNetworkStatus(&status, network)
+	status.SignalQuality = signal.Quality
+	return status, nil
 }
 
 func (b *Backend) SIMInfo(ctx context.Context) (SIMInfo, error) {
@@ -871,7 +842,7 @@ func ipFamilyFromAttachSupport(value qcom.WDSIPSupportType) IPFamily {
 
 func (b *Backend) Signal(ctx context.Context) (Signal, error) {
 	info, err := b.client.SignalInfo(ctx)
-	if isSignalUnavailable(err) {
+	if isRadioUnavailable(err) {
 		return Signal{}, nil
 	}
 	if err != nil {
@@ -1114,10 +1085,11 @@ func isSARUnsupported(err error) bool {
 	return isUnsupported(err) || errors.Is(err, qcom.QMIErrorNoMemory)
 }
 
-func isSignalUnavailable(err error) bool {
+func isRadioUnavailable(err error) bool {
 	return errors.Is(err, qcom.QMIErrorInformationUnavailable) ||
 		errors.Is(err, qcom.QMIErrorNoRadio) ||
-		errors.Is(err, qcom.QMIErrorNoNetworkFound)
+		errors.Is(err, qcom.QMIErrorNoNetworkFound) ||
+		errors.Is(err, qcom.QMIErrorHardwareRestricted)
 }
 
 func (b *Backend) SetSAR(ctx context.Context, state SARState) error {
@@ -1153,59 +1125,43 @@ func powerState(mode qcom.DMSOperatingMode) PowerState {
 	}
 }
 
-func technologyFromModePreference(preference qcom.NASModePreference) Technology {
-	var result Technology
-	if preference&qcom.NASModePreferenceGSM != 0 {
-		result |= TechnologyGSM
-	}
-	if preference&qcom.NASModePreferenceUMTS != 0 {
-		result |= TechnologyUMTS
-	}
-	if preference&qcom.NASModePreferenceLTE != 0 {
-		result |= TechnologyLTE
-	}
-	if preference&qcom.NASModePreferenceNR5G != 0 {
-		result |= TechnologyNR5GNSA | TechnologyNR5GSA
-	}
-	return result
+func powerStateFromInfo(info qcom.DMSGetOperatingModeResponse) PowerState {
+	return effectivePowerState(info.Mode, info.HardwareRestrictedKnown && info.HardwareRestricted)
 }
 
-func modePreferenceFromTechnology(technology Technology) qcom.NASModePreference {
-	var result qcom.NASModePreference
-	if technology&TechnologyGSM != 0 {
-		result |= qcom.NASModePreferenceGSM
+func effectivePowerState(mode qcom.DMSOperatingMode, restricted bool) PowerState {
+	state := powerState(mode)
+	if !restricted || state == PowerStateOff {
+		return state
 	}
-	if technology&TechnologyUMTS != 0 {
-		result |= qcom.NASModePreferenceUMTS
-	}
-	if technology&(TechnologyLTE|TechnologyLTECatM|TechnologyLTENB) != 0 {
-		result |= qcom.NASModePreferenceLTE
-	}
-	if technology&(TechnologyNR5GNSA|TechnologyNR5GSA) != 0 {
-		result |= qcom.NASModePreferenceNR5G
-	}
-	return result
+	return PowerStateLow
 }
 
 func technologyFromNASRadios(radios []qcom.NASRadioInterface) Technology {
 	var result Technology
 	for _, radio := range radios {
-		switch radio {
-		case qcom.NASRadioInterfaceGSM:
-			result |= TechnologyGSM
-		case qcom.NASRadioInterfaceUMTS:
-			result |= TechnologyUMTS
-		case qcom.NASRadioInterfaceLTE:
-			result |= TechnologyLTE
-		case qcom.NASRadioInterfaceLTEM1:
-			result |= TechnologyLTECatM
-		case qcom.NASRadioInterfaceLTENB1:
-			result |= TechnologyLTENB
-		case qcom.NASRadioInterfaceNR5G:
-			result |= TechnologyNR5GNSA | TechnologyNR5GSA
-		}
+		result |= technologyFromNASRadio(radio)
 	}
 	return result
+}
+
+func technologyFromNASRadio(radio qcom.NASRadioInterface) Technology {
+	switch radio {
+	case qcom.NASRadioInterfaceGSM:
+		return TechnologyGSM
+	case qcom.NASRadioInterfaceUMTS:
+		return TechnologyUMTS
+	case qcom.NASRadioInterfaceLTE:
+		return TechnologyLTE
+	case qcom.NASRadioInterfaceLTEM1:
+		return TechnologyLTECatM
+	case qcom.NASRadioInterfaceLTENB1:
+		return TechnologyLTENB
+	case qcom.NASRadioInterfaceNR5G:
+		return TechnologyNR5GNSA | TechnologyNR5GSA
+	default:
+		return 0
+	}
 }
 
 func simStateFromCardStatus(status qcom.CardStatus) SIMState {

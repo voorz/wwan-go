@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/damonto/wwan-go/modem/contract"
+	"github.com/damonto/wwan-go/qcom"
 )
 
 const (
@@ -12,6 +13,17 @@ const (
 	watchResyncInterval       = time.Minute
 	defaultSIMEnrichmentDelay = 2 * time.Second
 )
+
+type statusIndications struct {
+	power   <-chan qcom.DMSEvent
+	card    <-chan qcom.CardStatus
+	network <-chan qcom.NASServingSystem
+	signal  <-chan qcom.NASSignalInfo
+}
+
+func (i statusIndications) empty() bool {
+	return i.power == nil && i.card == nil && i.network == nil && i.signal == nil
+}
 
 func pollStream[T any](ctx context.Context, query func(context.Context) (T, error)) <-chan Result[T] {
 	return contract.PollStream(ctx, watchPollInterval, query)
@@ -40,11 +52,12 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 	watchCtx, cancel := context.WithCancel(ctx)
 	// QMI services vary by firmware; keep every supported indication and let
 	// the periodic resync cover fields whose subscription is unavailable.
-	powerEvents, _ := b.client.DMSWatchEvents(watchCtx)
-	cardEvents, _ := b.client.WatchCardStatus(watchCtx)
-	networkEvents, _ := b.client.NASWatchServingSystem(watchCtx)
-	signalEvents, _ := b.client.NASWatchSignalInfo(watchCtx)
-	if powerEvents == nil && cardEvents == nil && networkEvents == nil && signalEvents == nil {
+	indications := statusIndications{}
+	indications.power, _ = b.client.DMSWatchEvents(watchCtx)
+	indications.card, _ = b.client.WatchCardStatus(watchCtx)
+	indications.network, _ = b.client.NASWatchServingSystem(watchCtx)
+	indications.signal, _ = b.client.NASWatchSignalInfo(watchCtx)
+	if indications.empty() {
 		cancel()
 		return pollStream(ctx, b.Status), nil
 	}
@@ -53,6 +66,7 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 	go func() {
 		defer close(out)
 		defer cancel()
+		var powerPolls <-chan Result[PowerState]
 
 		current, err := b.Status(watchCtx)
 		if watchCtx.Err() != nil {
@@ -61,49 +75,101 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 		if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current, Err: err}) || err != nil {
 			return
 		}
-
+		if indications.power == nil {
+			powerPolls = pollStream(watchCtx, b.PowerState)
+		}
 		resync := time.NewTimer(watchResyncInterval)
 		defer resync.Stop()
+		sendPowerState := func(state PowerState) bool {
+			refresh := powerTransitionNeedsStatusRefresh(current.Power, state)
+			applyPowerState(&current, state)
+			if !refresh {
+				return contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current})
+			}
+
+			value, readErr := b.Status(watchCtx)
+			if watchCtx.Err() != nil {
+				return false
+			}
+			current = value
+			resync.Reset(watchResyncInterval)
+			return contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current, Err: readErr}) && readErr == nil
+		}
 		for {
 			select {
 			case <-watchCtx.Done():
 				return
-			case event, ok := <-powerEvents:
+			case event, ok := <-indications.power:
 				if !ok {
-					powerEvents = nil
+					indications.power = nil
+					if !indications.empty() {
+						powerPolls = pollStream(watchCtx, b.PowerState)
+					}
 					break
 				}
-				if !event.OperatingModeKnown {
-					continue
+				state, ok := powerStateFromEvent(event)
+				if !ok {
+					if !event.WirelessDisabledKnown && !event.OperatingModeKnown {
+						continue
+					}
+					var readErr error
+					state, readErr = b.PowerState(watchCtx)
+					if watchCtx.Err() != nil {
+						return
+					}
+					if readErr != nil {
+						if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current, Err: readErr}) {
+							return
+						}
+						return
+					}
 				}
-				current.Power = powerState(event.OperatingMode)
-				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
+				if !sendPowerState(state) {
 					return
 				}
-			case status, ok := <-cardEvents:
+			case result, ok := <-powerPolls:
 				if !ok {
-					cardEvents = nil
+					powerPolls = nil
+					break
+				}
+				if result.Err != nil {
+					if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current, Err: result.Err}) {
+						return
+					}
+					return
+				}
+				if current.Power == result.Value {
+					continue
+				}
+				if !sendPowerState(result.Value) {
+					return
+				}
+			case status, ok := <-indications.card:
+				if !ok {
+					indications.card = nil
 					break
 				}
 				current.SIM = simStateFromCardStatus(status)
 				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
 					return
 				}
-			case serving, ok := <-networkEvents:
+			case serving, ok := <-indications.network:
 				if !ok {
-					networkEvents = nil
+					indications.network = nil
 					break
 				}
 				applyNetworkStatus(&current, networkStatusFromServing(serving))
+				normalizeRadioStatus(&current)
 				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
 					return
 				}
-			case info, ok := <-signalEvents:
+			case info, ok := <-indications.signal:
 				if !ok {
-					signalEvents = nil
+					indications.signal = nil
 					break
 				}
 				current.SignalQuality = signalFromInfo(info).Quality
+				normalizeRadioStatus(&current)
 				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
 					return
 				}
@@ -119,7 +185,7 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 				resync.Reset(watchResyncInterval)
 			}
 
-			if powerEvents == nil && cardEvents == nil && networkEvents == nil && signalEvents == nil {
+			if indications.empty() {
 				cancel()
 				forwardPollStream(ctx, out, b.Status)
 				return
@@ -347,4 +413,42 @@ func applyNetworkStatus(status *Status, network NetworkStatus) {
 	status.Technology = network.Technology
 	status.OperatorID = network.OperatorID
 	status.OperatorName = network.OperatorName
+}
+
+func powerStateFromEvent(event qcom.DMSEvent) (PowerState, bool) {
+	if event.WirelessDisabledKnown && event.WirelessDisabled {
+		if !event.OperatingModeKnown {
+			return PowerStateLow, true
+		}
+		return effectivePowerState(event.OperatingMode, true), true
+	}
+	if event.OperatingModeKnown {
+		state := powerState(event.OperatingMode)
+		if state == PowerStateUnknown {
+			return PowerStateUnknown, false
+		}
+		return state, true
+	}
+	return PowerStateUnknown, false
+}
+
+func powerTransitionNeedsStatusRefresh(current, next PowerState) bool {
+	return current != PowerStateOn && next == PowerStateOn
+}
+
+func applyPowerState(status *Status, state PowerState) {
+	status.Power = state
+	normalizeRadioStatus(status)
+}
+
+func normalizeRadioStatus(status *Status) {
+	if status.Power == PowerStateOn {
+		return
+	}
+	status.Registration = RegistrationIdle
+	status.PacketService = PacketServiceDetached
+	status.Technology = 0
+	status.OperatorID = ""
+	status.OperatorName = ""
+	status.SignalQuality = 0
 }

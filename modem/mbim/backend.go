@@ -173,35 +173,6 @@ func (b *Backend) Reset(ctx context.Context) error {
 	return nil
 }
 
-func (b *Backend) Modes(ctx context.Context) ([]Mode, Mode, error) {
-	caps, err := b.Capabilities(ctx)
-	if err != nil {
-		return nil, Mode{}, err
-	}
-	registration, err := b.client.RegistrationState(ctx)
-	if err != nil {
-		return nil, Mode{}, fmt.Errorf("reading MBIM mode preference: %w", err)
-	}
-	current := Mode{Allowed: technologyFromDataClass(registration.PreferredDataClasses)}
-	if current.Allowed == 0 {
-		current.Allowed = caps.CurrentTechnologies
-	}
-	return []Mode{{Allowed: caps.SupportedTechnologies}}, current, nil
-}
-
-func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
-	if mode.Allowed == 0 || mode.Allowed&^TechnologyAny != 0 {
-		return fmt.Errorf("setting MBIM modes: allowed technologies %#x are invalid", mode.Allowed)
-	}
-	if mode.Preferred&^mode.Allowed != 0 {
-		return errors.New("setting MBIM modes: preferred technologies are not a subset of allowed technologies")
-	}
-	if _, err := b.client.SetRegistrationState(ctx, "", mbimproto.RegisterActionAutomatic, dataClass(mode.Allowed)); err != nil {
-		return fmt.Errorf("setting MBIM modes: %w", err)
-	}
-	return nil
-}
-
 func (b *Backend) SetCapabilities(context.Context, Technology) error {
 	return fmt.Errorf("setting MBIM capabilities: %w", ErrNotSupported)
 }

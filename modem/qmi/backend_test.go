@@ -18,16 +18,19 @@ import (
 
 func TestErrorClassification(t *testing.T) {
 	tests := []struct {
-		name               string
-		err                error
-		wantUnsupported    bool
-		wantSARUnsupported bool
-		wantNoSignal       bool
+		name                 string
+		err                  error
+		wantUnsupported      bool
+		wantSARUnsupported   bool
+		wantRadioUnavailable bool
 	}{
 		{name: "not supported", err: fmt.Errorf("query: %w", qcom.QMIErrorNotSupported), wantUnsupported: true, wantSARUnsupported: true},
 		{name: "invalid command", err: qcom.QMIErrorInvalidQmiCommand, wantUnsupported: true, wantSARUnsupported: true},
 		{name: "SAR no memory", err: qcom.QMIErrorNoMemory, wantSARUnsupported: true},
-		{name: "signal unavailable", err: qcom.QMIErrorInformationUnavailable, wantNoSignal: true},
+		{name: "information unavailable", err: qcom.QMIErrorInformationUnavailable, wantRadioUnavailable: true},
+		{name: "no radio", err: qcom.QMIErrorNoRadio, wantRadioUnavailable: true},
+		{name: "no network", err: qcom.QMIErrorNoNetworkFound, wantRadioUnavailable: true},
+		{name: "hardware restricted", err: qcom.QMIErrorHardwareRestricted, wantRadioUnavailable: true},
 		{name: "transport", err: context.DeadlineExceeded},
 	}
 	for _, test := range tests {
@@ -38,8 +41,8 @@ func TestErrorClassification(t *testing.T) {
 			if got := isSARUnsupported(test.err); got != test.wantSARUnsupported {
 				t.Errorf("isSARUnsupported() = %t, want %t", got, test.wantSARUnsupported)
 			}
-			if got := isSignalUnavailable(test.err); got != test.wantNoSignal {
-				t.Errorf("isSignalUnavailable() = %t, want %t", got, test.wantNoSignal)
+			if got := isRadioUnavailable(test.err); got != test.wantRadioUnavailable {
+				t.Errorf("isRadioUnavailable() = %t, want %t", got, test.wantRadioUnavailable)
 			}
 		})
 	}
@@ -64,6 +67,215 @@ func TestPowerState(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := powerState(tt.mode); got != tt.want {
 				t.Errorf("powerState(%d) = %d, want %d", tt.mode, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPowerStateFromInfo(t *testing.T) {
+	tests := []struct {
+		name string
+		info qcom.DMSGetOperatingModeResponse
+		want PowerState
+	}{
+		{
+			name: "online",
+			info: qcom.DMSGetOperatingModeResponse{Mode: qcom.DMSOperatingModeOnline},
+			want: PowerStateOn,
+		},
+		{
+			name: "hardware restriction overrides online",
+			info: qcom.DMSGetOperatingModeResponse{
+				Mode:                    qcom.DMSOperatingModeOnline,
+				HardwareRestricted:      true,
+				HardwareRestrictedKnown: true,
+			},
+			want: PowerStateLow,
+		},
+		{
+			name: "hardware restriction preserves offline",
+			info: qcom.DMSGetOperatingModeResponse{
+				Mode:                    qcom.DMSOperatingModeOffline,
+				HardwareRestricted:      true,
+				HardwareRestrictedKnown: true,
+			},
+			want: PowerStateOff,
+		},
+		{
+			name: "hardware restriction resolves unknown mode as radio off",
+			info: qcom.DMSGetOperatingModeResponse{
+				Mode:                    qcom.DMSOperatingModeResetting,
+				HardwareRestricted:      true,
+				HardwareRestrictedKnown: true,
+			},
+			want: PowerStateLow,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := powerStateFromInfo(tt.info); got != tt.want {
+				t.Errorf("powerStateFromInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPowerStateFromEvent(t *testing.T) {
+	tests := []struct {
+		name  string
+		event qcom.DMSEvent
+		want  PowerState
+		ok    bool
+	}{
+		{
+			name:  "operating mode",
+			event: qcom.DMSEvent{OperatingMode: qcom.DMSOperatingModeLowPower, OperatingModeKnown: true},
+			want:  PowerStateLow,
+			ok:    true,
+		},
+		{
+			name:  "wireless disabled",
+			event: qcom.DMSEvent{WirelessDisabled: true, WirelessDisabledKnown: true},
+			want:  PowerStateLow,
+			ok:    true,
+		},
+		{
+			name: "wireless disabled overrides online mode",
+			event: qcom.DMSEvent{
+				OperatingMode:         qcom.DMSOperatingModeOnline,
+				OperatingModeKnown:    true,
+				WirelessDisabled:      true,
+				WirelessDisabledKnown: true,
+			},
+			want: PowerStateLow,
+			ok:   true,
+		},
+		{
+			name: "offline mode is preserved when wireless is disabled",
+			event: qcom.DMSEvent{
+				OperatingMode:         qcom.DMSOperatingModeOffline,
+				OperatingModeKnown:    true,
+				WirelessDisabled:      true,
+				WirelessDisabledKnown: true,
+			},
+			want: PowerStateOff,
+			ok:   true,
+		},
+		{
+			name:  "wireless enabled requires operating mode query",
+			event: qcom.DMSEvent{WirelessDisabledKnown: true},
+		},
+		{
+			name: "unknown operating mode requires a query",
+			event: qcom.DMSEvent{
+				OperatingMode:      qcom.DMSOperatingModeFactoryTest,
+				OperatingModeKnown: true,
+			},
+		},
+		{name: "unrelated event", want: PowerStateUnknown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := powerStateFromEvent(tt.event)
+			if got != tt.want || ok != tt.ok {
+				t.Errorf("powerStateFromEvent() = %v, %t, want %v, %t", got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+func TestPowerTransitionNeedsStatusRefresh(t *testing.T) {
+	tests := []struct {
+		name    string
+		current PowerState
+		next    PowerState
+		want    bool
+	}{
+		{name: "low to on", current: PowerStateLow, next: PowerStateOn, want: true},
+		{name: "off to on", current: PowerStateOff, next: PowerStateOn, want: true},
+		{name: "unknown to on", current: PowerStateUnknown, next: PowerStateOn, want: true},
+		{name: "on remains on", current: PowerStateOn, next: PowerStateOn},
+		{name: "on to low", current: PowerStateOn, next: PowerStateLow},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := powerTransitionNeedsStatusRefresh(tt.current, tt.next); got != tt.want {
+				t.Errorf("powerTransitionNeedsStatusRefresh() = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStatusIndicationsEmpty(t *testing.T) {
+	tests := []struct {
+		name        string
+		indications statusIndications
+		want        bool
+	}{
+		{name: "all unavailable", want: true},
+		{name: "power available", indications: statusIndications{power: make(chan qcom.DMSEvent)}},
+		{name: "card available", indications: statusIndications{card: make(chan qcom.CardStatus)}},
+		{name: "network available", indications: statusIndications{network: make(chan qcom.NASServingSystem)}},
+		{name: "signal available", indications: statusIndications{signal: make(chan qcom.NASSignalInfo)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.indications.empty(); got != tt.want {
+				t.Errorf("statusIndications.empty() = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplyPowerState(t *testing.T) {
+	registered := Status{
+		Power:         PowerStateOn,
+		Registration:  RegistrationRoaming,
+		PacketService: PacketServiceAttached,
+		Technology:    TechnologyLTE,
+		OperatorID:    "46001",
+		OperatorName:  "UNICOM",
+		SignalQuality: 80,
+	}
+	tests := []struct {
+		name  string
+		state PowerState
+		want  Status
+	}{
+		{name: "online preserves radio status", state: PowerStateOn, want: registered},
+		{
+			name:  "low power clears radio status",
+			state: PowerStateLow,
+			want: Status{
+				Power:         PowerStateLow,
+				Registration:  RegistrationIdle,
+				PacketService: PacketServiceDetached,
+			},
+		},
+		{
+			name:  "offline clears radio status",
+			state: PowerStateOff,
+			want: Status{
+				Power:         PowerStateOff,
+				Registration:  RegistrationIdle,
+				PacketService: PacketServiceDetached,
+			},
+		},
+		{
+			name:  "unknown clears radio status",
+			state: PowerStateUnknown,
+			want: Status{
+				Registration:  RegistrationIdle,
+				PacketService: PacketServiceDetached,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := registered
+			applyPowerState(&got, tt.state)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("applyPowerState() status = %+v, want %+v", got, tt.want)
 			}
 		})
 	}

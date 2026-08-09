@@ -44,13 +44,16 @@ type lifecycleSession struct {
 
 type connectBackend struct {
 	unsupportedBackend
-	sim          SIMState
-	power        PowerState
-	network      NetworkStatus
-	steps        []string
-	session      *lifecycleSession
-	setCaps      Technology
-	statusStream chan Result[Status]
+	sim            SIMState
+	power          PowerState
+	powerAfterSet  *PowerState
+	holdPower      bool
+	cancelAfterSet context.CancelFunc
+	network        NetworkStatus
+	steps          []string
+	session        *lifecycleSession
+	setCaps        Technology
+	statusStream   chan Result[Status]
 }
 
 func (b *connectBackend) SIMInfo(context.Context) (SIMInfo, error) {
@@ -69,9 +72,20 @@ func (b *connectBackend) PowerState(context.Context) (PowerState, error) {
 	return b.power, nil
 }
 
-func (b *connectBackend) SetPowerState(_ context.Context, state PowerState) error {
+func (b *connectBackend) SetPowerState(ctx context.Context, state PowerState) error {
 	b.steps = append(b.steps, "set-power")
-	b.power = state
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !b.holdPower {
+		b.power = state
+		if b.powerAfterSet != nil {
+			b.power = *b.powerAfterSet
+		}
+	}
+	if b.cancelAfterSet != nil {
+		b.cancelAfterSet()
+	}
 	return nil
 }
 
@@ -175,6 +189,76 @@ func TestModemPowerState(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("PowerState() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestModemSetPowerState(t *testing.T) {
+	tests := []struct {
+		name           string
+		portType       PortType
+		initial        PowerState
+		target         PowerState
+		powerAfterSet  *PowerState
+		holdPower      bool
+		cancelAfterSet bool
+		wantPower      PowerState
+		wantErr        error
+		wantSteps      []string
+	}{
+		{
+			name:      "waits for observed QMI state",
+			portType:  PortQMI,
+			initial:   PowerStateOn,
+			target:    PowerStateLow,
+			wantPower: PowerStateLow,
+			wantSteps: []string{"set-power", "read-power"},
+		},
+		{
+			name:          "accepts MBIM low state for off request",
+			portType:      PortMBIM,
+			initial:       PowerStateOn,
+			target:        PowerStateOff,
+			powerAfterSet: ptr(PowerStateLow),
+			wantPower:     PowerStateLow,
+			wantSteps:     []string{"set-power", "read-power"},
+		},
+		{
+			name:           "honors canceled context",
+			portType:       PortQMI,
+			initial:        PowerStateOn,
+			target:         PowerStateLow,
+			holdPower:      true,
+			cancelAfterSet: true,
+			wantPower:      PowerStateOn,
+			wantErr:        context.Canceled,
+			wantSteps:      []string{"set-power"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := &connectBackend{
+				power:         tt.initial,
+				powerAfterSet: tt.powerAfterSet,
+				holdPower:     tt.holdPower,
+			}
+			modem := newModem(Port{Type: tt.portType, Path: "/dev/test"}, AccessDirect, backend)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tt.cancelAfterSet {
+				backend.cancelAfterSet = cancel
+			}
+
+			err := modem.SetPowerState(ctx, tt.target)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("SetPowerState() error = %v, want %v", err, tt.wantErr)
+			}
+			if backend.power != tt.wantPower {
+				t.Errorf("backend power = %v, want %v", backend.power, tt.wantPower)
+			}
+			if !slices.Equal(backend.steps, tt.wantSteps) {
+				t.Errorf("backend steps = %v, want %v", backend.steps, tt.wantSteps)
 			}
 		})
 	}

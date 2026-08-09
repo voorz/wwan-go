@@ -2,6 +2,7 @@ package qmi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -12,6 +13,8 @@ type legacyBand struct {
 	mask uint64
 	band Band
 }
+
+var errBandPreferenceUnavailable = errors.New("current band preference is unavailable")
 
 var legacyBands = []legacyBand{
 	{mask: 1 << 7, band: Band{Technology: TechnologyGSM, Number: 1800}},
@@ -69,49 +72,87 @@ func (b *Backend) Bands(ctx context.Context) ([]Band, error) {
 	} else if pref.LTEBandPreferenceKnown {
 		bands = append(bands, bandsFromWords(TechnologyLTE, []uint64{uint64(pref.LTEBandPreference)})...)
 	}
-	nr := pref.NR5GBands
-	known := pref.NR5GBandsKnown
-	if !known && pref.NR5GSABandsKnown {
-		nr = pref.NR5GSABands
-		known = true
-	}
-	if !known && pref.NR5GNSABandsKnown {
-		nr = pref.NR5GNSABands
-		known = true
-	}
-	if known {
+	// The split SA/NSA TLVs supersede the deprecated combined TLV. Union all
+	// split values the modem reports so the UI reflects the complete preference.
+	if pref.NR5GSABandsKnown || pref.NR5GNSABandsKnown {
+		var nr qcom.NASNR5GBandPreference
+		words := nrWordsMutable(&nr)
+		if pref.NR5GSABandsKnown {
+			for i, word := range nrWords(pref.NR5GSABands) {
+				*words[i] |= word
+			}
+		}
+		if pref.NR5GNSABandsKnown {
+			for i, word := range nrWords(pref.NR5GNSABands) {
+				*words[i] |= word
+			}
+		}
 		bands = append(bands, bandsFromWords(TechnologyNR5GNSA|TechnologyNR5GSA, nrWords(nr))...)
+	} else if pref.NR5GBandsKnown {
+		bands = append(bands, bandsFromWords(TechnologyNR5GNSA|TechnologyNR5GSA, nrWords(pref.NR5GBands))...)
 	}
-	return normalizeBands(bands), nil
+	bands = normalizeBands(bands)
+	if len(bands) == 0 {
+		return nil, fmt.Errorf("reading QMI selected bands: %w", errBandPreferenceUnavailable)
+	}
+	return bands, nil
 }
 
 func (b *Backend) SetBands(ctx context.Context, bands []Band) error {
 	if len(bands) == 0 {
-		var err error
-		bands, err = b.SupportedBands(ctx)
-		if err != nil {
-			return err
-		}
+		return errors.New("setting QMI bands: bands are required")
 	}
 	legacy, lte, nr, err := bandMasks(bands)
 	if err != nil {
 		return err
 	}
-	lteLegacy := qcom.NASLTEBandPreference(lte.Bits1To64)
-	duration := qcom.NASChangePermanent
-	config := qcom.NASSystemSelectionConfig{
-		BandPreference:    (*qcom.NASBandPreference)(&legacy),
-		LTEBandPreference: &lteLegacy,
-		LTEBandsExtended:  &lte,
-		NR5GBands:         &nr,
-		NR5GSABands:       &nr,
-		NR5GNSABands:      &nr,
-		ChangeDuration:    &duration,
+	preference, err := b.client.SystemSelectionPreference(ctx)
+	if err != nil {
+		return fmt.Errorf("setting QMI bands: reading current preference: %w", err)
+	}
+	config, err := bandSelectionConfig(preference, legacy, lte, nr)
+	if err != nil {
+		return err
 	}
 	if err := b.client.SetSystemSelectionPreference(ctx, config); err != nil {
 		return fmt.Errorf("setting QMI bands: %w", err)
 	}
 	return nil
+}
+
+func bandSelectionConfig(
+	preference qcom.NASSystemSelectionPreference,
+	legacy qcom.NASBandPreference,
+	lte qcom.NASLTEBandPreferenceExtended,
+	nr qcom.NASNR5GBandPreference,
+) (qcom.NASSystemSelectionConfig, error) {
+	duration := qcom.NASChangePermanent
+	config := qcom.NASSystemSelectionConfig{
+		BandPreference: (*qcom.NASBandPreference)(&legacy),
+		ChangeDuration: &duration,
+	}
+
+	if preference.LTEBandsExtendedKnown {
+		config.LTEBandsExtended = &lte
+	} else if preference.LTEBandPreferenceKnown {
+		lteLegacy := qcom.NASLTEBandPreference(lte.Bits1To64)
+		config.LTEBandPreference = &lteLegacy
+	} else if bandsWordsSet(lteWords(lte)) {
+		return qcom.NASSystemSelectionConfig{}, errors.New("setting QMI bands: LTE band preference is unavailable")
+	}
+
+	// QMI marks the combined NR TLV deprecated. Only write split masks that the
+	// modem advertises, because LTE-only devices may reject unknown NR fields.
+	if preference.NR5GSABandsKnown {
+		config.NR5GSABands = &nr
+	}
+	if preference.NR5GNSABandsKnown {
+		config.NR5GNSABands = &nr
+	}
+	if bandsWordsSet(nrWords(nr)) && config.NR5GSABands == nil && config.NR5GNSABands == nil {
+		return qcom.NASSystemSelectionConfig{}, errors.New("setting QMI bands: split NR5G band preference is unavailable")
+	}
+	return config, nil
 }
 
 func bandMasks(bands []Band) (qcom.NASBandPreference, qcom.NASLTEBandPreferenceExtended, qcom.NASNR5GBandPreference, error) {
@@ -170,6 +211,10 @@ func bandsFromWords(technology Technology, words []uint64) []Band {
 		}
 	}
 	return bands
+}
+
+func bandsWordsSet(words []uint64) bool {
+	return slices.ContainsFunc(words, func(word uint64) bool { return word != 0 })
 }
 
 func normalizeBands(bands []Band) []Band {
