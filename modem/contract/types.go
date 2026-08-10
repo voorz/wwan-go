@@ -385,6 +385,7 @@ type SIMSlot struct {
 	State  SIMState
 	ICCID  string
 	EID    string
+	ATR    []byte
 }
 
 type PreferredNetwork struct {

@@ -478,6 +478,115 @@ func (*simIdentityTransport) ClientID(context.Context, qcom.ServiceType) (uint8,
 
 func (*simIdentityTransport) Close() error { return nil }
 
+type simATRTransport struct {
+	requests []qcom.Request
+	appState qcom.ApplicationState
+	atr      []byte
+	atrErr   error
+}
+
+func (t *simATRTransport) Do(_ context.Context, req qcom.Request) (qcom.Response, error) {
+	t.requests = append(t.requests, req)
+	switch {
+	case req.Service == qcom.ServiceUIM && req.MessageID == qcom.MessageGetCardStatus:
+		status := make([]byte, 8)
+		status = append(status, 1)
+		status = append(status, byte(qcom.CardStatePresent), 0, 0, 0, 0, 1)
+		status = append(status, byte(qcom.ApplicationTypeUSIM), byte(t.appState))
+		status = append(status, make([]byte, 12)...)
+		return qcom.Response{
+			Service: req.Service, ClientID: req.ClientID, TransactionID: req.TransactionID, MessageID: req.MessageID,
+			TLVs: tlv.TLVs{
+				tlv.Bytes(0x02, []byte{0, 0, 0, 0}),
+				tlv.Bytes(0x10, status),
+			},
+		}, nil
+	case req.Service == qcom.ServiceUIM && req.MessageID == qcom.MessageGetATR:
+		if t.atrErr != nil {
+			return qcom.Response{}, t.atrErr
+		}
+		value := append([]byte{byte(len(t.atr))}, t.atr...)
+		return qcom.Response{
+			Service: req.Service, ClientID: req.ClientID, TransactionID: req.TransactionID, MessageID: req.MessageID,
+			TLVs: tlv.TLVs{
+				tlv.Bytes(0x02, []byte{0, 0, 0, 0}),
+				tlv.Bytes(0x10, value),
+			},
+		}, nil
+	default:
+		return qcom.Response{}, errors.New("subscriber identity unavailable")
+	}
+}
+
+func (*simATRTransport) ClientID(context.Context, qcom.ServiceType) (uint8, error) {
+	return 7, nil
+}
+
+func (*simATRTransport) Close() error { return nil }
+
+func TestSIMInfoReadsIndependentATR(t *testing.T) {
+	errATR := errors.New("ATR unavailable")
+	tests := []struct {
+		name      string
+		appState  qcom.ApplicationState
+		atr       []byte
+		atrErr    error
+		wantState SIMState
+		wantATR   []byte
+	}{
+		{
+			name:      "locked SIM",
+			appState:  qcom.ApplicationStatePIN1OrUPINRequired,
+			atr:       []byte{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC},
+			wantState: SIMStateLocked,
+			wantATR:   []byte{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC},
+		},
+		{
+			name:      "ready SIM",
+			appState:  qcom.ApplicationStateReady,
+			atr:       []byte{0x3B, 0x00},
+			wantState: SIMStateReady,
+			wantATR:   []byte{0x3B, 0x00},
+		},
+		{
+			name:      "ATR unavailable",
+			appState:  qcom.ApplicationStatePIN1OrUPINRequired,
+			atrErr:    errATR,
+			wantState: SIMStateLocked,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			transport := &simATRTransport{appState: tt.appState, atr: tt.atr, atrErr: tt.atrErr}
+			client, err := qcom.NewClient(transport)
+			if err != nil {
+				t.Fatalf("NewClient() error = %v", err)
+			}
+			backend := New(client, "/dev/test")
+
+			got, err := backend.SIMInfo(t.Context())
+			if err != nil {
+				t.Fatalf("SIMInfo() error = %v", err)
+			}
+			if got.State != tt.wantState {
+				t.Fatalf("SIM state = %d, want %d", got.State, tt.wantState)
+			}
+			if !bytes.Equal(got.ATR, tt.wantATR) {
+				t.Fatalf("ATR = % X, want % X", got.ATR, tt.wantATR)
+			}
+			atrCalls := 0
+			for _, req := range transport.requests {
+				if req.Service == qcom.ServiceUIM && req.MessageID == qcom.MessageGetATR {
+					atrCalls++
+				}
+			}
+			if atrCalls != 1 {
+				t.Fatalf("ATR request count = %d, want 1", atrCalls)
+			}
+		})
+	}
+}
+
 func TestSIMInfoFromCardStatus(t *testing.T) {
 	rawICCID := []byte{0x98, 0x68, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0}
 	tests := []struct {
@@ -505,11 +614,11 @@ func TestSIMInfoFromCardStatus(t *testing.T) {
 			metadataID: "8986000000000000000",
 			metadata: SIMInfo{
 				ICCID: "8986000000000000000", IMSI: "310260000000000",
-				OperatorID: "310260", OperatorName: "Example", GID1: "AB", SPN: "Example", ATR: []byte{0x3B, 0x00},
+				OperatorID: "310260", OperatorName: "Example", GID1: "AB", SPN: "Example",
 			},
 			want: SIMInfo{
 				State: SIMStateReady, Slot: 1, ICCID: "8986000000000000000", IMSI: "310260000000000",
-				OperatorID: "310260", OperatorName: "Example", GID1: "AB", SPN: "Example", ATR: []byte{0x3B, 0x00},
+				OperatorID: "310260", OperatorName: "Example", GID1: "AB", SPN: "Example",
 				PINRetries: 3, PUKRetries: 10,
 			},
 			wantRead: true,
@@ -566,6 +675,51 @@ func TestMetadataLoadLockHonorsContext(t *testing.T) {
 		t.Fatalf("lockMetadata() after release error = %v", err)
 	}
 	backend.unlockMetadata()
+}
+
+func TestSIMSlotsFromStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		status qcom.SlotStatus
+		want   []SIMSlot
+	}{
+		{
+			name: "preserves ATR without trusting modem classification",
+			status: qcom.SlotStatus{Slots: []qcom.Slot{{
+				PhysicalCardStatus: qcom.PhysicalCardStatePresent,
+				PhysicalSlotStatus: qcom.SlotStateActive,
+				ATR:                []byte{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC},
+				IsEUICC:            true,
+			}}},
+			want: []SIMSlot{{
+				Index:  1,
+				Active: true,
+				State:  SIMStateReady,
+				ATR:    []byte{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC},
+			}},
+		},
+		{
+			name:   "empty status",
+			status: qcom.SlotStatus{},
+			want:   []SIMSlot{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := simSlotsFromStatus(tt.status)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("simSlotsFromStatus() = %+v, want %+v", got, tt.want)
+			}
+			if len(got) == 0 || len(got[0].ATR) == 0 {
+				return
+			}
+			original := tt.status.Slots[0].ATR[0]
+			got[0].ATR[0] = 0
+			if tt.status.Slots[0].ATR[0] != original {
+				t.Fatal("simSlotsFromStatus() returned an aliased ATR")
+			}
+		})
+	}
 }
 
 func TestNetworkConfig(t *testing.T) {

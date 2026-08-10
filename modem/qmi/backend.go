@@ -263,6 +263,9 @@ func (b *Backend) SIMInfo(ctx context.Context) (SIMInfo, error) {
 	}
 	enrichmentCtx, cancel := context.WithTimeout(ctx, qmiSIMEnrichmentTimeout)
 	defer cancel()
+	if value, readErr := b.client.ATR(enrichmentCtx); readErr == nil {
+		result.ATR = slices.Clone(value)
+	}
 	if result.ICCID == "" {
 		if value, readErr := b.client.ICCID(enrichmentCtx); readErr == nil {
 			result.ICCID = value
@@ -358,6 +361,10 @@ func (b *Backend) SIMSlots(ctx context.Context) ([]SIMSlot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading QMI SIM slots: %w", err)
 	}
+	return simSlotsFromStatus(status), nil
+}
+
+func simSlotsFromStatus(status qcom.SlotStatus) []SIMSlot {
 	slots := make([]SIMSlot, len(status.Slots))
 	for i, slot := range status.Slots {
 		slots[i] = SIMSlot{
@@ -365,9 +372,10 @@ func (b *Backend) SIMSlots(ctx context.Context) ([]SIMSlot, error) {
 			Active: slot.PhysicalSlotStatus == qcom.SlotStateActive,
 			State:  simStateFromPhysicalCardState(slot.PhysicalCardStatus),
 			ICCID:  decodeSlotICCID(slot.ICCID),
+			ATR:    slices.Clone(slot.ATR),
 		}
 	}
-	return slots, nil
+	return slots
 }
 
 type nonClosingSIMReader struct{ simcard.Reader }
@@ -387,9 +395,6 @@ func (b *Backend) simMetadata(ctx context.Context, iccid string) SIMInfo {
 	}
 
 	metadata := SIMInfo{}
-	if atr, err := b.client.ATR(ctx); err == nil {
-		metadata.ATR = atr
-	}
 	reader, err := wwansim.NewQCOM(b.client)
 	if err == nil {
 		card, cardErr := wwansim.New(ctx, nonClosingSIMReader{Reader: reader}, nil)
@@ -448,7 +453,6 @@ func applySIMMetadata(result *SIMInfo, metadata SIMInfo) {
 	result.OperatorName = metadata.OperatorName
 	result.GID1 = metadata.GID1
 	result.SPN = metadata.SPN
-	result.ATR = slices.Clone(metadata.ATR)
 }
 
 func mergeSIMIdentity(result *SIMInfo, metadata SIMInfo) {

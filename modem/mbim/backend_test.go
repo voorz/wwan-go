@@ -61,10 +61,10 @@ func TestPopulateActiveSIMSlot(t *testing.T) {
 		want  []SIMSlot
 	}{
 		{
-			name:  "copies identity only to active slot",
+			name:  "copies identity and ATR only to active slot",
 			slots: []SIMSlot{{Index: 1}, {Index: 2, Active: true}},
-			sim:   SIMInfo{ICCID: "8986001234567890123", EID: "89049032000000000000000000000001"},
-			want:  []SIMSlot{{Index: 1}, {Index: 2, Active: true, ICCID: "8986001234567890123", EID: "89049032000000000000000000000001"}},
+			sim:   SIMInfo{ICCID: "8986001234567890123", EID: "89049032000000000000000000000001", ATR: []byte{0x3B, 0x00}},
+			want:  []SIMSlot{{Index: 1}, {Index: 2, Active: true, ICCID: "8986001234567890123", EID: "89049032000000000000000000000001", ATR: []byte{0x3B, 0x00}}},
 		},
 		{
 			name:  "does not guess when mapping has no active slot",
@@ -78,6 +78,18 @@ func TestPopulateActiveSIMSlot(t *testing.T) {
 			populateActiveSIMSlot(tt.slots, tt.sim)
 			if !reflect.DeepEqual(tt.slots, tt.want) {
 				t.Errorf("SIM slots = %+v, want %+v", tt.slots, tt.want)
+			}
+			if len(tt.sim.ATR) == 0 {
+				return
+			}
+			for i := range tt.slots {
+				if !tt.slots[i].Active {
+					continue
+				}
+				tt.slots[i].ATR[0] = 0
+				if tt.sim.ATR[0] == 0 {
+					t.Fatal("populateActiveSIMSlot() returned an aliased ATR")
+				}
 			}
 		})
 	}
@@ -240,6 +252,123 @@ func TestSIMInfoFromSubscriber(t *testing.T) {
 			got.OwnNumbers[0] = "changed"
 			if tt.ready.TelephoneNumbers[0] != "+123" {
 				t.Fatal("simInfoFromSubscriber() reused the response telephone number slice")
+			}
+		})
+	}
+}
+
+type fakeSIMATRReader struct {
+	responses []struct {
+		atr []byte
+		err error
+	}
+	calls int
+}
+
+func (r *fakeSIMATRReader) QueryUiccATR(context.Context) ([]byte, error) {
+	response := r.responses[r.calls]
+	r.calls++
+	return response.atr, response.err
+}
+
+func TestReadSIMATR(t *testing.T) {
+	errATR := errors.New("ATR unavailable")
+	tests := []struct {
+		name      string
+		state     mbimproto.SubscriberReadyState
+		responses []struct {
+			atr []byte
+			err error
+		}
+		want [][]byte
+	}{
+		{
+			name:  "not initialized SIM skips ATR",
+			state: mbimproto.SubscriberReadyStateNotInitialized,
+			want:  [][]byte{nil},
+		},
+		{
+			name:  "missing SIM skips ATR",
+			state: mbimproto.SubscriberReadyStateSIMNotInserted,
+			want:  [][]byte{nil},
+		},
+		{
+			name:  "bad SIM skips ATR",
+			state: mbimproto.SubscriberReadyStateBadSIM,
+			want:  [][]byte{nil},
+		},
+		{
+			name:  "failed SIM skips ATR",
+			state: mbimproto.SubscriberReadyStateFailure,
+			want:  [][]byte{nil},
+		},
+		{
+			name:  "locked SIM reads ATR",
+			state: mbimproto.SubscriberReadyStateDeviceLocked,
+			responses: []struct {
+				atr []byte
+				err error
+			}{{atr: []byte{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC}}},
+			want: [][]byte{{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC}},
+		},
+		{
+			name:  "ready SIM reads ATR",
+			state: mbimproto.SubscriberReadyStateInitialized,
+			responses: []struct {
+				atr []byte
+				err error
+			}{{atr: []byte{0x3B, 0x00}}},
+			want: [][]byte{{0x3B, 0x00}},
+		},
+		{
+			name:  "not activated SIM reads ATR",
+			state: mbimproto.SubscriberReadyStateNotActivated,
+			responses: []struct {
+				atr []byte
+				err error
+			}{{atr: []byte{0x3B, 0x80}}},
+			want: [][]byte{{0x3B, 0x80}},
+		},
+		{
+			name:  "profileless eSIM reads ATR",
+			state: mbimproto.SubscriberReadyStateNoESIMProfile,
+			responses: []struct {
+				atr []byte
+				err error
+			}{{atr: []byte{0x3B, 0x9F, 0x96, 0x80, 0x1F}}},
+			want: [][]byte{{0x3B, 0x9F, 0x96, 0x80, 0x1F}},
+		},
+		{
+			name:  "transient failure is retried",
+			state: mbimproto.SubscriberReadyStateDeviceLocked,
+			responses: []struct {
+				atr []byte
+				err error
+			}{
+				{err: errATR},
+				{atr: []byte{0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC}},
+			},
+			want: [][]byte{nil, {0x3B, 0x80, 0x81, 0x2F, 0x82, 0xAC}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := &fakeSIMATRReader{responses: tt.responses}
+			for i, want := range tt.want {
+				got := readSIMATR(t.Context(), tt.state, reader)
+				if !slices.Equal(got, want) {
+					t.Fatalf("readSIMATR() call %d = % X, want % X", i+1, got, want)
+				}
+				if len(got) > 0 {
+					got[0] = 0
+					if tt.responses[i].atr[0] == 0 {
+						t.Fatal("readSIMATR() returned an aliased ATR")
+					}
+				}
+			}
+			if reader.calls != len(tt.responses) {
+				t.Fatalf("QueryUiccATR() call count = %d, want %d", reader.calls, len(tt.responses))
 			}
 		})
 	}

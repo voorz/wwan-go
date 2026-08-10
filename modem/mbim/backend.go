@@ -23,7 +23,18 @@ type Backend struct {
 	notificationEntries []mbimproto.DeviceServiceSubscribeEntry
 	metadataMu          sync.Mutex
 	metadataKey         string
-	metadata            SIMInfo
+	metadata            simFileMetadata
+}
+
+type simFileMetadata struct {
+	OperatorID   string
+	OperatorName string
+	GID1         string
+	SPN          string
+}
+
+type simATRReader interface {
+	QueryUiccATR(context.Context) ([]byte, error)
 }
 
 func New(client *mbimproto.Client, device string) *Backend {
@@ -224,13 +235,35 @@ func (b *Backend) SIMInfo(ctx context.Context) (SIMInfo, error) {
 			result.State = SIMStateLocked
 		}
 	}
+	result.ATR = readSIMATR(ctx, ready.ReadyState, b.client)
+	if result.State == SIMStateAbsent {
+		return result, nil
+	}
+	if result.State != SIMStateReady || result.ICCID == "" {
+		return result, nil
+	}
 	metadata := b.simMetadata(ctx, result.ICCID)
 	result.OperatorID = metadata.OperatorID
 	result.OperatorName = metadata.OperatorName
 	result.GID1 = metadata.GID1
 	result.SPN = metadata.SPN
-	result.ATR = slices.Clone(metadata.ATR)
 	return result, nil
+}
+
+func readSIMATR(ctx context.Context, state mbimproto.SubscriberReadyState, reader simATRReader) []byte {
+	switch state {
+	case mbimproto.SubscriberReadyStateInitialized,
+		mbimproto.SubscriberReadyStateNotActivated,
+		mbimproto.SubscriberReadyStateDeviceLocked,
+		mbimproto.SubscriberReadyStateNoESIMProfile:
+	default:
+		return nil
+	}
+	atr, err := reader.QueryUiccATR(ctx)
+	if err != nil {
+		return nil
+	}
+	return slices.Clone(atr)
 }
 
 func simInfoFromSubscriber(ready mbimproto.SubscriberReadyStatusResponse) SIMInfo {
@@ -251,27 +284,26 @@ type nonClosingSIMReader struct{ simcard.Reader }
 
 func (nonClosingSIMReader) Close() error { return nil }
 
-func (b *Backend) simMetadata(ctx context.Context, iccid string) SIMInfo {
+func (b *Backend) simMetadata(ctx context.Context, iccid string) simFileMetadata {
 	b.metadataMu.Lock()
 	defer b.metadataMu.Unlock()
 	if iccid != "" && b.metadataKey == iccid {
 		return b.metadata
 	}
-	metadata := SIMInfo{}
-	if atr, err := b.client.QueryUiccATR(ctx); err == nil {
-		metadata.ATR = atr
-	}
+	metadata := simFileMetadata{}
 	reader, err := wwansim.NewMBIM(b.client)
-	if err == nil {
-		card, cardErr := wwansim.New(ctx, nonClosingSIMReader{Reader: reader}, nil)
-		if cardErr == nil {
-			metadata.OperatorID = card.MCC() + card.MNC()
-			metadata.OperatorName = card.SPN()
-			metadata.GID1 = card.GID1()
-			metadata.SPN = card.SPN()
-			_ = card.Close()
-		}
+	if err != nil {
+		return metadata
 	}
+	card, err := wwansim.New(ctx, nonClosingSIMReader{Reader: reader}, nil)
+	if err != nil {
+		return metadata
+	}
+	metadata.OperatorID = card.MCC() + card.MNC()
+	metadata.OperatorName = card.SPN()
+	metadata.GID1 = card.GID1()
+	metadata.SPN = card.SPN()
+	_ = card.Close()
 	b.metadataKey = iccid
 	b.metadata = metadata
 	return metadata
@@ -313,6 +345,7 @@ func populateActiveSIMSlot(slots []SIMSlot, sim SIMInfo) {
 		}
 		slots[i].ICCID = sim.ICCID
 		slots[i].EID = sim.EID
+		slots[i].ATR = slices.Clone(sim.ATR)
 		return
 	}
 }
