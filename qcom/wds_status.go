@@ -253,44 +253,44 @@ var (
 	wdsPacketRuntimeIndicationTLVs = wdsPacketRuntimeTLVs{ipv4: 0x17, ipv6: 0x18, gateway4: 0x19, netmask4: 0x1A, gateway6: 0x1B, dns4First: 0x1C, dns4Second: 0x1D, dns6First: 0x1E, dns6Second: 0x1F, mtu: 0x20}
 )
 
-func (runtime *WDSRuntimeSettings) unmarshalPacketTLVs(tlvs tlv.TLVs, kinds wdsPacketRuntimeTLVs) error {
+func (r *WDSRuntimeSettings) unmarshalPacketTLVs(tlvs tlv.TLVs, kinds wdsPacketRuntimeTLVs) error {
 	if value, ok := tlv.Value(tlvs, kinds.ipv4); ok {
 		if len(value) != 4 {
 			return fmt.Errorf("parsing QMI WDS packet service status: IPv4 address TLV length %d, want 4", len(value))
 		}
-		runtime.LocalIPv4 = qmiIPv4(value)
+		r.LocalIPv4 = qmiIPv4(value)
 	}
 	if value, ok := tlv.Value(tlvs, kinds.ipv6); ok {
 		if len(value) != 17 {
 			return fmt.Errorf("parsing QMI WDS packet service status: IPv6 address TLV length %d, want 17", len(value))
 		}
-		runtime.LocalIPv6 = slices.Clone(value[:16])
-		runtime.IPv6PrefixLength = value[16]
+		r.LocalIPv6 = slices.Clone(value[:16])
+		r.IPv6PrefixLength = value[16]
 	}
 	if value, ok := tlv.Value(tlvs, kinds.gateway4); ok {
 		if len(value) != 4 {
 			return fmt.Errorf("parsing QMI WDS packet service status: IPv4 gateway TLV length %d, want 4", len(value))
 		}
-		runtime.IPv4Gateway = qmiIPv4(value)
+		r.IPv4Gateway = qmiIPv4(value)
 	}
 	if value, ok := tlv.Value(tlvs, kinds.netmask4); ok {
 		if len(value) != 4 {
 			return fmt.Errorf("parsing QMI WDS packet service status: IPv4 netmask TLV length %d, want 4", len(value))
 		}
-		runtime.IPv4SubnetMask = qmiIPv4(value)
+		r.IPv4SubnetMask = qmiIPv4(value)
 	}
 	if value, ok := tlv.Value(tlvs, kinds.gateway6); ok {
 		if len(value) != 17 {
 			return fmt.Errorf("parsing QMI WDS packet service status: IPv6 gateway TLV length %d, want 17", len(value))
 		}
-		runtime.IPv6Gateway = slices.Clone(value[:16])
+		r.IPv6Gateway = slices.Clone(value[:16])
 	}
 	for _, kind := range []byte{kinds.dns4First, kinds.dns4Second} {
 		if value, ok := tlv.Value(tlvs, kind); ok {
 			if len(value) != 4 {
 				return fmt.Errorf("parsing QMI WDS packet service status: IPv4 DNS address TLV length %d, want 4", len(value))
 			}
-			runtime.DNS = append(runtime.DNS, qmiIPv4(value))
+			r.DNS = append(r.DNS, qmiIPv4(value))
 		}
 	}
 	for _, kind := range []byte{kinds.dns6First, kinds.dns6Second} {
@@ -298,16 +298,16 @@ func (runtime *WDSRuntimeSettings) unmarshalPacketTLVs(tlvs tlv.TLVs, kinds wdsP
 			if len(value) != net.IPv6len {
 				return fmt.Errorf("parsing QMI WDS packet service status: IPv6 DNS address TLV length %d, want %d", len(value), net.IPv6len)
 			}
-			runtime.DNS = append(runtime.DNS, slices.Clone(value[:net.IPv6len]))
+			r.DNS = append(r.DNS, slices.Clone(value[:net.IPv6len]))
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.mtu); ok {
 		if len(value) != 4 {
 			return fmt.Errorf("parsing QMI WDS packet service status: MTU TLV length %d, want 4", len(value))
 		}
-		runtime.MTU = binary.LittleEndian.Uint32(value[:4])
+		r.MTU = binary.LittleEndian.Uint32(value[:4])
 	}
-	runtime.DNS = uniqueWDSIPs(runtime.DNS)
+	r.DNS = uniqueWDSIPs(r.DNS)
 	return nil
 }
 
@@ -516,6 +516,7 @@ func (s *PDNSession) releaseStatusIndications() {
 	}
 	s.statusWatchers--
 	if s.statusWatchers == 0 {
+		// Deregistration is best effort during watcher cleanup.
 		_ = s.setStatusIndications(ctx, false)
 	}
 }

@@ -701,6 +701,7 @@ func (c *Client) releasePDSEvents() {
 		return
 	}
 	c.pdsEventRefs = 0
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setPDSEvents(ctx, false)
 }
 
@@ -773,23 +774,23 @@ func validatePDSNetworkMode(mode PDSNetworkMode) error {
 }
 
 // MarshalBinary encodes a QMI PDS A-GPS server.
-func (server PDSAGPSServer) MarshalBinary() ([]byte, error) {
-	address := server.Address.Unmap()
+func (s PDSAGPSServer) MarshalBinary() ([]byte, error) {
+	address := s.Address.Unmap()
 	if !address.Is4() {
-		return nil, fmt.Errorf("A-GPS server address %q is not IPv4", server.Address)
+		return nil, fmt.Errorf("A-GPS server address %q is not IPv4", s.Address)
 	}
 	addressBytes := address.As4()
 	value := append([]byte(nil), addressBytes[:]...)
-	value = binary.LittleEndian.AppendUint32(value, server.Port)
+	value = binary.LittleEndian.AppendUint32(value, s.Port)
 	return value, nil
 }
 
 // UnmarshalBinary decodes a QMI PDS A-GPS server.
-func (server *PDSAGPSServer) UnmarshalBinary(value []byte) error {
+func (s *PDSAGPSServer) UnmarshalBinary(value []byte) error {
 	if len(value) != 8 {
 		return fmt.Errorf("parsing QMI PDS A-GPS configuration: server TLV length %d, want 8", len(value))
 	}
-	*server = PDSAGPSServer{
+	*s = PDSAGPSServer{
 		Address: netip.AddrFrom4([4]byte(value[:4])),
 		Port:    binary.LittleEndian.Uint32(value[4:8]),
 	}

@@ -42,8 +42,8 @@ func (r *LTEAttachConfigurationRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsLteAttachConfiguration,
+			ServiceMSBasicConnectExtensions,
+			CIDMSLTEAttachConfiguration,
 			CommandTypeQuery,
 			nil,
 		),
@@ -66,8 +66,8 @@ func (r *LTEAttachConfigurationSetRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: commandWithError(
-			ServiceMsBasicConnectExtensions,
-			CIDMsLteAttachConfiguration,
+			ServiceMSBasicConnectExtensions,
+			CIDMSLTEAttachConfiguration,
 			CommandTypeSet,
 			data,
 			err,
@@ -241,8 +241,8 @@ func (r *LTEAttachInfoRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsLteAttachInfo,
+			ServiceMSBasicConnectExtensions,
+			CIDMSLTEAttachInfo,
 			CommandTypeQuery,
 			nil,
 		),

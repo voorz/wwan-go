@@ -10,7 +10,7 @@ import (
 	"github.com/damonto/wwan-go/qcom/tlv"
 )
 
-func TestQOSRequestEncoding(t *testing.T) {
+func TestQoSRequestEncoding(t *testing.T) {
 	muxID := uint8(3)
 	legacyPort := WDSSIOPortA2MuxRMNET1
 	tests := []struct {
@@ -22,20 +22,20 @@ func TestQOSRequestEncoding(t *testing.T) {
 		{
 			name: "flow status",
 			request: func() (Request, error) {
-				return (QOSGetFlowStatusRequest{ClientID: 7, FlowID: 0x01020304}).Request(), nil
+				return (QoSGetFlowStatusRequest{ClientID: 7, FlowID: 0x01020304}).Request(), nil
 			},
-			wantMessage: MessageQOSGetStatus,
+			wantMessage: MessageQoSGetStatus,
 			want:        map[byte][]byte{0x01: {4, 3, 2, 1}},
 		},
 		{
 			name: "modern data port",
 			request: func() (Request, error) {
-				return (QOSBindDataPortRequest{ClientID: 7, Config: QOSDataPortConfig{
+				return (QoSBindDataPortRequest{ClientID: 7, Config: QoSDataPortConfig{
 					Endpoint: &DataEndpoint{Type: DataEndpointBAMDMUX, InterfaceID: 1},
 					MuxID:    &muxID,
 				}}).Request()
 			},
-			wantMessage: MessageQOSBindDataPort,
+			wantMessage: MessageQoSBindDataPort,
 			want: map[byte][]byte{
 				0x10: {5, 0, 0, 0, 1, 0, 0, 0},
 				0x11: {3},
@@ -44,19 +44,19 @@ func TestQOSRequestEncoding(t *testing.T) {
 		{
 			name: "legacy data port",
 			request: func() (Request, error) {
-				return (QOSBindDataPortRequest{ClientID: 7, Config: QOSDataPortConfig{LegacyPort: &legacyPort}}).Request()
+				return (QoSBindDataPortRequest{ClientID: 7, Config: QoSDataPortConfig{LegacyPort: &legacyPort}}).Request()
 			},
-			wantMessage: MessageQOSBindDataPort,
+			wantMessage: MessageQoSBindDataPort,
 			want:        map[byte][]byte{0x12: {0x05, 0x0E}},
 		},
 		{
 			name: "bind subscription",
 			request: func() (Request, error) {
-				return (QOSBindSubscriptionRequest{ClientID: 7, Subscription: QOSSubscriptionTertiary}).Request()
+				return (QoSBindSubscriptionRequest{ClientID: 7, Subscription: QoSSubscriptionTertiary}).Request()
 			},
-			wantMessage: MessageQOSBindSubscription,
+			wantMessage: MessageQoSBindSubscription,
 			want: map[byte][]byte{
-				0x01: binary.LittleEndian.AppendUint32(nil, uint32(QOSSubscriptionTertiary)),
+				0x01: binary.LittleEndian.AppendUint32(nil, uint32(QoSSubscriptionTertiary)),
 			},
 		},
 	}
@@ -67,7 +67,7 @@ func TestQOSRequestEncoding(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Request() error = %v", err)
 			}
-			if req.Service != ServiceQOS || req.ClientID != 7 || req.MessageID != tt.wantMessage {
+			if req.Service != ServiceQoS || req.ClientID != 7 || req.MessageID != tt.wantMessage {
 				t.Fatalf("request = service 0x%02X client %d message 0x%04X", req.Service, req.ClientID, req.MessageID)
 			}
 			for kind, want := range tt.want {
@@ -77,7 +77,7 @@ func TestQOSRequestEncoding(t *testing.T) {
 	}
 }
 
-func TestQOSRequestValidation(t *testing.T) {
+func TestQoSRequestValidation(t *testing.T) {
 	tests := []struct {
 		name    string
 		request func() error
@@ -86,7 +86,7 @@ func TestQOSRequestValidation(t *testing.T) {
 		{
 			name: "no data port",
 			request: func() error {
-				_, err := (QOSBindDataPortRequest{}).Request()
+				_, err := (QoSBindDataPortRequest{}).Request()
 				return err
 			},
 			want: "no port selected",
@@ -96,7 +96,7 @@ func TestQOSRequestValidation(t *testing.T) {
 			request: func() error {
 				muxID := uint8(1)
 				legacyPort := WDSSIOPortA2MuxRMNET0
-				_, err := (QOSBindDataPortRequest{Config: QOSDataPortConfig{MuxID: &muxID, LegacyPort: &legacyPort}}).Request()
+				_, err := (QoSBindDataPortRequest{Config: QoSDataPortConfig{MuxID: &muxID, LegacyPort: &legacyPort}}).Request()
 				return err
 			},
 			want: "mutually exclusive",
@@ -104,7 +104,7 @@ func TestQOSRequestValidation(t *testing.T) {
 		{
 			name: "invalid subscription",
 			request: func() error {
-				_, err := (QOSBindSubscriptionRequest{Subscription: 4}).Request()
+				_, err := (QoSBindSubscriptionRequest{Subscription: 4}).Request()
 				return err
 			},
 			want: "subscription 4 is out of range",
@@ -121,9 +121,9 @@ func TestQOSRequestValidation(t *testing.T) {
 	}
 }
 
-func TestQOSResponseDecoding(t *testing.T) {
+func TestQoSResponseDecoding(t *testing.T) {
 	statusInfo := binary.LittleEndian.AppendUint32(nil, 7)
-	statusInfo = append(statusInfo, byte(QOSFlowStatusSuspended), byte(QOSFlowEventSuspended))
+	statusInfo = append(statusInfo, byte(QoSFlowStatusSuspended), byte(QoSFlowEventSuspended))
 
 	tests := []struct {
 		name    string
@@ -134,21 +134,21 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "flow status",
 			decode: func(items tlv.TLVs) error {
-				var response QOSGetFlowStatusResponse
+				var response QoSGetFlowStatusResponse
 				if err := response.UnmarshalTLVs(items); err != nil {
 					return err
 				}
-				if response.Status != QOSFlowStatusActivated {
+				if response.Status != QoSFlowStatusActivated {
 					t.Fatalf("status = %d", response.Status)
 				}
 				return nil
 			},
-			tlvs: tlv.TLVs{tlv.Uint(0x01, uint8(QOSFlowStatusActivated))},
+			tlvs: tlv.TLVs{tlv.Uint(0x01, uint8(QoSFlowStatusActivated))},
 		},
 		{
 			name: "network status",
 			decode: func(items tlv.TLVs) error {
-				var response QOSGetNetworkStatusResponse
+				var response QoSGetNetworkStatusResponse
 				if err := response.UnmarshalTLVs(items); err != nil {
 					return err
 				}
@@ -162,12 +162,12 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "status indication",
 			decode: func(items tlv.TLVs) error {
-				var indication QOSFlowStatusIndication
+				var indication QoSFlowStatusIndication
 				if err := indication.UnmarshalTLVs(items); err != nil {
 					return err
 				}
 				update := indication.Update
-				if update.ID != 7 || update.Status != QOSFlowStatusSuspended || update.Event != QOSFlowEventSuspended ||
+				if update.ID != 7 || update.Status != QoSFlowStatusSuspended || update.Event != QoSFlowEventSuspended ||
 					!update.ReasonKnown || update.Reason != 8 {
 					t.Fatalf("update = %+v", update)
 				}
@@ -178,7 +178,7 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "missing flow status",
 			decode: func(items tlv.TLVs) error {
-				var response QOSGetFlowStatusResponse
+				var response QoSGetFlowStatusResponse
 				return response.UnmarshalTLVs(items)
 			},
 			wantErr: true,
@@ -186,16 +186,16 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "flow status trailing byte",
 			decode: func(items tlv.TLVs) error {
-				var response QOSGetFlowStatusResponse
+				var response QoSGetFlowStatusResponse
 				return response.UnmarshalTLVs(items)
 			},
-			tlvs:    tlv.TLVs{tlv.Bytes(0x01, []byte{byte(QOSFlowStatusActivated), 0})},
+			tlvs:    tlv.TLVs{tlv.Bytes(0x01, []byte{byte(QoSFlowStatusActivated), 0})},
 			wantErr: true,
 		},
 		{
 			name: "status aggregate trailing byte",
 			decode: func(items tlv.TLVs) error {
-				var indication QOSFlowStatusIndication
+				var indication QoSFlowStatusIndication
 				return indication.UnmarshalTLVs(items)
 			},
 			tlvs:    tlv.TLVs{tlv.Bytes(0x01, append(slices.Clone(statusInfo), 0))},
@@ -204,7 +204,7 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "reason trailing byte",
 			decode: func(items tlv.TLVs) error {
-				var indication QOSFlowStatusIndication
+				var indication QoSFlowStatusIndication
 				return indication.UnmarshalTLVs(items)
 			},
 			tlvs:    tlv.TLVs{tlv.Bytes(0x01, statusInfo), tlv.Bytes(0x10, []byte{8, 0})},
@@ -213,7 +213,7 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "network support trailing byte",
 			decode: func(items tlv.TLVs) error {
-				var response QOSGetNetworkStatusResponse
+				var response QoSGetNetworkStatusResponse
 				return response.UnmarshalTLVs(items)
 			},
 			tlvs:    tlv.TLVs{tlv.Bytes(0x01, []byte{1, 0})},
@@ -222,7 +222,7 @@ func TestQOSResponseDecoding(t *testing.T) {
 		{
 			name: "bound subscription trailing byte",
 			decode: func(items tlv.TLVs) error {
-				var response QOSGetBindSubscriptionResponse
+				var response QoSGetBindSubscriptionResponse
 				return response.UnmarshalTLVs(items)
 			},
 			tlvs:    tlv.TLVs{tlv.Bytes(0x10, make([]byte, 5))},
@@ -240,7 +240,7 @@ func TestQOSResponseDecoding(t *testing.T) {
 	}
 }
 
-func TestClientQOSNetworkSupportedReusesClient(t *testing.T) {
+func TestClientQoSNetworkSupportedReusesClient(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
@@ -250,15 +250,15 @@ func TestClientQOSNetworkSupportedReusesClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{
-				{resp: allocatedClientResponse(ServiceQOS, 5)},
-				{resp: successResponse(MessageQOSGetNetworkStatus, tlv.Uint(0x01, uint8(1)))},
+				{resp: allocatedClientResponse(ServiceQoS, 5)},
+				{resp: successResponse(MessageQoSGetNetworkStatus, tlv.Uint(0x01, uint8(1)))},
 				{resp: successResponse(MessageReleaseClientID)},
 			}}
 			client := &Client{transport: transport, slot: 1}
 
-			supported, err := client.QOSNetworkSupported(context.Background())
+			supported, err := client.QoSNetworkSupported(context.Background())
 			if err != nil || !supported {
-				t.Fatalf("QOSNetworkSupported() = %v, %v", supported, err)
+				t.Fatalf("QoSNetworkSupported() = %v, %v", supported, err)
 			}
 			if err := client.Close(); err != nil {
 				t.Fatalf("Close() error = %v", err)
@@ -267,7 +267,7 @@ func TestClientQOSNetworkSupportedReusesClient(t *testing.T) {
 	}
 }
 
-func TestQOSWatchNetworkStatusSubscribesDirectly(t *testing.T) {
+func TestQoSWatchNetworkStatusSubscribesDirectly(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
@@ -278,18 +278,18 @@ func TestQOSWatchNetworkStatusSubscribesDirectly(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &qosIndicationTransport{
 				fakeTransport: fakeTransport{t: t, calls: []transportCall{
-					{resp: allocatedClientResponse(ServiceQOS, 5)},
+					{resp: allocatedClientResponse(ServiceQoS, 5)},
 					{resp: successResponse(MessageReleaseClientID)},
 				}},
 				indications: map[MessageID][]Indication{
-					MessageQOSNetworkStatus: {{TLVs: tlv.TLVs{tlv.Uint(0x01, uint8(1))}}},
+					MessageQoSNetworkStatus: {{TLVs: tlv.TLVs{tlv.Uint(0x01, uint8(1))}}},
 				},
 			}
 			client := &Client{transport: transport, slot: 1}
 
-			updates, err := client.QOSWatchNetworkStatus(context.Background())
+			updates, err := client.QoSWatchNetworkStatus(context.Background())
 			if err != nil {
-				t.Fatalf("QOSWatchNetworkStatus() error = %v", err)
+				t.Fatalf("QoSWatchNetworkStatus() error = %v", err)
 			}
 			supported, ok := <-updates
 			if !ok || !supported {

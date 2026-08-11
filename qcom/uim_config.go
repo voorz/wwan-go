@@ -183,14 +183,14 @@ func (c *Client) Depersonalize(ctx context.Context, req UIMDepersonalizationRequ
 	return result, nil
 }
 
-// RemoteUnlock submits an opaque carrier SimLock blob. Data up to 1024 bytes
+// RemoteUnlock submits an opaque carrier SIMLock blob. Data up to 1024 bytes
 // uses the original field; larger data uses the extended field.
 func (c *Client) RemoteUnlock(ctx context.Context, data []byte) error {
 	if len(data) == 0 {
-		return errors.New("remotely unlocking QMI UIM: SimLock data is empty")
+		return errors.New("remotely unlocking QMI UIM: SIMLock data is empty")
 	}
 	if len(data) > uimRemoteUnlockDataExtMax {
-		return fmt.Errorf("remotely unlocking QMI UIM: SimLock data length %d exceeds %d", len(data), uimRemoteUnlockDataExtMax)
+		return fmt.Errorf("remotely unlocking QMI UIM: SIMLock data length %d exceeds %d", len(data), uimRemoteUnlockDataExtMax)
 	}
 
 	typ := byte(0x10)

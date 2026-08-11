@@ -98,8 +98,8 @@ func (r *DeviceCapsV2Request) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsDeviceCapsV2,
+			ServiceMSBasicConnectExtensions,
+			CIDMSDeviceCapsV2,
 			CommandTypeQuery,
 			nil,
 		),
@@ -311,36 +311,36 @@ func (r *DeviceCapsInfo) unmarshalV3(data []byte, version uint16) error {
 	return nil
 }
 
-func (info *DeviceCapsInfo) validate() error {
-	if info.DeviceType > DeviceTypeRemote {
-		return fmt.Errorf("device type %d is outside 0..%d", info.DeviceType, DeviceTypeRemote)
+func (r *DeviceCapsInfo) validate() error {
+	if r.DeviceType > DeviceTypeRemote {
+		return fmt.Errorf("device type %d is outside 0..%d", r.DeviceType, DeviceTypeRemote)
 	}
-	if !validCellularClass(info.CellularClass) {
-		return fmt.Errorf("cellular class %#x contains reserved bits", info.CellularClass)
+	if !validCellularClass(r.CellularClass) {
+		return fmt.Errorf("cellular class %#x contains reserved bits", r.CellularClass)
 	}
-	if info.VoiceClass > VoiceClassSimultaneousVoiceData {
-		return fmt.Errorf("voice class %d is outside 0..%d", info.VoiceClass, VoiceClassSimultaneousVoiceData)
+	if r.VoiceClass > VoiceClassSimultaneousVoiceData {
+		return fmt.Errorf("voice class %d is outside 0..%d", r.VoiceClass, VoiceClassSimultaneousVoiceData)
 	}
-	if info.SIMClass&^simClassMask != 0 {
-		return fmt.Errorf("SIM class %#x contains reserved bits", info.SIMClass)
+	if r.SIMClass&^simClassMask != 0 {
+		return fmt.Errorf("SIM class %#x contains reserved bits", r.SIMClass)
 	}
-	if !validDataClass(info.MBIMExVersion, info.DataClass) {
-		return fmt.Errorf("data class %#x contains bits reserved in MBIMEx %#x", info.DataClass, info.MBIMExVersion)
+	if !validDataClass(r.MBIMExVersion, r.DataClass) {
+		return fmt.Errorf("data class %#x contains bits reserved in MBIMEx %#x", r.DataClass, r.MBIMExVersion)
 	}
-	if info.SMSCaps&^smsCapsMask != 0 {
-		return fmt.Errorf("SMS capabilities %#x contain reserved bits", info.SMSCaps)
+	if r.SMSCaps&^smsCapsMask != 0 {
+		return fmt.Errorf("SMS capabilities %#x contain reserved bits", r.SMSCaps)
 	}
-	if !validControlCaps(info.MBIMExVersion, info.ControlCaps) {
-		return fmt.Errorf("control capabilities %#x contain bits reserved in MBIMEx %#x", info.ControlCaps, info.MBIMExVersion)
+	if !validControlCaps(r.MBIMExVersion, r.ControlCaps) {
+		return fmt.Errorf("control capabilities %#x contain bits reserved in MBIMEx %#x", r.ControlCaps, r.MBIMExVersion)
 	}
-	if info.MBIMExVersion < mbimExVersion30 {
+	if r.MBIMExVersion < mbimExVersion30 {
 		return nil
 	}
-	if !validDataSubclass(info.DataSubclass) {
-		return fmt.Errorf("data subclass %#x contains reserved bits", info.DataSubclass)
+	if !validDataSubclass(r.DataSubclass) {
+		return fmt.Errorf("data subclass %#x contains reserved bits", r.DataSubclass)
 	}
-	if dataClassHas5G(info.MBIMExVersion, info.DataClass) != (info.DataSubclass != DataSubclassNone) {
-		return fmt.Errorf("5G data class %#x and data subclass %#x are inconsistent", info.DataClass, info.DataSubclass)
+	if dataClassHas5G(r.MBIMExVersion, r.DataClass) != (r.DataSubclass != DataSubclassNone) {
+		return fmt.Errorf("5G data class %#x and data subclass %#x are inconsistent", r.DataClass, r.DataSubclass)
 	}
 	return nil
 }

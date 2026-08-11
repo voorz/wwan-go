@@ -718,6 +718,7 @@ func (c *Client) releaseDSDIndication(registration dsdIndicationRegistration) {
 		return
 	}
 	delete(c.dsdIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setDSDIndicationRegistration(ctx, registration, false)
 }
 
@@ -751,15 +752,15 @@ func dsdUint32TLV(tlvs tlv.TLVs, typ uint8) (uint32, bool, error) {
 }
 
 // UnmarshalTLVs parses the common QMI DSD system-status fields.
-func (status *DSDSystemStatus) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*status = DSDSystemStatus{}
+func (s *DSDSystemStatus) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*s = DSDSystemStatus{}
 	if value, ok := tlv.Value(tlvs, 0x10); ok {
 		var systems dsdSystems
 		if err := systems.UnmarshalBinary(value); err != nil {
 			return err
 		}
-		status.Available = systems
-		status.AvailableKnown = true
+		s.Available = systems
+		s.AvailableKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, 0x12); ok {
 		if len(value) != 32 {
@@ -772,28 +773,28 @@ func (status *DSDSystemStatus) UnmarshalTLVs(tlvs tlv.TLVs) error {
 		if err := preferred.Recommended.UnmarshalBinary(value[16:32]); err != nil {
 			return fmt.Errorf("parsing QMI DSD recommended system: %w", err)
 		}
-		status.Preferred = preferred
-		status.PreferredKnown = true
+		s.Preferred = preferred
+		s.PreferredKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, 0x14); ok {
 		if len(value) != 8 {
 			return fmt.Errorf("parsing QMI DSD system status: null bearer reason TLV length %d, want 8", len(value))
 		}
-		status.NullBearerReason = DSDNullBearerReason(binary.LittleEndian.Uint64(value))
-		status.NullBearerReasonKnown = true
+		s.NullBearerReason = DSDNullBearerReason(binary.LittleEndian.Uint64(value))
+		s.NullBearerReasonKnown = true
 	}
 	return nil
 }
 
 type dsdSystems []DSDSystem
 
-func (systems dsdSystems) MarshalBinary() ([]byte, error) {
-	if len(systems) > dsdAvailableSystemMax {
-		return nil, fmt.Errorf("available-system count %d exceeds %d", len(systems), dsdAvailableSystemMax)
+func (s dsdSystems) MarshalBinary() ([]byte, error) {
+	if len(s) > dsdAvailableSystemMax {
+		return nil, fmt.Errorf("available-system count %d exceeds %d", len(s), dsdAvailableSystemMax)
 	}
-	value := make([]byte, 1, 1+len(systems)*16)
-	value[0] = byte(len(systems))
-	for i, system := range systems {
+	value := make([]byte, 1, 1+len(s)*16)
+	value[0] = byte(len(s))
+	for i, system := range s {
 		encoded, err := system.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("available system %d: %w", i, err)
@@ -803,7 +804,7 @@ func (systems dsdSystems) MarshalBinary() ([]byte, error) {
 	return value, nil
 }
 
-func (systems *dsdSystems) UnmarshalBinary(value []byte) error {
+func (s *dsdSystems) UnmarshalBinary(value []byte) error {
 	if len(value) < 1 {
 		return errors.New("available-system count is missing")
 	}
@@ -822,21 +823,21 @@ func (systems *dsdSystems) UnmarshalBinary(value []byte) error {
 			return fmt.Errorf("available system %d: %w", i, err)
 		}
 	}
-	*systems = decoded
+	*s = decoded
 	return nil
 }
 
-func (system DSDSystem) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint32(nil, uint32(system.Network))
-	value = binary.LittleEndian.AppendUint32(value, uint32(system.RAT))
-	return binary.LittleEndian.AppendUint64(value, uint64(system.ServiceOptions)), nil
+func (s DSDSystem) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint32(nil, uint32(s.Network))
+	value = binary.LittleEndian.AppendUint32(value, uint32(s.RAT))
+	return binary.LittleEndian.AppendUint64(value, uint64(s.ServiceOptions)), nil
 }
 
-func (system *DSDSystem) UnmarshalBinary(value []byte) error {
+func (s *DSDSystem) UnmarshalBinary(value []byte) error {
 	if len(value) != 16 {
 		return fmt.Errorf("DSD system length %d, want 16", len(value))
 	}
-	*system = DSDSystem{
+	*s = DSDSystem{
 		Network:        DSDNetwork(binary.LittleEndian.Uint32(value[:4])),
 		RAT:            DSDRAT(binary.LittleEndian.Uint32(value[4:8])),
 		ServiceOptions: DSDServiceOptionMask(binary.LittleEndian.Uint64(value[8:16])),

@@ -49,7 +49,7 @@ func TestProtocolTypesImplementStandardInterfaces(t *testing.T) {
 	var _ encoding.BinaryUnmarshaler = (*STKPAC)(nil)
 	var _ encoding.BinaryUnmarshaler = (*STKTerminalResponseInfo)(nil)
 	var _ encoding.BinaryUnmarshaler = (*STKEnvelopeInfo)(nil)
-	var _ encoding.BinaryUnmarshaler = (*UiccATRResponse)(nil)
+	var _ encoding.BinaryUnmarshaler = (*UICCATRResponse)(nil)
 	var _ encoding.BinaryUnmarshaler = (*OpenChannelResponse)(nil)
 	var _ encoding.BinaryUnmarshaler = (*CloseChannelResponse)(nil)
 	var _ encoding.BinaryUnmarshaler = (*APDUResponse)(nil)

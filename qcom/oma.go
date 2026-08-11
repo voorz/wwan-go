@@ -541,6 +541,7 @@ func (c *Client) releaseOMAEvents() {
 		return
 	}
 	c.omaEventRefs = 0
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setOMAEvents(ctx, false)
 }
 
@@ -568,16 +569,16 @@ func validateOMASessionType(sessionType OMASessionType) error {
 	return nil
 }
 
-func (alert OMANetworkInitiatedAlert) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(alert.SessionType)}
-	return binary.LittleEndian.AppendUint16(value, alert.SessionID), nil
+func (a OMANetworkInitiatedAlert) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(a.SessionType)}
+	return binary.LittleEndian.AppendUint16(value, a.SessionID), nil
 }
 
-func (alert *OMANetworkInitiatedAlert) UnmarshalBinary(value []byte) error {
+func (a *OMANetworkInitiatedAlert) UnmarshalBinary(value []byte) error {
 	if len(value) != 3 {
 		return fmt.Errorf("network-initiated alert length %d, want 3", len(value))
 	}
-	*alert = OMANetworkInitiatedAlert{
+	*a = OMANetworkInitiatedAlert{
 		SessionType: OMASessionType(value[0]),
 		SessionID:   binary.LittleEndian.Uint16(value[1:3]),
 	}

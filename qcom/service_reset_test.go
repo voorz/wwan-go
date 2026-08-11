@@ -20,10 +20,10 @@ func TestServiceResetRequests(t *testing.T) {
 			message: MessagePDSReset,
 		},
 		{
-			name:    "QOS",
-			request: (QOSResetRequest{ClientID: 7, TransactionID: 9, Timeout: time.Second}).Request(),
-			service: ServiceQOS,
-			message: MessageQOSReset,
+			name:    "QoS",
+			request: (QoSResetRequest{ClientID: 7, TransactionID: 9, Timeout: time.Second}).Request(),
+			service: ServiceQoS,
+			message: MessageQoSReset,
 		},
 		{
 			name:    "WDS",
@@ -63,8 +63,8 @@ func TestServiceResetClientMethods(t *testing.T) {
 			call: func(c *Client) error { return c.PDSReset(context.Background()) },
 		},
 		{
-			name: "QOS", service: ServiceQOS, message: MessageQOSReset,
-			call: func(c *Client) error { return c.QOSReset(context.Background()) },
+			name: "QoS", service: ServiceQoS, message: MessageQoSReset,
+			call: func(c *Client) error { return c.QoSReset(context.Background()) },
 		},
 		{
 			name: "WDS", service: ServiceWDS, message: MessageWDSReset,

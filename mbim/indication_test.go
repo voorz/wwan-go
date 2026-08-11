@@ -45,7 +45,7 @@ func TestClientIndicationAPIs(t *testing.T) {
 				select {
 				case got = <-indications:
 				case <-ctx.Done():
-					t.Fatal(ctx.Err())
+					t.Fatalf("waiting for MBIM indication: %v", ctx.Err())
 				}
 			} else {
 				var err error
@@ -62,7 +62,7 @@ func TestClientIndicationAPIs(t *testing.T) {
 				t.Fatalf("InformationBuffer = %x, want %x", got.InformationBuffer, payload)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -122,7 +122,7 @@ func TestClientNextIndicationFiltersAndQueues(t *testing.T) {
 				t.Fatalf("queued indication = CID %d data %x", queued.CommandID, queued.InformationBuffer)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -157,7 +157,7 @@ func TestClientWatchIndicationResultsReportsReceiverError(t *testing.T) {
 					t.Fatalf("result error = %v, want receiver error", result.Err)
 				}
 			case <-ctx.Done():
-				t.Fatal(ctx.Err())
+				t.Fatalf("waiting for receiver error: %v", ctx.Err())
 			}
 		})
 	}
@@ -220,10 +220,10 @@ func TestClientWatchSTKPACResultsReportsDecodeError(t *testing.T) {
 					t.Fatalf("result error = %v, want truncated payload", result.Err)
 				}
 			case <-ctx.Done():
-				t.Fatal(ctx.Err())
+				t.Fatalf("waiting for STK PAC decode error: %v", ctx.Err())
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

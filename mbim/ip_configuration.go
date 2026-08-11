@@ -207,20 +207,20 @@ func (r *IPConfigurationInfo) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (fields ipConfigurationFields) validate() error {
-	if fields.availability&IPConfigurationAvailableAddress == 0 &&
-		(fields.addressCount != 0 || fields.addressOffset != 0) {
-		return fmt.Errorf("%s address fields are nonzero while address information is unavailable", fields.name)
+func (f ipConfigurationFields) validate() error {
+	if f.availability&IPConfigurationAvailableAddress == 0 &&
+		(f.addressCount != 0 || f.addressOffset != 0) {
+		return fmt.Errorf("%s address fields are nonzero while address information is unavailable", f.name)
 	}
-	if fields.availability&IPConfigurationAvailableGateway == 0 && fields.gatewayOffset != 0 {
-		return fmt.Errorf("%s gateway offset is nonzero while gateway information is unavailable", fields.name)
+	if f.availability&IPConfigurationAvailableGateway == 0 && f.gatewayOffset != 0 {
+		return fmt.Errorf("%s gateway offset is nonzero while gateway information is unavailable", f.name)
 	}
-	if fields.availability&IPConfigurationAvailableDNSServer == 0 &&
-		(fields.dnsCount != 0 || fields.dnsOffset != 0) {
-		return fmt.Errorf("%s DNS fields are nonzero while DNS information is unavailable", fields.name)
+	if f.availability&IPConfigurationAvailableDNSServer == 0 &&
+		(f.dnsCount != 0 || f.dnsOffset != 0) {
+		return fmt.Errorf("%s DNS fields are nonzero while DNS information is unavailable", f.name)
 	}
-	if fields.availability&IPConfigurationAvailableMTU == 0 && fields.mtu != 0 {
-		return fmt.Errorf("%s MTU is nonzero while MTU information is unavailable", fields.name)
+	if f.availability&IPConfigurationAvailableMTU == 0 && f.mtu != 0 {
+		return fmt.Errorf("%s MTU is nonzero while MTU information is unavailable", f.name)
 	}
 	return nil
 }

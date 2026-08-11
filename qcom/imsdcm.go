@@ -411,21 +411,21 @@ func (c *Client) imsDCMRequest(ctx context.Context, req Request, dst tlvUnmarsha
 	})
 }
 
-func (instance IMSDCMInstance) validate() error {
-	if instance < IMSDCMInstanceNone || instance > IMSDCMInstance2 {
-		return fmt.Errorf("IMS DCM instance %d is out of range", instance)
+func (i IMSDCMInstance) validate() error {
+	if i < IMSDCMInstanceNone || i > IMSDCMInstance2 {
+		return fmt.Errorf("IMS DCM instance %d is out of range", i)
 	}
 	return nil
 }
 
-func (instance IMSDCMInstance) MarshalBinary() ([]byte, error) {
-	if err := instance.validate(); err != nil {
+func (i IMSDCMInstance) MarshalBinary() ([]byte, error) {
+	if err := i.validate(); err != nil {
 		return nil, err
 	}
-	return binary.LittleEndian.AppendUint32(nil, uint32(instance)), nil
+	return binary.LittleEndian.AppendUint32(nil, uint32(i)), nil
 }
 
-func (instance *IMSDCMInstance) UnmarshalBinary(value []byte) error {
+func (i *IMSDCMInstance) UnmarshalBinary(value []byte) error {
 	if len(value) != 4 {
 		return fmt.Errorf("instance length %d, want 4", len(value))
 	}
@@ -433,7 +433,7 @@ func (instance *IMSDCMInstance) UnmarshalBinary(value []byte) error {
 	if err := decoded.validate(); err != nil {
 		return err
 	}
-	*instance = decoded
+	*i = decoded
 	return nil
 }
 

@@ -106,7 +106,7 @@ func TestHostErrorTransmission(t *testing.T) {
 				t.Fatalf("status = %d, want %d", status, tt.wantStatus)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

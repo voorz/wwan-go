@@ -26,13 +26,13 @@ func TestWatchMessagesAcknowledgesOnlyTransferRoutes(t *testing.T) {
 		{
 			name:     "transfer route",
 			kind:     0x11,
-			payload:  []byte{byte(qcom.WMSAckRequired), 1, 0, 0, 0, byte(qcom.WMSMessageFormatGWPointToPoint), 1, 0, 0},
+			payload:  []byte{byte(qcom.WMSACKRequired), 1, 0, 0, 0, byte(qcom.WMSMessageFormatGWPointToPoint), 1, 0, 0},
 			wantACKs: 1,
 		},
 		{
 			name:     "transfer route without ACK",
 			kind:     0x11,
-			payload:  []byte{byte(qcom.WMSAckNotRequired), 1, 0, 0, 0, byte(qcom.WMSMessageFormatGWPointToPoint), 1, 0, 0},
+			payload:  []byte{byte(qcom.WMSACKNotRequired), 1, 0, 0, 0, byte(qcom.WMSMessageFormatGWPointToPoint), 1, 0, 0},
 			wantACKs: 0,
 		},
 	}
@@ -88,7 +88,7 @@ func (t *messagingTestTransport) QMIService() qcom.ServiceType {
 
 func (t *messagingTestTransport) Do(_ context.Context, req qcom.Request) (qcom.Response, error) {
 	t.mu.Lock()
-	if req.MessageID == qcom.MessageWMSSendAck {
+	if req.MessageID == qcom.MessageWMSSendACK {
 		t.acks++
 	}
 	t.mu.Unlock()

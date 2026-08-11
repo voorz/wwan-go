@@ -2,9 +2,13 @@ package sms
 
 import (
 	"bytes"
+	"encoding"
 	"strings"
 	"testing"
+	"time"
 )
+
+var _ encoding.BinaryUnmarshaler = (*smsTimestamp)(nil)
 
 func TestSMSPDUBoundaries(t *testing.T) {
 	tests := []struct {
@@ -129,15 +133,68 @@ func TestDecodeSMSPDUAlphanumericOrigin(t *testing.T) {
 	}
 }
 
+func TestSMSTimestampUnmarshalBinary(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      []byte
+		want       time.Time
+		wantOffset int
+		wantErr    bool
+	}{
+		{
+			name:  "August regression",
+			value: []byte{0x62, 0x80, 0x11, 0x21, 0x43, 0x65, 0x00},
+			want:  time.Date(2026, time.August, 11, 12, 34, 56, 0, time.UTC),
+		},
+		{
+			name:  "date and time fields ending in eight or nine",
+			value: []byte{0x92, 0x90, 0x92, 0x91, 0x85, 0x95, 0x00},
+			want:  time.Date(2029, time.September, 29, 19, 58, 59, 0, time.UTC),
+		},
+		{
+			name:       "positive timezone containing nine",
+			value:      []byte{0x62, 0x80, 0x11, 0x21, 0x43, 0x65, 0x93},
+			want:       time.Date(2026, time.August, 11, 12, 34, 56, 0, time.FixedZone("want", 9*60*60+45*60)),
+			wantOffset: 9*60*60 + 45*60,
+		},
+		{
+			name:       "negative timezone",
+			value:      []byte{0x62, 0x80, 0x11, 0x21, 0x43, 0x65, 0x2a},
+			want:       time.Date(2026, time.August, 11, 12, 34, 56, 0, time.FixedZone("want", -(5*60*60+30*60))),
+			wantOffset: -(5*60*60 + 30*60),
+		},
+		{name: "truncated", value: make([]byte, 6), wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var timestamp smsTimestamp
+			err := timestamp.UnmarshalBinary(tt.value)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("UnmarshalBinary() error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			got := time.Time(timestamp)
+			if !got.Equal(tt.want) {
+				t.Errorf("UnmarshalBinary() = %v, want %v", got, tt.want)
+			}
+			if _, gotOffset := got.Zone(); gotOffset != tt.wantOffset {
+				t.Errorf("UnmarshalBinary() offset = %d, want %d", gotOffset, tt.wantOffset)
+			}
+		})
+	}
+}
+
 func TestSMSAssemblerOutOfOrderAndDuplicate(t *testing.T) {
 	pdus, err := EncodePDUs(MessageConfig{Number: "+15551234", Text: strings.Repeat("x", 307)})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("EncodePDUs() error = %v", err)
 	}
 	parts := make([]Part, len(pdus))
 	for i, pdu := range pdus {
 		if err := parts[i].UnmarshalBinary(pdu); err != nil {
-			t.Fatal(err)
+			t.Fatalf("Part[%d].UnmarshalBinary() error = %v", i, err)
 		}
 	}
 

@@ -106,7 +106,7 @@ func TestQCOMSoCEndpointRejectsInvalidBAMDMUXPort(t *testing.T) {
 			sysPath := t.TempDir()
 			if tt.write {
 				if err := os.WriteFile(filepath.Join(sysPath, "dev_port"), []byte(tt.value), 0o644); err != nil {
-					t.Fatal(err)
+					t.Fatalf("writing dev_port %q: %v", tt.value, err)
 				}
 			}
 			if _, err := qcomSoCEndpoint(sysPath, bamDMUXDriverName); err == nil {
@@ -170,19 +170,19 @@ func addQCOMRPMsgFixture(t *testing.T, sysRoot, modemPath, name, service string)
 	devicePath := filepath.Join(modemPath, name)
 	entryPath := filepath.Join(sysRoot, "class", "rpmsg", name)
 	if err := os.MkdirAll(devicePath, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", devicePath, err)
 	}
 	if err := os.MkdirAll(entryPath, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", entryPath, err)
 	}
 	if err := os.WriteFile(filepath.Join(entryPath, "name"), []byte(service+"\n"), 0o644); err != nil {
-		t.Fatal(err)
+		t.Fatalf("writing RPMSG service %q: %v", service, err)
 	}
 	// RPMSG endpoints may have a nearer driver of their own. QCOM matching
 	// must still find qcom-q6v5-mss on the parent chain, like udev DRIVERS.
 	addPlatformDriverLink(t, sysRoot, devicePath, "rpmsg_chrdev")
 	if err := os.Symlink(devicePath, filepath.Join(entryPath, "device")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking RPMSG device %q: %v", devicePath, err)
 	}
 }
 
@@ -191,18 +191,18 @@ func addQCOMNetworkFixture(t *testing.T, sysRoot, modemPath, name, driver string
 	devicePath := filepath.Join(modemPath, name)
 	entryPath := filepath.Join(sysRoot, "class", "net", name)
 	if err := os.MkdirAll(devicePath, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", devicePath, err)
 	}
 	if err := os.MkdirAll(entryPath, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", entryPath, err)
 	}
 	addPlatformDriverLink(t, sysRoot, devicePath, driver)
 	if err := os.Symlink(devicePath, filepath.Join(entryPath, "device")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking network device %q: %v", devicePath, err)
 	}
 	if devPort != nil {
 		if err := os.WriteFile(filepath.Join(entryPath, "dev_port"), fmt.Appendf(nil, "%d\n", *devPort), 0o644); err != nil {
-			t.Fatal(err)
+			t.Fatalf("writing dev_port %d for %q: %v", *devPort, name, err)
 		}
 	}
 }
@@ -210,14 +210,14 @@ func addQCOMNetworkFixture(t *testing.T, sysRoot, modemPath, name, driver string
 func addPlatformDriverLink(t *testing.T, sysRoot, devicePath, driver string) {
 	t.Helper()
 	if err := os.MkdirAll(devicePath, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", devicePath, err)
 	}
 	driverTarget := filepath.Join(sysRoot, "bus", "platform", "drivers", driver)
 	if err := os.MkdirAll(driverTarget, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", driverTarget, err)
 	}
 	if err := os.Symlink(driverTarget, filepath.Join(devicePath, "driver")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking driver %q to %q: %v", driverTarget, devicePath, err)
 	}
 }
 

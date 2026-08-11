@@ -73,12 +73,12 @@ const (
 	WMSMessageProtocolWCDMA
 )
 
-// WMSAckIndicator reports whether a transfer-route SMS requires an ACK.
-type WMSAckIndicator uint8
+// WMSACKIndicator reports whether a transfer-route SMS requires an ACK.
+type WMSACKIndicator uint8
 
 const (
-	WMSAckRequired WMSAckIndicator = iota
-	WMSAckNotRequired
+	WMSACKRequired WMSACKIndicator = iota
+	WMSACKNotRequired
 )
 
 // WMSCDMAServiceOption selects the CDMA service option used for SMS delivery.
@@ -97,16 +97,16 @@ type WMSCDMAForceOnDC struct {
 }
 
 // MarshalBinary encodes the force-on-dedicated-channel aggregate.
-func (force WMSCDMAForceOnDC) MarshalBinary() ([]byte, error) {
-	return []byte{boolByte(force.Force), byte(force.ServiceOption)}, nil
+func (f WMSCDMAForceOnDC) MarshalBinary() ([]byte, error) {
+	return []byte{boolByte(f.Force), byte(f.ServiceOption)}, nil
 }
 
 // UnmarshalBinary decodes the force-on-dedicated-channel aggregate.
-func (force *WMSCDMAForceOnDC) UnmarshalBinary(value []byte) error {
+func (f *WMSCDMAForceOnDC) UnmarshalBinary(value []byte) error {
 	if len(value) != 2 {
 		return fmt.Errorf("CDMA force-on-DC length %d, want 2", len(value))
 	}
-	*force = WMSCDMAForceOnDC{
+	*f = WMSCDMAForceOnDC{
 		Force:         value[0] != 0,
 		ServiceOption: WMSCDMAServiceOption(value[1]),
 	}
@@ -119,16 +119,16 @@ type WMSGSMCauseInfo struct {
 	TPCause uint8
 }
 
-func (cause WMSGSMCauseInfo) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint16(nil, cause.RPCause)
-	return append(value, cause.TPCause), nil
+func (c WMSGSMCauseInfo) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint16(nil, c.RPCause)
+	return append(value, c.TPCause), nil
 }
 
-func (cause *WMSGSMCauseInfo) UnmarshalBinary(value []byte) error {
+func (c *WMSGSMCauseInfo) UnmarshalBinary(value []byte) error {
 	if len(value) != 3 {
 		return fmt.Errorf("GSM cause length %d, want 3", len(value))
 	}
-	*cause = WMSGSMCauseInfo{RPCause: binary.LittleEndian.Uint16(value[:2]), TPCause: value[2]}
+	*c = WMSGSMCauseInfo{RPCause: binary.LittleEndian.Uint16(value[:2]), TPCause: value[2]}
 	return nil
 }
 
@@ -154,76 +154,76 @@ type WMSRejectCause struct {
 	Value uint8
 }
 
-func (cause WMSRejectCause) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint32(nil, cause.Type)
-	return append(value, cause.Value), nil
+func (c WMSRejectCause) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint32(nil, c.Type)
+	return append(value, c.Value), nil
 }
 
-func (cause *WMSRejectCause) UnmarshalBinary(value []byte) error {
+func (c *WMSRejectCause) UnmarshalBinary(value []byte) error {
 	if len(value) != 5 {
 		return fmt.Errorf("reject cause length %d, want 5", len(value))
 	}
-	*cause = WMSRejectCause{Type: binary.LittleEndian.Uint32(value[:4]), Value: value[4]}
+	*c = WMSRejectCause{Type: binary.LittleEndian.Uint32(value[:4]), Value: value[4]}
 	return nil
 }
 
-// WMSAck3GPP2Failure contains the CDMA failure information sent in a negative ACK.
-type WMSAck3GPP2Failure struct {
+// WMSACK3GPP2Failure contains the CDMA failure information sent in a negative ACK.
+type WMSACK3GPP2Failure struct {
 	ErrorClass uint8
 	CauseCode  uint8
 }
 
 // MarshalBinary encodes a CDMA negative-ACK failure.
-func (failure WMSAck3GPP2Failure) MarshalBinary() ([]byte, error) {
-	return []byte{failure.ErrorClass, failure.CauseCode}, nil
+func (f WMSACK3GPP2Failure) MarshalBinary() ([]byte, error) {
+	return []byte{f.ErrorClass, f.CauseCode}, nil
 }
 
 // UnmarshalBinary decodes a CDMA negative-ACK failure.
-func (failure *WMSAck3GPP2Failure) UnmarshalBinary(value []byte) error {
+func (f *WMSACK3GPP2Failure) UnmarshalBinary(value []byte) error {
 	if len(value) != 2 {
 		return fmt.Errorf("3GPP2 ACK failure length %d, want 2", len(value))
 	}
-	*failure = WMSAck3GPP2Failure{ErrorClass: value[0], CauseCode: value[1]}
+	*f = WMSACK3GPP2Failure{ErrorClass: value[0], CauseCode: value[1]}
 	return nil
 }
 
-// WMSAck3GPPFailure contains the GSM/UMTS failure information sent in a negative ACK.
-type WMSAck3GPPFailure struct {
+// WMSACK3GPPFailure contains the GSM/UMTS failure information sent in a negative ACK.
+type WMSACK3GPPFailure struct {
 	RPCause uint8
 	TPCause uint8
 }
 
 // MarshalBinary encodes a 3GPP negative-ACK failure.
-func (failure WMSAck3GPPFailure) MarshalBinary() ([]byte, error) {
-	return []byte{failure.RPCause, failure.TPCause}, nil
+func (f WMSACK3GPPFailure) MarshalBinary() ([]byte, error) {
+	return []byte{f.RPCause, f.TPCause}, nil
 }
 
 // UnmarshalBinary decodes a 3GPP negative-ACK failure.
-func (failure *WMSAck3GPPFailure) UnmarshalBinary(value []byte) error {
+func (f *WMSACK3GPPFailure) UnmarshalBinary(value []byte) error {
 	if len(value) != 2 {
 		return fmt.Errorf("3GPP ACK failure length %d, want 2", len(value))
 	}
-	*failure = WMSAck3GPPFailure{RPCause: value[0], TPCause: value[1]}
+	*f = WMSACK3GPPFailure{RPCause: value[0], TPCause: value[1]}
 	return nil
 }
 
-// WMSAckFailureCause explains why the modem could not deliver a network ACK.
-type WMSAckFailureCause uint8
+// WMSACKFailureCause explains why the modem could not deliver a network ACK.
+type WMSACKFailureCause uint8
 
 const (
-	WMSAckFailureNoNetworkResponse WMSAckFailureCause = iota
-	WMSAckFailureNetworkReleasedLink
-	WMSAckFailureNotSent
+	WMSACKFailureNoNetworkResponse WMSACKFailureCause = iota
+	WMSACKFailureNetworkReleasedLink
+	WMSACKFailureNotSent
 )
 
-// WMSAckError preserves the QMI error and the optional modem ACK failure cause.
-type WMSAckError struct {
+// WMSACKError preserves the QMI error and the optional modem ACK failure cause.
+type WMSACKError struct {
 	Err               error
-	FailureCause      WMSAckFailureCause
+	FailureCause      WMSACKFailureCause
 	FailureCauseKnown bool
 }
 
-func (e *WMSAckError) Error() string {
+func (e *WMSACKError) Error() string {
 	if e == nil {
 		return "<nil>"
 	}
@@ -233,7 +233,7 @@ func (e *WMSAckError) Error() string {
 	return e.Err.Error()
 }
 
-func (e *WMSAckError) Unwrap() error {
+func (e *WMSACKError) Unwrap() error {
 	if e == nil {
 		return nil
 	}
@@ -247,17 +247,17 @@ type WMSMessageReference struct {
 }
 
 // MarshalBinary encodes a modem SMS storage reference.
-func (reference WMSMessageReference) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(reference.Storage)}
-	return binary.LittleEndian.AppendUint32(value, reference.Index), nil
+func (r WMSMessageReference) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(r.Storage)}
+	return binary.LittleEndian.AppendUint32(value, r.Index), nil
 }
 
 // UnmarshalBinary decodes a modem SMS storage reference.
-func (reference *WMSMessageReference) UnmarshalBinary(value []byte) error {
+func (r *WMSMessageReference) UnmarshalBinary(value []byte) error {
 	if len(value) != 5 {
 		return fmt.Errorf("WMS message reference length %d, want 5", len(value))
 	}
-	*reference = WMSMessageReference{
+	*r = WMSMessageReference{
 		Storage: WMSStorage(value[0]),
 		Index:   binary.LittleEndian.Uint32(value[1:5]),
 	}
@@ -350,32 +350,32 @@ type WMSEventReportConfig struct {
 	LowerLayerErrors *bool
 }
 
-// WMSAckRequest acknowledges a transfer-route SMS.
-type WMSAckRequest struct {
+// WMSACKRequest acknowledges a transfer-route SMS.
+type WMSACKRequest struct {
 	TransactionID uint32
 	Protocol      WMSMessageProtocol
 	Success       bool
-	Failure3GPP2  *WMSAck3GPP2Failure
-	Failure3GPP   *WMSAck3GPPFailure
+	Failure3GPP2  *WMSACK3GPP2Failure
+	Failure3GPP   *WMSACK3GPPFailure
 	SMSOnIMS      *bool
 }
 
-type wmsAckInfo struct {
+type wmsACKInfo struct {
 	TransactionID uint32
 	Protocol      WMSMessageProtocol
 	Success       bool
 }
 
-func (ack wmsAckInfo) MarshalBinary() ([]byte, error) {
+func (ack wmsACKInfo) MarshalBinary() ([]byte, error) {
 	value := binary.LittleEndian.AppendUint32(nil, ack.TransactionID)
 	return append(value, byte(ack.Protocol), boolByte(ack.Success)), nil
 }
 
-func (ack *wmsAckInfo) UnmarshalBinary(value []byte) error {
+func (ack *wmsACKInfo) UnmarshalBinary(value []byte) error {
 	if len(value) != 6 {
 		return fmt.Errorf("WMS ACK info length %d, want 6", len(value))
 	}
-	*ack = wmsAckInfo{
+	*ack = wmsACKInfo{
 		TransactionID: binary.LittleEndian.Uint32(value[:4]),
 		Protocol:      WMSMessageProtocol(value[4]),
 		Success:       value[5] != 0,
@@ -407,8 +407,8 @@ type WMSIncomingMessage struct {
 	Tag               WMSTag
 	Format            WMSMessageFormat
 	Data              []byte
-	AckIndicator      WMSAckIndicator
-	AckIndicatorKnown bool
+	ACKIndicator      WMSACKIndicator
+	ACKIndicatorKnown bool
 	TransactionID     uint32
 	SMSOnIMS          bool
 	SMSOnIMSKnown     bool
@@ -675,8 +675,8 @@ func (c *Client) WMSSetEventReport(ctx context.Context, config WMSEventReportCon
 }
 
 // WMSAcknowledge sends the network ACK required by a transfer-route message.
-func (c *Client) WMSAcknowledge(ctx context.Context, req WMSAckRequest) error {
-	value, err := (wmsAckInfo{
+func (c *Client) WMSAcknowledge(ctx context.Context, req WMSACKRequest) error {
+	value, err := (wmsACKInfo{
 		TransactionID: req.TransactionID,
 		Protocol:      req.Protocol,
 		Success:       req.Success,
@@ -704,7 +704,7 @@ func (c *Client) WMSAcknowledge(ctx context.Context, req WMSAckRequest) error {
 	}
 
 	err = c.withServiceClient(ctx, ServiceWMS, func(clientID uint8) error {
-		resp, err := c.requestService(ctx, ServiceWMS, clientID, MessageWMSSendAck, tlvs)
+		resp, err := c.requestService(ctx, ServiceWMS, clientID, MessageWMSSendACK, tlvs)
 		if err != nil {
 			return err
 		}
@@ -716,9 +716,9 @@ func (c *Client) WMSAcknowledge(ctx context.Context, req WMSAckRequest) error {
 		if resultErr == nil {
 			return nil
 		}
-		ackErr := &WMSAckError{Err: resultErr}
+		ackErr := &WMSACKError{Err: resultErr}
 		if ok {
-			ackErr.FailureCause = WMSAckFailureCause(value[0])
+			ackErr.FailureCause = WMSACKFailureCause(value[0])
 			ackErr.FailureCauseKnown = true
 		}
 		return ackErr
@@ -827,6 +827,7 @@ func (c *Client) releaseWMSIndication(registration wmsIndicationRegistration) {
 		return
 	}
 	delete(c.wmsIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setWMSIndication(ctx, registration, false)
 }
 
@@ -1043,8 +1044,8 @@ func (m *WMSIncomingMessage) UnmarshalTLVs(tlvs tlv.TLVs) error {
 			return fmt.Errorf("parsing QMI WMS transfer message: value length %d, want %d", len(value), 8+length)
 		}
 		found = true
-		message.AckIndicator = WMSAckIndicator(value[0])
-		message.AckIndicatorKnown = true
+		message.ACKIndicator = WMSACKIndicator(value[0])
+		message.ACKIndicatorKnown = true
 		message.TransactionID = binary.LittleEndian.Uint32(value[1:5])
 		message.Format = WMSMessageFormat(value[5])
 		message.Data = slices.Clone(value[8 : 8+length])
@@ -1103,18 +1104,18 @@ func (m *WMSIncomingMessage) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	return nil
 }
 
-func (address WMSSMSCAddress) MarshalBinary() ([]byte, error) {
-	if len(address.Type) != 3 {
-		return nil, fmt.Errorf("SMSC address type length %d, want 3", len(address.Type))
+func (a WMSSMSCAddress) MarshalBinary() ([]byte, error) {
+	if len(a.Type) != 3 {
+		return nil, fmt.Errorf("SMSC address type length %d, want 3", len(a.Type))
 	}
-	if len(address.Digits) > 0xff {
-		return nil, fmt.Errorf("SMSC address digit length %d exceeds 255", len(address.Digits))
+	if len(a.Digits) > 0xff {
+		return nil, fmt.Errorf("SMSC address digit length %d exceeds 255", len(a.Digits))
 	}
-	value := append([]byte(address.Type), byte(len(address.Digits)))
-	return append(value, address.Digits...), nil
+	value := append([]byte(a.Type), byte(len(a.Digits)))
+	return append(value, a.Digits...), nil
 }
 
-func (address *WMSSMSCAddress) UnmarshalBinary(value []byte) error {
+func (a *WMSSMSCAddress) UnmarshalBinary(value []byte) error {
 	if len(value) < 4 {
 		return errors.New("SMSC address is truncated")
 	}
@@ -1122,7 +1123,7 @@ func (address *WMSSMSCAddress) UnmarshalBinary(value []byte) error {
 	if len(value) != 4+length {
 		return fmt.Errorf("SMSC address length %d, want %d", len(value), 4+length)
 	}
-	*address = WMSSMSCAddress{
+	*a = WMSSMSCAddress{
 		Type:   string(value[:3]),
 		Digits: string(value[4 : 4+length]),
 	}

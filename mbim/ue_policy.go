@@ -29,8 +29,8 @@ func (r *UEPolicyRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
 		Command: commandWithError(
-			ServiceMsBasicConnectExtensions,
-			CIDMsUEPolicy,
+			ServiceMSBasicConnectExtensions,
+			CIDMSUEPolicy,
 			CommandTypeQuery,
 			data,
 			err,

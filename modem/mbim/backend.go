@@ -34,7 +34,7 @@ type simFileMetadata struct {
 }
 
 type simATRReader interface {
-	QueryUiccATR(context.Context) ([]byte, error)
+	QueryUICCATR(context.Context) ([]byte, error)
 }
 
 func New(client *mbimproto.Client, device string) *Backend {
@@ -103,8 +103,8 @@ func featuresFromServices(services mbimproto.DeviceServicesResponse) Feature {
 	if supports(mbimproto.ServiceBasicConnect, mbimproto.CIDSignalState) {
 		features |= FeatureSignalThresholds
 	}
-	if supports(mbimproto.ServiceBasicConnect, mbimproto.CIDPin) &&
-		supports(mbimproto.ServiceBasicConnect, mbimproto.CIDPinList) {
+	if supports(mbimproto.ServiceBasicConnect, mbimproto.CIDPIN) &&
+		supports(mbimproto.ServiceBasicConnect, mbimproto.CIDPINList) {
 		features |= FeatureFacilityLocks
 	}
 	if supports(mbimproto.ServiceSMS, mbimproto.CIDSMSRead) &&
@@ -115,22 +115,22 @@ func featuresFromServices(services mbimproto.DeviceServicesResponse) Feature {
 	if supports(mbimproto.ServiceUSSD, mbimproto.CIDUSSD) {
 		features |= FeatureUSSD
 	}
-	if supports(mbimproto.ServiceMsSAR, mbimproto.CIDMsSARConfig) {
+	if supports(mbimproto.ServiceMSSAR, mbimproto.CIDMSSARConfig) {
 		features |= FeatureSAR
 	}
-	if supports(mbimproto.ServiceMsFirmwareID, mbimproto.CIDMsFirmwareIDGet) {
+	if supports(mbimproto.ServiceMSFirmwareID, mbimproto.CIDMSFirmwareIDGet) {
 		features |= FeatureFirmwareUpdate
 	}
-	if supports(mbimproto.ServiceMsBasicConnectExtensions, mbimproto.CIDMsBaseStationsInfo) {
+	if supports(mbimproto.ServiceMSBasicConnectExtensions, mbimproto.CIDMSBaseStationsInfo) {
 		features |= FeatureCellInfo
 	}
-	if supports(mbimproto.ServiceMsBasicConnectExtensions, mbimproto.CIDMsLteAttachConfiguration) &&
-		supports(mbimproto.ServiceMsBasicConnectExtensions, mbimproto.CIDMsLteAttachInfo) {
+	if supports(mbimproto.ServiceMSBasicConnectExtensions, mbimproto.CIDMSLTEAttachConfiguration) &&
+		supports(mbimproto.ServiceMSBasicConnectExtensions, mbimproto.CIDMSLTEAttachInfo) {
 		features |= FeatureInitialEPSBearer
 	}
-	if supports(mbimproto.ServiceMsBasicConnectExtensions, mbimproto.CIDMsSystemCapabilities) &&
-		supports(mbimproto.ServiceMsBasicConnectExtensions, mbimproto.CIDDeviceSlotMappings) &&
-		supports(mbimproto.ServiceMsBasicConnectExtensions, mbimproto.CIDMsSlotInfoStatus) {
+	if supports(mbimproto.ServiceMSBasicConnectExtensions, mbimproto.CIDMSSystemCapabilities) &&
+		supports(mbimproto.ServiceMSBasicConnectExtensions, mbimproto.CIDDeviceSlotMappings) &&
+		supports(mbimproto.ServiceMSBasicConnectExtensions, mbimproto.CIDMSSlotInfoStatus) {
 		features |= FeatureMultiSIM
 	}
 	return features
@@ -231,7 +231,7 @@ func (b *Backend) SIMInfo(ctx context.Context) (SIMInfo, error) {
 	result := simInfoFromSubscriber(ready)
 	if pin, pinErr := b.client.PIN(ctx); pinErr == nil {
 		result.PINRetries = uint8(min(pin.RemainingAttempts, math.MaxUint8))
-		if pin.State == mbimproto.PinStateLocked {
+		if pin.State == mbimproto.PINStateLocked {
 			result.State = SIMStateLocked
 		}
 	}
@@ -259,7 +259,7 @@ func readSIMATR(ctx context.Context, state mbimproto.SubscriberReadyState, reade
 	default:
 		return nil
 	}
-	atr, err := reader.QueryUiccATR(ctx)
+	atr, err := reader.QueryUICCATR(ctx)
 	if err != nil {
 		return nil
 	}
@@ -303,7 +303,7 @@ func (b *Backend) simMetadata(ctx context.Context, iccid string) simFileMetadata
 	metadata.OperatorName = card.SPN()
 	metadata.GID1 = card.GID1()
 	metadata.SPN = card.SPN()
-	_ = card.Close()
+	_ = card.Close() // Metadata has been read; cleanup cannot change the result.
 	b.metadataKey = iccid
 	b.metadata = metadata
 	return metadata
@@ -358,32 +358,32 @@ func (b *Backend) SetPrimarySIMSlot(ctx context.Context, slot uint8) error {
 }
 
 func (b *Backend) SendPIN(ctx context.Context, pin string) error {
-	if _, err := b.client.SetPIN(ctx, mbimproto.PinTypePIN1, mbimproto.PinOperationEnter, pin, ""); err != nil {
+	if _, err := b.client.SetPIN(ctx, mbimproto.PINTypePIN1, mbimproto.PINOperationEnter, pin, ""); err != nil {
 		return fmt.Errorf("sending MBIM PIN: %w", err)
 	}
 	return nil
 }
 
 func (b *Backend) SendPUK(ctx context.Context, puk, newPIN string) error {
-	if _, err := b.client.SetPIN(ctx, mbimproto.PinTypePUK1, mbimproto.PinOperationEnter, puk, newPIN); err != nil {
+	if _, err := b.client.SetPIN(ctx, mbimproto.PINTypePUK1, mbimproto.PINOperationEnter, puk, newPIN); err != nil {
 		return fmt.Errorf("sending MBIM PUK: %w", err)
 	}
 	return nil
 }
 
 func (b *Backend) EnablePIN(ctx context.Context, pin string, enabled bool) error {
-	operation := mbimproto.PinOperationDisable
+	operation := mbimproto.PINOperationDisable
 	if enabled {
-		operation = mbimproto.PinOperationEnable
+		operation = mbimproto.PINOperationEnable
 	}
-	if _, err := b.client.SetPIN(ctx, mbimproto.PinTypePIN1, operation, pin, ""); err != nil {
+	if _, err := b.client.SetPIN(ctx, mbimproto.PINTypePIN1, operation, pin, ""); err != nil {
 		return fmt.Errorf("setting MBIM PIN protection: %w", err)
 	}
 	return nil
 }
 
 func (b *Backend) ChangePIN(ctx context.Context, oldPIN, newPIN string) error {
-	if _, err := b.client.SetPIN(ctx, mbimproto.PinTypePIN1, mbimproto.PinOperationChange, oldPIN, newPIN); err != nil {
+	if _, err := b.client.SetPIN(ctx, mbimproto.PINTypePIN1, mbimproto.PINOperationChange, oldPIN, newPIN); err != nil {
 		return fmt.Errorf("changing MBIM PIN: %w", err)
 	}
 	return nil
@@ -511,8 +511,8 @@ func (b *Backend) FacilityLocks(ctx context.Context) ([]FacilityLock, error) {
 			if result[i].Facility != facility {
 				continue
 			}
-			result[i].Enabled = result[i].Enabled || active.State == mbimproto.PinStateLocked
-			result[i].Blocked = blocked && active.State == mbimproto.PinStateLocked
+			result[i].Enabled = result[i].Enabled || active.State == mbimproto.PINStateLocked
+			result[i].Blocked = blocked && active.State == mbimproto.PINStateLocked
 			if blocked {
 				result[i].UnblockRetries = active.RemainingAttempts
 			} else {
@@ -524,9 +524,9 @@ func (b *Backend) FacilityLocks(ctx context.Context) ([]FacilityLock, error) {
 }
 
 func (b *Backend) SetFacilityLock(ctx context.Context, facility Facility, enabled bool, key string) error {
-	operation := mbimproto.PinOperationDisable
+	operation := mbimproto.PINOperationDisable
 	if enabled {
-		operation = mbimproto.PinOperationEnable
+		operation = mbimproto.PINOperationEnable
 	}
 	if _, err := b.client.SetPIN(ctx, pinType(facility), operation, key, ""); err != nil {
 		return fmt.Errorf("setting MBIM facility lock: %w", err)
@@ -535,7 +535,7 @@ func (b *Backend) SetFacilityLock(ctx context.Context, facility Facility, enable
 }
 
 func (b *Backend) UnblockFacilityLock(ctx context.Context, facility Facility, key string) error {
-	if _, err := b.client.SetPIN(ctx, pukType(facility), mbimproto.PinOperationEnter, key, ""); err != nil {
+	if _, err := b.client.SetPIN(ctx, pukType(facility), mbimproto.PINOperationEnter, key, ""); err != nil {
 		return fmt.Errorf("unblocking MBIM facility lock: %w", err)
 	}
 	return nil
@@ -605,46 +605,46 @@ func (b *Backend) SetInitialEPSSettings(ctx context.Context, cfg InitialEPSConfi
 	return InitialEPSConfig{}, errors.New("setting MBIM initial EPS settings: home configuration missing from response")
 }
 
-func facilityLock(facility Facility, desc mbimproto.PinDesc) FacilityLock {
-	return FacilityLock{Facility: facility, Enabled: desc.Mode == mbimproto.PinModeEnabled}
+func facilityLock(facility Facility, desc mbimproto.PINDesc) FacilityLock {
+	return FacilityLock{Facility: facility, Enabled: desc.Mode == mbimproto.PINModeEnabled}
 }
 
-func pinType(facility Facility) mbimproto.PinType {
+func pinType(facility Facility) mbimproto.PINType {
 	switch facility {
 	case FacilityNetworkSubset:
-		return mbimproto.PinTypeNetworkSubset
+		return mbimproto.PINTypeNetworkSubset
 	case FacilityServiceProvider:
-		return mbimproto.PinTypeServiceProvider
+		return mbimproto.PINTypeServiceProvider
 	case FacilityCorporate:
-		return mbimproto.PinTypeCorporate
+		return mbimproto.PINTypeCorporate
 	default:
-		return mbimproto.PinTypeNetwork
+		return mbimproto.PINTypeNetwork
 	}
 }
 
-func pukType(facility Facility) mbimproto.PinType {
+func pukType(facility Facility) mbimproto.PINType {
 	switch facility {
 	case FacilityNetworkSubset:
-		return mbimproto.PinTypeNetworkSubsetPUK
+		return mbimproto.PINTypeNetworkSubsetPUK
 	case FacilityServiceProvider:
-		return mbimproto.PinTypeServiceProviderPUK
+		return mbimproto.PINTypeServiceProviderPUK
 	case FacilityCorporate:
-		return mbimproto.PinTypeCorporatePUK
+		return mbimproto.PINTypeCorporatePUK
 	default:
-		return mbimproto.PinTypeNetworkPUK
+		return mbimproto.PINTypeNetworkPUK
 	}
 }
 
-func facilityFromPINType(pin mbimproto.PinType) (Facility, bool) {
+func facilityFromPINType(pin mbimproto.PINType) (Facility, bool) {
 	switch pin {
-	case mbimproto.PinTypeNetwork, mbimproto.PinTypeNetworkPUK:
-		return FacilityNetwork, pin == mbimproto.PinTypeNetworkPUK
-	case mbimproto.PinTypeNetworkSubset, mbimproto.PinTypeNetworkSubsetPUK:
-		return FacilityNetworkSubset, pin == mbimproto.PinTypeNetworkSubsetPUK
-	case mbimproto.PinTypeServiceProvider, mbimproto.PinTypeServiceProviderPUK:
-		return FacilityServiceProvider, pin == mbimproto.PinTypeServiceProviderPUK
-	case mbimproto.PinTypeCorporate, mbimproto.PinTypeCorporatePUK:
-		return FacilityCorporate, pin == mbimproto.PinTypeCorporatePUK
+	case mbimproto.PINTypeNetwork, mbimproto.PINTypeNetworkPUK:
+		return FacilityNetwork, pin == mbimproto.PINTypeNetworkPUK
+	case mbimproto.PINTypeNetworkSubset, mbimproto.PINTypeNetworkSubsetPUK:
+		return FacilityNetworkSubset, pin == mbimproto.PINTypeNetworkSubsetPUK
+	case mbimproto.PINTypeServiceProvider, mbimproto.PINTypeServiceProviderPUK:
+		return FacilityServiceProvider, pin == mbimproto.PINTypeServiceProviderPUK
+	case mbimproto.PINTypeCorporate, mbimproto.PINTypeCorporatePUK:
+		return FacilityCorporate, pin == mbimproto.PINTypeCorporatePUK
 	default:
 		return 0, false
 	}

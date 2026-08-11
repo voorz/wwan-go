@@ -499,6 +499,7 @@ func (c *Client) releaseIMSAIndication(registration imsaIndicationRegistration) 
 		return
 	}
 	delete(c.imsaIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setIMSAIndicationRegistration(ctx, registration, false)
 }
 
@@ -529,17 +530,17 @@ func (c *Client) imsaRequest(ctx context.Context, req Request, dst tlvUnmarshale
 	})
 }
 
-func (status *IMSAStatus) unmarshalServiceTLVs(tlvs tlv.TLVs) error {
+func (s *IMSAStatus) unmarshalServiceTLVs(tlvs tlv.TLVs) error {
 	serviceFields := []struct {
 		typ   uint8
 		value *IMSServiceStatus
 		known *bool
 	}{
-		{imsaTLVSMSService, &status.SMSService, &status.SMSServiceKnown},
-		{imsaTLVVoIPService, &status.VoIPService, &status.VoIPServiceKnown},
-		{imsaTLVVTService, &status.VTService, &status.VTServiceKnown},
-		{imsaTLVUTService, &status.UTService, &status.UTServiceKnown},
-		{imsaTLVVSService, &status.VSService, &status.VSServiceKnown},
+		{imsaTLVSMSService, &s.SMSService, &s.SMSServiceKnown},
+		{imsaTLVVoIPService, &s.VoIPService, &s.VoIPServiceKnown},
+		{imsaTLVVTService, &s.VTService, &s.VTServiceKnown},
+		{imsaTLVUTService, &s.UTService, &s.UTServiceKnown},
+		{imsaTLVVSService, &s.VSService, &s.VSServiceKnown},
 	}
 	for _, field := range serviceFields {
 		if err := decodeIMSAService(tlvs, field.typ, field.value, field.known); err != nil {
@@ -551,11 +552,11 @@ func (status *IMSAStatus) unmarshalServiceTLVs(tlvs tlv.TLVs) error {
 		value *IMSServiceRAT
 		known *bool
 	}{
-		{imsaTLVSMSRAT, &status.SMSRAT, &status.SMSRATKnown},
-		{imsaTLVVoIPRAT, &status.VoIPRAT, &status.VoIPRATKnown},
-		{imsaTLVVTRAT, &status.VTRAT, &status.VTRATKnown},
-		{imsaTLVUTRAT, &status.UTRAT, &status.UTRATKnown},
-		{imsaTLVVSRAT, &status.VSRAT, &status.VSRATKnown},
+		{imsaTLVSMSRAT, &s.SMSRAT, &s.SMSRATKnown},
+		{imsaTLVVoIPRAT, &s.VoIPRAT, &s.VoIPRATKnown},
+		{imsaTLVVTRAT, &s.VTRAT, &s.VTRATKnown},
+		{imsaTLVUTRAT, &s.UTRAT, &s.UTRATKnown},
+		{imsaTLVVSRAT, &s.VSRAT, &s.VSRATKnown},
 	}
 	for _, field := range ratFields {
 		if err := decodeIMSARAT(tlvs, field.typ, field.value, field.known); err != nil {

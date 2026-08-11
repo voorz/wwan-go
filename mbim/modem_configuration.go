@@ -28,8 +28,8 @@ func (r *ModemConfigurationRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsModemConfiguration,
+			ServiceMSBasicConnectExtensions,
+			CIDMSModemConfiguration,
 			CommandTypeQuery,
 			nil,
 		),

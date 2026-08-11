@@ -280,6 +280,7 @@ func (r *Reader) pollSTK(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	// Polling is best effort; the next status poll can recover from this failure.
 	_ = r.acceptSTKStatus(ctx, apdu.Response(resp))
 }
 

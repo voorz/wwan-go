@@ -69,6 +69,10 @@ func (c *CAT) ForceClaimEvents(ctx context.Context, config CATEventClaimConfig) 
 	}
 
 	claim := CATEventClaim{Service: service, ClientID: clientID}
+	release := func() {
+		// Cleanup cannot replace the claim error returned by the caller.
+		_ = c.client.releaseCATClient(ctx, service, clientID)
+	}
 	ok, rawConflict, err := c.trySetEventReport(ctx, service, clientID, config.RawMask, config.FullFunctionMask)
 	if err != nil {
 		return CATEventClaim{}, err
@@ -77,18 +81,18 @@ func (c *CAT) ForceClaimEvents(ctx context.Context, config CATEventClaimConfig) 
 		return claim, nil
 	}
 	if !rawConflict {
-		_ = c.client.releaseCATClient(ctx, service, clientID)
+		release()
 		return CATEventClaim{}, errors.New("claiming QMI CAT events: registration rejected without raw event conflict")
 	}
 
 	state, err := c.ServiceState(ctx)
 	if err != nil {
-		_ = c.client.releaseCATClient(ctx, service, clientID)
+		release()
 		return CATEventClaim{}, err
 	}
 	claim.StateBefore = state
 	if state.RawGlobalMask&config.RawMask == 0 {
-		_ = c.client.releaseCATClient(ctx, service, clientID)
+		release()
 		return CATEventClaim{}, fmt.Errorf("claiming QMI CAT events: raw global mask 0x%08X does not contain requested mask 0x%08X", state.RawGlobalMask, config.RawMask)
 	}
 
@@ -102,12 +106,12 @@ func (c *CAT) ForceClaimEvents(ctx context.Context, config CATEventClaimConfig) 
 			continue
 		}
 		if err := c.releaseServiceClientID(ctx, service, owner); err != nil {
-			_ = c.client.releaseCATClient(ctx, service, clientID)
+			release()
 			return CATEventClaim{}, fmt.Errorf("claiming QMI CAT events: release owner client %d: %w", owner, err)
 		}
 		ok, _, err := c.trySetEventReport(ctx, service, clientID, config.RawMask, config.FullFunctionMask)
 		if err != nil {
-			_ = c.client.releaseCATClient(ctx, service, clientID)
+			release()
 			return CATEventClaim{}, err
 		}
 		if ok {
@@ -116,7 +120,7 @@ func (c *CAT) ForceClaimEvents(ctx context.Context, config CATEventClaimConfig) 
 		}
 	}
 
-	_ = c.client.releaseCATClient(ctx, service, clientID)
+	release()
 	return CATEventClaim{}, fmt.Errorf("claiming QMI CAT events: raw mask 0x%08X is still owned by another CAT client", config.RawMask)
 }
 

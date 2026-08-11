@@ -68,7 +68,7 @@ func TestClientReportsFragmentFaultAndRecovers(t *testing.T) {
 				t.Fatalf("InformationBuffer = %X, want 7F", got.InformationBuffer)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -130,7 +130,7 @@ func TestRequestTransmitReportsFragmentFault(t *testing.T) {
 				t.Fatalf("Transmit() error = %v, want %v", err, tt.wantStatus)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -185,7 +185,7 @@ func TestClientAllowsUnrelatedFrameBetweenFragments(t *testing.T) {
 		t.Fatalf("signal payload length = %d, want %d", len(signal.InformationBuffer), len(payload))
 	}
 	if err := <-errCh; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 

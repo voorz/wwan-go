@@ -42,7 +42,7 @@ func TestProxyVersionNotificationAPIs(t *testing.T) {
 				select {
 				case got = <-updates:
 				case <-ctx.Done():
-					t.Fatal(ctx.Err())
+					t.Fatalf("waiting for proxy version update: %v", ctx.Err())
 				}
 			} else {
 				var err error
@@ -55,7 +55,7 @@ func TestProxyVersionNotificationAPIs(t *testing.T) {
 				t.Fatalf("proxy version = %+v", got)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

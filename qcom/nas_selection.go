@@ -508,87 +508,87 @@ func (c *Client) SetSystemSelectionPreference(ctx context.Context, config NASSys
 }
 
 // MarshalTLVs encodes system-selection fields.
-func (config NASSystemSelectionConfig) MarshalTLVs() (tlv.TLVs, error) {
+func (c NASSystemSelectionConfig) MarshalTLVs() (tlv.TLVs, error) {
 	var tlvs tlv.TLVs
-	if config.EmergencyMode != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionEmergencyMode, boolByte(*config.EmergencyMode)))
+	if c.EmergencyMode != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionEmergencyMode, boolByte(*c.EmergencyMode)))
 	}
-	if config.ModePreference != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionModePreference, uint16(*config.ModePreference)))
+	if c.ModePreference != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionModePreference, uint16(*c.ModePreference)))
 	}
-	if config.BandPreference != nil {
-		tlvs = append(tlvs, nasUint64TLV(nasTLVSelectionBandPreference, uint64(*config.BandPreference)))
+	if c.BandPreference != nil {
+		tlvs = append(tlvs, nasUint64TLV(nasTLVSelectionBandPreference, uint64(*c.BandPreference)))
 	}
-	if config.PRLPreference != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionPRLPreference, uint16(*config.PRLPreference)))
+	if c.PRLPreference != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionPRLPreference, uint16(*c.PRLPreference)))
 	}
-	if config.RoamingPreference != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionRoamingPreference, uint16(*config.RoamingPreference)))
+	if c.RoamingPreference != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionRoamingPreference, uint16(*c.RoamingPreference)))
 	}
-	if config.LTEBandPreference != nil {
-		tlvs = append(tlvs, nasUint64TLV(nasTLVSelectionLTEBandPreference, uint64(*config.LTEBandPreference)))
+	if c.LTEBandPreference != nil {
+		tlvs = append(tlvs, nasUint64TLV(nasTLVSelectionLTEBandPreference, uint64(*c.LTEBandPreference)))
 	}
-	if config.NetworkSelection != nil {
-		selectionTLVs, err := config.NetworkSelection.MarshalTLVs()
+	if c.NetworkSelection != nil {
+		selectionTLVs, err := c.NetworkSelection.MarshalTLVs()
 		if err != nil {
 			return nil, err
 		}
 		tlvs = append(tlvs, selectionTLVs...)
 	}
-	if config.ChangeDuration != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionChangeDuration, uint8(*config.ChangeDuration)))
+	if c.ChangeDuration != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionChangeDuration, uint8(*c.ChangeDuration)))
 	}
-	if config.ServiceDomain != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionServiceDomain, uint32(*config.ServiceDomain)))
+	if c.ServiceDomain != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionServiceDomain, uint32(*c.ServiceDomain)))
 	}
-	if config.GWAcquisitionOrder != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionGWAcquisitionOrder, uint32(*config.GWAcquisitionOrder)))
+	if c.GWAcquisitionOrder != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionGWAcquisitionOrder, uint32(*c.GWAcquisitionOrder)))
 	}
-	if config.TDSCDMABandPreference != nil {
-		tlvs = append(tlvs, nasUint64TLV(nasTLVSelectionSetTDSCDMABands, uint64(*config.TDSCDMABandPreference)))
+	if c.TDSCDMABandPreference != nil {
+		tlvs = append(tlvs, nasUint64TLV(nasTLVSelectionSetTDSCDMABands, uint64(*c.TDSCDMABandPreference)))
 	}
-	if config.AcquisitionOrder != nil {
-		value, err := nasAcquisitionOrder(config.AcquisitionOrder).MarshalBinary()
+	if c.AcquisitionOrder != nil {
+		value, err := nasAcquisitionOrder(c.AcquisitionOrder).MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS acquisition order: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSelectionSetAcquisitionOrder, value))
 	}
-	if config.RegistrationRestrict != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetRegistrationRestrict, uint32(*config.RegistrationRestrict)))
+	if c.RegistrationRestrict != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetRegistrationRestrict, uint32(*c.RegistrationRestrict)))
 	}
-	if config.UsagePreference != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetUsagePreference, uint32(*config.UsagePreference)))
+	if c.UsagePreference != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetUsagePreference, uint32(*c.UsagePreference)))
 	}
-	if config.VoiceDomain != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetVoiceDomain, uint32(*config.VoiceDomain)))
+	if c.VoiceDomain != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetVoiceDomain, uint32(*c.VoiceDomain)))
 	}
-	if config.LTEBandsExtended != nil {
-		value, err := config.LTEBandsExtended.MarshalBinary()
+	if c.LTEBandsExtended != nil {
+		value, err := c.LTEBandsExtended.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS extended LTE band preference: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSelectionSetLTEBandsExtended, value))
 	}
-	if config.NR5GBands != nil {
-		value, err := config.NR5GBands.MarshalBinary()
+	if c.NR5GBands != nil {
+		value, err := c.NR5GBands.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS NR5G bands: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSelectionSetNR5GBands, value))
 	}
-	if config.NR5GDisableMode != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetNR5GDisableMode, uint32(*config.NR5GDisableMode)))
+	if c.NR5GDisableMode != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetNR5GDisableMode, uint32(*c.NR5GDisableMode)))
 	}
-	if config.NR5GSABands != nil {
-		value, err := config.NR5GSABands.MarshalBinary()
+	if c.NR5GSABands != nil {
+		value, err := c.NR5GSABands.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS NR5G SA bands: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSelectionSetNR5GSABands, value))
 	}
-	if config.NR5GNSABands != nil {
-		value, err := config.NR5GNSABands.MarshalBinary()
+	if c.NR5GNSABands != nil {
+		value, err := c.NR5GNSABands.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS NR5G NSA bands: %w", err)
 		}
@@ -598,41 +598,41 @@ func (config NASSystemSelectionConfig) MarshalTLVs() (tlv.TLVs, error) {
 }
 
 // MarshalTLVs encodes manual or automatic network-selection fields.
-func (selection NASNetworkSelection) MarshalTLVs() (tlv.TLVs, error) {
-	if selection.Mode > NASNetworkSelectionManual {
-		return nil, fmt.Errorf("encoding QMI NAS network selection: mode %d is out of range", selection.Mode)
+func (s NASNetworkSelection) MarshalTLVs() (tlv.TLVs, error) {
+	if s.Mode > NASNetworkSelectionManual {
+		return nil, fmt.Errorf("encoding QMI NAS network selection: mode %d is out of range", s.Mode)
 	}
-	if selection.PLMN.MCC > 999 || selection.PLMN.MNC > 999 {
-		return nil, fmt.Errorf("encoding QMI NAS network selection: PLMN %d/%d is out of range", selection.PLMN.MCC, selection.PLMN.MNC)
+	if s.PLMN.MCC > 999 || s.PLMN.MNC > 999 {
+		return nil, fmt.Errorf("encoding QMI NAS network selection: PLMN %d/%d is out of range", s.PLMN.MCC, s.PLMN.MNC)
 	}
-	value := []byte{byte(selection.Mode)}
-	value = binary.LittleEndian.AppendUint16(value, selection.PLMN.MCC)
-	value = binary.LittleEndian.AppendUint16(value, selection.PLMN.MNC)
+	value := []byte{byte(s.Mode)}
+	value = binary.LittleEndian.AppendUint16(value, s.PLMN.MCC)
+	value = binary.LittleEndian.AppendUint16(value, s.PLMN.MNC)
 	tlvs := tlv.TLVs{tlv.Bytes(nasTLVSelectionNetwork, value)}
-	if selection.PLMN.MNCThreeDigitsKnown {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionMNCThreeDigits, boolByte(selection.PLMN.MNCThreeDigits)))
+	if s.PLMN.MNCThreeDigitsKnown {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionMNCThreeDigits, boolByte(s.PLMN.MNCThreeDigits)))
 	}
-	if selection.RadioInterface != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetRadioInterface, uint8(*selection.RadioInterface)))
+	if s.RadioInterface != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSelectionSetRadioInterface, uint8(*s.RadioInterface)))
 	}
 	return tlvs, nil
 }
 
 type nasAcquisitionOrder []NASRadioInterface
 
-func (order nasAcquisitionOrder) MarshalBinary() ([]byte, error) {
-	if len(order) > nasMaxAcquisitionOrder {
-		return nil, fmt.Errorf("acquisition order count %d exceeds maximum %d", len(order), nasMaxAcquisitionOrder)
+func (o nasAcquisitionOrder) MarshalBinary() ([]byte, error) {
+	if len(o) > nasMaxAcquisitionOrder {
+		return nil, fmt.Errorf("acquisition order count %d exceeds maximum %d", len(o), nasMaxAcquisitionOrder)
 	}
-	value := make([]byte, 1, 1+len(order))
-	value[0] = byte(len(order))
-	for _, radio := range order {
+	value := make([]byte, 1, 1+len(o))
+	value[0] = byte(len(o))
+	for _, radio := range o {
 		value = append(value, byte(radio))
 	}
 	return value, nil
 }
 
-func (order *nasAcquisitionOrder) UnmarshalBinary(value []byte) error {
+func (o *nasAcquisitionOrder) UnmarshalBinary(value []byte) error {
 	if len(value) < 1 {
 		return errors.New("acquisition order count is truncated")
 	}
@@ -647,7 +647,7 @@ func (order *nasAcquisitionOrder) UnmarshalBinary(value []byte) error {
 	for i, radio := range value[1:] {
 		decoded[i] = NASRadioInterface(radio)
 	}
-	*order = decoded
+	*o = decoded
 	return nil
 }
 
@@ -656,19 +656,19 @@ func nasSelectionLengthError(kind byte, got, want int) error {
 }
 
 // MarshalBinary encodes the extended LTE band preference bitmap.
-func (bands NASLTEBandPreferenceExtended) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint64(nil, bands.Bits1To64)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits65To128)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits129To192)
-	return binary.LittleEndian.AppendUint64(value, bands.Bits193To256), nil
+func (b NASLTEBandPreferenceExtended) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint64(nil, b.Bits1To64)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits65To128)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits129To192)
+	return binary.LittleEndian.AppendUint64(value, b.Bits193To256), nil
 }
 
 // UnmarshalBinary decodes the extended LTE band preference bitmap.
-func (bands *NASLTEBandPreferenceExtended) UnmarshalBinary(value []byte) error {
+func (b *NASLTEBandPreferenceExtended) UnmarshalBinary(value []byte) error {
 	if len(value) != 32 {
 		return fmt.Errorf("band preference length %d, want 32", len(value))
 	}
-	*bands = NASLTEBandPreferenceExtended{
+	*b = NASLTEBandPreferenceExtended{
 		Bits1To64:    binary.LittleEndian.Uint64(value[0:8]),
 		Bits65To128:  binary.LittleEndian.Uint64(value[8:16]),
 		Bits129To192: binary.LittleEndian.Uint64(value[16:24]),
@@ -678,23 +678,23 @@ func (bands *NASLTEBandPreferenceExtended) UnmarshalBinary(value []byte) error {
 }
 
 // MarshalBinary encodes the NR5G band preference bitmap.
-func (bands NASNR5GBandPreference) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint64(nil, bands.Bits1To64)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits65To128)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits129To192)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits193To256)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits257To320)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits321To384)
-	value = binary.LittleEndian.AppendUint64(value, bands.Bits385To448)
-	return binary.LittleEndian.AppendUint64(value, bands.Bits449To512), nil
+func (b NASNR5GBandPreference) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint64(nil, b.Bits1To64)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits65To128)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits129To192)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits193To256)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits257To320)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits321To384)
+	value = binary.LittleEndian.AppendUint64(value, b.Bits385To448)
+	return binary.LittleEndian.AppendUint64(value, b.Bits449To512), nil
 }
 
 // UnmarshalBinary decodes the NR5G band preference bitmap.
-func (bands *NASNR5GBandPreference) UnmarshalBinary(value []byte) error {
+func (b *NASNR5GBandPreference) UnmarshalBinary(value []byte) error {
 	if len(value) != 64 {
 		return fmt.Errorf("band preference length %d, want 64", len(value))
 	}
-	*bands = NASNR5GBandPreference{
+	*b = NASNR5GBandPreference{
 		Bits1To64:    binary.LittleEndian.Uint64(value[0:8]),
 		Bits65To128:  binary.LittleEndian.Uint64(value[8:16]),
 		Bits129To192: binary.LittleEndian.Uint64(value[16:24]),

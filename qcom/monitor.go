@@ -279,6 +279,7 @@ func (c *Client) releaseUIMEvents(mask uint32) {
 	}
 	newMask := combinedUIMEventMask(c.uimEventRefs)
 	if oldMask != newMask {
+		// Deregistration is best effort during watcher cleanup.
 		_ = c.registerEvents(ctx, newMask)
 	}
 }
@@ -309,6 +310,7 @@ func (c *Client) unregisterRefreshFiles(req RefreshRegisterRequest) {
 	if err != nil {
 		return
 	}
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.sendMonitorRequest(ctx, MessageRefreshRegister, tlvs)
 }
 
@@ -320,6 +322,7 @@ func (c *Client) unregisterRefreshAll(session Session, aid []byte) {
 	if err != nil {
 		return
 	}
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.sendMonitorRequest(ctx, MessageRefreshRegisterAll, tlvs)
 }
 
@@ -522,15 +525,15 @@ func encodeRefreshRegisterInfo(files []RefreshFile, register bool, voteForInit b
 }
 
 // UnmarshalTLVs parses a QMI UIM refresh event.
-func (event *RefreshEvent) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*event = RefreshEvent{}
+func (e *RefreshEvent) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*e = RefreshEvent{}
 	value, ok := tlv.Value(tlvs, 0x10)
 	if !ok {
 		return errors.New("reading refresh event: event TLV missing")
 	}
 
 	payload := newPayloadReader(value)
-	*event = RefreshEvent{
+	*e = RefreshEvent{
 		Stage:   RefreshStage(payload.Uint8()),
 		Mode:    RefreshMode(payload.Uint8()),
 		Session: Session(payload.Uint8()),
@@ -541,7 +544,7 @@ func (event *RefreshEvent) UnmarshalTLVs(tlvs tlv.TLVs) error {
 		return fmt.Errorf("reading refresh event: %w", err)
 	}
 
-	event.Files = make([]RefreshFile, 0, fileCount)
+	e.Files = make([]RefreshFile, 0, fileCount)
 	for range fileCount {
 		fileID := payload.Uint16()
 		path := payload.Bytes8()
@@ -552,7 +555,7 @@ func (event *RefreshEvent) UnmarshalTLVs(tlvs tlv.TLVs) error {
 		if err != nil {
 			return fmt.Errorf("reading refresh event: %w", err)
 		}
-		event.Files = append(event.Files, RefreshFile{
+		e.Files = append(e.Files, RefreshFile{
 			FileID: fileID,
 			Path:   fullPath,
 		})

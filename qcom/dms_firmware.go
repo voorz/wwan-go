@@ -177,11 +177,6 @@ func (c *Client) FirmwarePreference(ctx context.Context) (DMSFirmwarePreference,
 	return DMSFirmwarePreference{Images: result.Images}, nil
 }
 
-// GetFirmwarePreference is an alias for FirmwarePreference.
-func (c *Client) GetFirmwarePreference(ctx context.Context) (DMSFirmwarePreference, error) {
-	return c.FirmwarePreference(ctx)
-}
-
 // SetFirmwarePreference selects the modem and PRI images used for download.
 func (c *Client) SetFirmwarePreference(ctx context.Context, req DMSFirmwarePreferenceRequest) (DMSSetFirmwarePreferenceResponse, error) {
 	request, err := (DMSSetFirmwarePreferenceRequest{
@@ -460,8 +455,8 @@ func (c *Client) BootImageDownloadMode(ctx context.Context) (DMSBootImageDownloa
 }
 
 // UnmarshalTLVs parses the QMI DMS boot image download mode.
-func (mode *DMSBootImageDownloadMode) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*mode = DMSBootImageDownloadNormal
+func (m *DMSBootImageDownloadMode) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*m = DMSBootImageDownloadNormal
 	value, ok := tlv.Value(tlvs, dmsTLVBootVersion)
 	if !ok {
 		return errors.New("parsing QMI DMS boot image download mode: mode TLV missing")
@@ -472,7 +467,7 @@ func (mode *DMSBootImageDownloadMode) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	if value[0] > byte(DMSBootImageDownloadBootAndRecovery) {
 		return fmt.Errorf("parsing QMI DMS boot image download mode: invalid mode %d", value[0])
 	}
-	*mode = DMSBootImageDownloadMode(value[0])
+	*m = DMSBootImageDownloadMode(value[0])
 	return nil
 }
 
@@ -513,12 +508,12 @@ func (c *Client) SetFirmwareID(ctx context.Context) error {
 
 type dmsFirmwareImages []DMSFirmwareImage
 
-func (images dmsFirmwareImages) MarshalBinary() ([]byte, error) {
-	if len(images) > dmsFirmwareImageCountMax {
-		return nil, fmt.Errorf("firmware image count %d exceeds %d", len(images), dmsFirmwareImageCountMax)
+func (f dmsFirmwareImages) MarshalBinary() ([]byte, error) {
+	if len(f) > dmsFirmwareImageCountMax {
+		return nil, fmt.Errorf("firmware image count %d exceeds %d", len(f), dmsFirmwareImageCountMax)
 	}
-	value := []byte{byte(len(images))}
-	for i, image := range images {
+	value := []byte{byte(len(f))}
+	for i, image := range f {
 		encoded, err := image.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding firmware image %d: %w", i, err)
@@ -529,22 +524,22 @@ func (images dmsFirmwareImages) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinary encodes one QMI DMS firmware image descriptor.
-func (image DMSFirmwareImage) MarshalBinary() ([]byte, error) {
-	if err := validateDMSFirmwareImageType(byte(image.Type)); err != nil {
+func (i DMSFirmwareImage) MarshalBinary() ([]byte, error) {
+	if err := validateDMSFirmwareImageType(byte(i.Type)); err != nil {
 		return nil, err
 	}
-	if err := validateDMSFirmwareString(image.BuildID); err != nil {
+	if err := validateDMSFirmwareString(i.BuildID); err != nil {
 		return nil, fmt.Errorf("validating firmware build ID: %w", err)
 	}
-	value := make([]byte, 0, 1+dmsFirmwareUniqueIDLength+1+len(image.BuildID))
-	value = append(value, byte(image.Type))
-	value = append(value, image.UniqueID[:]...)
-	value = append(value, byte(len(image.BuildID)))
-	return append(value, image.BuildID...), nil
+	value := make([]byte, 0, 1+dmsFirmwareUniqueIDLength+1+len(i.BuildID))
+	value = append(value, byte(i.Type))
+	value = append(value, i.UniqueID[:]...)
+	value = append(value, byte(len(i.BuildID)))
+	return append(value, i.BuildID...), nil
 }
 
 // UnmarshalBinary decodes one QMI DMS firmware image descriptor.
-func (image *DMSFirmwareImage) UnmarshalBinary(data []byte) error {
+func (i *DMSFirmwareImage) UnmarshalBinary(data []byte) error {
 	decoded, rest, err := decodeDMSFirmwareImage(data)
 	if err != nil {
 		return err
@@ -552,11 +547,11 @@ func (image *DMSFirmwareImage) UnmarshalBinary(data []byte) error {
 	if len(rest) != 0 {
 		return fmt.Errorf("parsing firmware image: %d trailing bytes", len(rest))
 	}
-	*image = decoded
+	*i = decoded
 	return nil
 }
 
-func (images *dmsFirmwareImages) UnmarshalBinary(value []byte) error {
+func (f *dmsFirmwareImages) UnmarshalBinary(value []byte) error {
 	if len(value) < 1 {
 		return errors.New("firmware image count is missing")
 	}
@@ -577,7 +572,7 @@ func (images *dmsFirmwareImages) UnmarshalBinary(value []byte) error {
 	if len(value) != 0 {
 		return fmt.Errorf("firmware image list has %d trailing bytes", len(value))
 	}
-	*images = decoded
+	*f = decoded
 	return nil
 }
 

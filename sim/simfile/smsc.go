@@ -4,20 +4,20 @@ import "errors"
 
 type SMSC string
 
-func (smsc SMSC) String() string {
-	return string(smsc)
+func (s SMSC) String() string {
+	return string(s)
 }
 
-func (smsc SMSC) MarshalText() ([]byte, error) {
-	return []byte(string(smsc)), nil
+func (s SMSC) MarshalText() ([]byte, error) {
+	return []byte(string(s)), nil
 }
 
-func (smsc *SMSC) UnmarshalText(text []byte) error {
-	*smsc = SMSC(string(text))
+func (s *SMSC) UnmarshalText(text []byte) error {
+	*s = SMSC(string(text))
 	return nil
 }
 
-func (smsc *SMSC) UnmarshalBinary(data []byte) error {
+func (s *SMSC) UnmarshalBinary(data []byte) error {
 	y := len(data) - 28
 	if y < 0 || y+26 > len(data) {
 		return errors.New("reading EF_SMSP: malformed record")
@@ -25,18 +25,18 @@ func (smsc *SMSC) UnmarshalBinary(data []byte) error {
 
 	sca := data[y+13 : y+25]
 	if len(sca) < 2 {
-		*smsc = ""
+		*s = ""
 		return nil
 	}
 	length := int(sca[0])
 	// The length octet describes bytes after itself, so it must still fit inside
 	// the fixed 12-byte SCA field.
 	if length <= 1 || length+1 > len(sca) {
-		*smsc = ""
+		*s = ""
 		return nil
 	}
 	if sca[1] != 0x91 {
-		*smsc = ""
+		*s = ""
 		return nil
 	}
 
@@ -48,6 +48,6 @@ func (smsc *SMSC) UnmarshalBinary(data []byte) error {
 		return nil
 	}
 
-	*smsc = SMSC(address)
+	*s = SMSC(address)
 	return nil
 }

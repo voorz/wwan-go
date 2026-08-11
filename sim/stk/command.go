@@ -806,6 +806,7 @@ func (cmd *OpenChannelCommand) UnmarshalFrame(frame CommandFrame) error {
 	cmd.OtherAddresses = make([]OtherAddress, 0, len(addresses))
 	for _, item := range addresses {
 		var address OtherAddress
+		// OtherAddress.UnmarshalBinary accepts every TLV payload.
 		_ = address.UnmarshalBinary(item.Value)
 		cmd.OtherAddresses = append(cmd.OtherAddresses, address)
 	}

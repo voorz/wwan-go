@@ -270,19 +270,19 @@ func (c *Client) WDSSetLTEAttachPDNList(ctx context.Context, profiles []uint16, 
 
 type wdsAttachPDNList []uint16
 
-func (profiles wdsAttachPDNList) MarshalBinary() ([]byte, error) {
-	if len(profiles) > wdsMaxLTEAttachPDNs {
-		return nil, fmt.Errorf("LTE attach PDN list length %d exceeds maximum %d", len(profiles), wdsMaxLTEAttachPDNs)
+func (p wdsAttachPDNList) MarshalBinary() ([]byte, error) {
+	if len(p) > wdsMaxLTEAttachPDNs {
+		return nil, fmt.Errorf("LTE attach PDN list length %d exceeds maximum %d", len(p), wdsMaxLTEAttachPDNs)
 	}
-	encoded := make([]byte, 1, 1+len(profiles)*2)
-	encoded[0] = byte(len(profiles))
-	for _, profile := range profiles {
+	encoded := make([]byte, 1, 1+len(p)*2)
+	encoded[0] = byte(len(p))
+	for _, profile := range p {
 		encoded = binary.LittleEndian.AppendUint16(encoded, profile)
 	}
 	return encoded, nil
 }
 
-func (profiles *wdsAttachPDNList) UnmarshalBinary(value []byte) error {
+func (p *wdsAttachPDNList) UnmarshalBinary(value []byte) error {
 	if len(value) == 0 {
 		return errors.New("LTE attach PDN count is missing")
 	}
@@ -299,6 +299,6 @@ func (profiles *wdsAttachPDNList) UnmarshalBinary(value []byte) error {
 		offset := 1 + index*2
 		decoded[index] = binary.LittleEndian.Uint16(value[offset : offset+2])
 	}
-	*profiles = decoded
+	*p = decoded
 	return nil
 }

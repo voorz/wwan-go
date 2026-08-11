@@ -306,7 +306,7 @@ func (r *QCOM) fileAttributes(ctx context.Context, file simcard.FileRef) (qc.Fil
 	}
 	var lastErr error
 	for i, file := range files {
-		attrs, err := r.client.GetFileAttributes(ctx, file)
+		attrs, err := r.client.FileAttributes(ctx, file)
 		if err == nil {
 			return attrs, nil
 		}

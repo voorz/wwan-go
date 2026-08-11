@@ -170,15 +170,15 @@ func TestMSSARRequests(t *testing.T) {
 		commandType CommandType
 		wantData    []byte
 	}{
-		{name: "configuration query", request: (&SARConfigRequest{TransactionID: 1}).Request(), commandID: CIDMsSARConfig, commandType: CommandTypeQuery},
+		{name: "configuration query", request: (&SARConfigRequest{TransactionID: 1}).Request(), commandID: CIDMSSARConfig, commandType: CommandTypeQuery},
 		{
 			name:        "configuration set",
 			request:     (&SARConfigSetRequest{TransactionID: 1, Config: config}).Request(),
-			commandID:   CIDMsSARConfig,
+			commandID:   CIDMSSARConfig,
 			commandType: CommandTypeSet,
 			wantData:    configData,
 		},
-		{name: "transmission query", request: (&TransmissionStatusRequest{TransactionID: 1}).Request(), commandID: CIDMsSARTransmissionStatus, commandType: CommandTypeQuery},
+		{name: "transmission query", request: (&TransmissionStatusRequest{TransactionID: 1}).Request(), commandID: CIDMSSARTransmissionStatus, commandType: CommandTypeQuery},
 		{
 			name: "transmission set",
 			request: (&TransmissionStatusSetRequest{
@@ -186,7 +186,7 @@ func TestMSSARRequests(t *testing.T) {
 				ChannelNotification: TransmissionNotificationStatusEnabled,
 				HysteresisTimer:     30,
 			}).Request(),
-			commandID:   CIDMsSARTransmissionStatus,
+			commandID:   CIDMSSARTransmissionStatus,
 			commandType: CommandTypeSet,
 			wantData:    transmissionData,
 		},
@@ -195,7 +195,7 @@ func TestMSSARRequests(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.request.Command.(*Command)
-			if command.ServiceID != ServiceMsSAR || command.CommandID != tt.commandID || command.CommandType != tt.commandType {
+			if command.ServiceID != ServiceMSSAR || command.CommandID != tt.commandID || command.CommandType != tt.commandType {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if !bytes.Equal(command.Data, tt.wantData) {
@@ -228,7 +228,7 @@ func TestMSSARClientAPIs(t *testing.T) {
 	}{
 		{
 			name:        "configuration query",
-			commandID:   CIDMsSARConfig,
+			commandID:   CIDMSSARConfig,
 			commandType: CommandTypeQuery,
 			response:    configResponse,
 			run: func(ctx context.Context, client *Client) error {
@@ -241,7 +241,7 @@ func TestMSSARClientAPIs(t *testing.T) {
 		},
 		{
 			name:        "configuration set",
-			commandID:   CIDMsSARConfig,
+			commandID:   CIDMSSARConfig,
 			commandType: CommandTypeSet,
 			requestData: configRequest,
 			response:    configResponse,
@@ -255,7 +255,7 @@ func TestMSSARClientAPIs(t *testing.T) {
 		},
 		{
 			name:        "transmission query",
-			commandID:   CIDMsSARTransmissionStatus,
+			commandID:   CIDMSSARTransmissionStatus,
 			commandType: CommandTypeQuery,
 			response:    transmissionResponse,
 			run: func(ctx context.Context, client *Client) error {
@@ -268,7 +268,7 @@ func TestMSSARClientAPIs(t *testing.T) {
 		},
 		{
 			name:        "transmission set",
-			commandID:   CIDMsSARTransmissionStatus,
+			commandID:   CIDMSSARTransmissionStatus,
 			commandType: CommandTypeSet,
 			requestData: transmissionRequest,
 			response:    transmissionResponse,
@@ -291,11 +291,11 @@ func TestMSSARClientAPIs(t *testing.T) {
 			go func() {
 				defer close(errCh)
 				defer serverConn.Close()
-				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMsSAR, tt.commandID, tt.commandType, tt.requestData); err != nil {
+				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMSSAR, tt.commandID, tt.commandType, tt.requestData); err != nil {
 					errCh <- err
 					return
 				}
-				_, err := serverConn.Write(mbimCommandDone(1, ServiceMsSAR, tt.commandID, tt.response))
+				_, err := serverConn.Write(mbimCommandDone(1, ServiceMSSAR, tt.commandID, tt.response))
 				errCh <- err
 			}()
 
@@ -306,7 +306,7 @@ func TestMSSARClientAPIs(t *testing.T) {
 				t.Fatalf("client API error = %v", err)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -368,7 +368,7 @@ func TestMSSARTransmissionNotificationAPIs(t *testing.T) {
 			go func() {
 				defer close(errCh)
 				defer serverConn.Close()
-				_, err := serverConn.Write(mbimIndication(ServiceMsSAR, CIDMsSARTransmissionStatus, payload))
+				_, err := serverConn.Write(mbimIndication(ServiceMSSAR, CIDMSSARTransmissionStatus, payload))
 				errCh <- err
 			}()
 
@@ -384,7 +384,7 @@ func TestMSSARTransmissionNotificationAPIs(t *testing.T) {
 				select {
 				case got = <-updates:
 				case <-ctx.Done():
-					t.Fatal(ctx.Err())
+					t.Fatalf("waiting for transmission status update: %v", ctx.Err())
 				}
 			} else {
 				var err error
@@ -397,7 +397,7 @@ func TestMSSARTransmissionNotificationAPIs(t *testing.T) {
 				t.Fatalf("transmission status = %+v", got)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

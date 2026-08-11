@@ -38,7 +38,7 @@ func (c *Client) withServiceClient(ctx context.Context, service ServiceType, fn 
 	}
 
 	err = fn(clientID)
-	if !errors.Is(err, QMIErrorInvalidClientId) {
+	if !errors.Is(err, QMIErrorInvalidClientID) {
 		return err
 	}
 
@@ -236,7 +236,7 @@ func (c *Client) releaseServiceClientIDLocked(ctx context.Context, service Servi
 	if err != nil {
 		return err
 	}
-	if err := resultOK(resp); err != nil && !errors.Is(err, QMIErrorInvalidClientId) {
+	if err := resultOK(resp); err != nil && !errors.Is(err, QMIErrorInvalidClientID) {
 		return err
 	}
 	c.forgetAllocatedClientIDLocked(service, clientID)
@@ -271,7 +271,7 @@ func (c *Client) releaseServiceClientIDForCloseLocked(
 		return err
 	}
 	err = resultOK(resp)
-	if errors.Is(err, QMIErrorInvalidClientId) {
+	if errors.Is(err, QMIErrorInvalidClientID) {
 		return nil
 	}
 	return err

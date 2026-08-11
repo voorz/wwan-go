@@ -301,73 +301,73 @@ func wdsProfileUpdateEmpty(update WDSProfileUpdate) bool {
 		update.APNType == nil && update.CLATEnabled == nil && update.IPv6PrefixDelegation == nil
 }
 
-func (update *WDSProfileUpdate) validate() error {
-	if update.Name != nil {
-		if err := validateWDSString(*update.Name, wdsProfileNameMaxLength); err != nil {
+func (u *WDSProfileUpdate) validate() error {
+	if u.Name != nil {
+		if err := validateWDSString(*u.Name, wdsProfileNameMaxLength); err != nil {
 			return fmt.Errorf("validating WDS profile name: %w", err)
 		}
 	}
-	if update.APN != nil {
-		if err := validateWDSString(*update.APN, wdsAPNMaxLength); err != nil {
+	if u.APN != nil {
+		if err := validateWDSString(*u.APN, wdsAPNMaxLength); err != nil {
 			return fmt.Errorf("validating WDS APN: %w", err)
 		}
 	}
-	if update.PDPType != nil && *update.PDPType > WDSPDPTypeNonIP {
-		return fmt.Errorf("unsupported WDS PDP type %d", *update.PDPType)
+	if u.PDPType != nil && *u.PDPType > WDSPDPTypeNonIP {
+		return fmt.Errorf("unsupported WDS PDP type %d", *u.PDPType)
 	}
-	if update.Username != nil {
-		if err := validateWDSString(*update.Username, wdsUsernameMaxLength); err != nil {
+	if u.Username != nil {
+		if err := validateWDSString(*u.Username, wdsUsernameMaxLength); err != nil {
 			return fmt.Errorf("validating WDS username: %w", err)
 		}
 	}
-	if update.Password != nil {
-		if err := validateWDSString(*update.Password, wdsPasswordMaxLength); err != nil {
+	if u.Password != nil {
+		if err := validateWDSString(*u.Password, wdsPasswordMaxLength); err != nil {
 			return fmt.Errorf("validating WDS password: %w", err)
 		}
 	}
-	if update.Authentication != nil {
-		if err := validateWDSAuthentication(*update.Authentication); err != nil {
+	if u.Authentication != nil {
+		if err := validateWDSAuthentication(*u.Authentication); err != nil {
 			return err
 		}
 	}
-	if update.HeaderCompression != nil && *update.HeaderCompression > WDSPDPHeaderCompressionRFC3095 {
-		return fmt.Errorf("WDS PDP header compression %d is out of range", *update.HeaderCompression)
+	if u.HeaderCompression != nil && *u.HeaderCompression > WDSPDPHeaderCompressionRFC3095 {
+		return fmt.Errorf("WDS PDP header compression %d is out of range", *u.HeaderCompression)
 	}
-	if update.DataCompression != nil && *update.DataCompression > WDSPDPDataCompressionV44 {
-		return fmt.Errorf("WDS PDP data compression %d is out of range", *update.DataCompression)
+	if u.DataCompression != nil && *u.DataCompression > WDSPDPDataCompressionV44 {
+		return fmt.Errorf("WDS PDP data compression %d is out of range", *u.DataCompression)
 	}
-	if err := validateWDSProfileIPv4(update.PrimaryIPv4DNS); err != nil {
+	if err := validateWDSProfileIPv4(u.PrimaryIPv4DNS); err != nil {
 		return fmt.Errorf("validating WDS primary IPv4 DNS: %w", err)
 	}
-	if err := validateWDSProfileIPv4(update.SecondaryIPv4DNS); err != nil {
+	if err := validateWDSProfileIPv4(u.SecondaryIPv4DNS); err != nil {
 		return fmt.Errorf("validating WDS secondary IPv4 DNS: %w", err)
 	}
-	if err := validateWDSProfileIPv4(update.IPv4AddressPreference); err != nil {
+	if err := validateWDSProfileIPv4(u.IPv4AddressPreference); err != nil {
 		return fmt.Errorf("validating WDS IPv4 address preference: %w", err)
 	}
-	if update.PDPAccessControl != nil && *update.PDPAccessControl > WDSPDPAccessControlPermission {
-		return fmt.Errorf("WDS PDP access control %d is out of range", *update.PDPAccessControl)
+	if u.PDPAccessControl != nil && *u.PDPAccessControl > WDSPDPAccessControlPermission {
+		return fmt.Errorf("WDS PDP access control %d is out of range", *u.PDPAccessControl)
 	}
-	if err := validateWDSProfileIPv6(update.IPv6AddressPreference); err != nil {
+	if err := validateWDSProfileIPv6(u.IPv6AddressPreference); err != nil {
 		return fmt.Errorf("validating WDS IPv6 address preference: %w", err)
 	}
-	if err := validateWDSProfileIPv6(update.PrimaryIPv6DNS); err != nil {
+	if err := validateWDSProfileIPv6(u.PrimaryIPv6DNS); err != nil {
 		return fmt.Errorf("validating WDS primary IPv6 DNS: %w", err)
 	}
-	if err := validateWDSProfileIPv6(update.SecondaryIPv6DNS); err != nil {
+	if err := validateWDSProfileIPv6(u.SecondaryIPv6DNS); err != nil {
 		return fmt.Errorf("validating WDS secondary IPv6 DNS: %w", err)
 	}
-	if update.AddressAllocationPreference != nil && *update.AddressAllocationPreference > WDSAddressAllocationDHCP {
-		return fmt.Errorf("WDS address allocation preference %d is out of range", *update.AddressAllocationPreference)
+	if u.AddressAllocationPreference != nil && *u.AddressAllocationPreference > WDSAddressAllocationDHCP {
+		return fmt.Errorf("WDS address allocation preference %d is out of range", *u.AddressAllocationPreference)
 	}
-	if update.LTEQoS != nil && update.LTEQoS.ClassIdentifier > WDSQoSClassNonGuaranteedBitrate8 {
-		return fmt.Errorf("WDS LTE QoS class %d is out of range", update.LTEQoS.ClassIdentifier)
+	if u.LTEQoS != nil && u.LTEQoS.ClassIdentifier > WDSQoSClassNonGuaranteedBitrate8 {
+		return fmt.Errorf("WDS LTE QoS class %d is out of range", u.LTEQoS.ClassIdentifier)
 	}
-	if update.VLAN != nil && update.VLAN.Start > update.VLAN.End {
-		return fmt.Errorf("WDS VLAN range start %d exceeds end %d", update.VLAN.Start, update.VLAN.End)
+	if u.VLAN != nil && u.VLAN.Start > u.VLAN.End {
+		return fmt.Errorf("WDS VLAN range start %d exceeds end %d", u.VLAN.Start, u.VLAN.End)
 	}
-	if update.APNType != nil && *update.APNType&^wdsAPNTypeAll != 0 {
-		return fmt.Errorf("unsupported WDS APN type mask 0x%X", uint64(*update.APNType))
+	if u.APNType != nil && *u.APNType&^wdsAPNTypeAll != 0 {
+		return fmt.Errorf("unsupported WDS APN type mask 0x%X", uint64(*u.APNType))
 	}
 	return nil
 }

@@ -224,7 +224,7 @@ func fileStatusAttributes(status *FileStatusResponse) FileAttributes {
 		RecordSize:    uint16(status.FileItemSize),
 		RecordCount:   uint16(status.FileItemCount),
 	}
-	if status.FileStructure == UiccFileStructureTransparent {
+	if status.FileStructure == UICCFileStructureTransparent {
 		attrs.FileSize = uint16(status.FileItemSize)
 	} else {
 		attrs.FileSize = uint16(status.FileItemCount * status.FileItemSize)
@@ -232,22 +232,22 @@ func fileStatusAttributes(status *FileStatusResponse) FileAttributes {
 	return attrs
 }
 
-func fileStructure(structure UiccFileStructure) FileStructure {
+func fileStructure(structure UICCFileStructure) FileStructure {
 	switch structure {
-	case UiccFileStructureTransparent:
+	case UICCFileStructureTransparent:
 		return FileStructureTransparent
-	case UiccFileStructureLinear, UiccFileStructureCyclic:
+	case UICCFileStructureLinear, UICCFileStructureCyclic:
 		return FileStructureLinearFixed
 	default:
 		return 0
 	}
 }
 
-func fileType(fileType UiccFileType) FileType {
+func fileType(fileType UICCFileType) FileType {
 	switch fileType {
-	case UiccFileTypeWorkingEF, UiccFileTypeInternalEF:
+	case UICCFileTypeWorkingEF, UICCFileTypeInternalEF:
 		return FileTypeWorkingEF
-	case UiccFileTypeDFOrADF:
+	case UICCFileTypeDFOrADF:
 		return FileTypeDFOrADF
 	default:
 		return FileType(fileType)
@@ -274,8 +274,8 @@ func (r *FileStatusRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccFileStatus,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCFileStatus,
 			CommandTypeQuery,
 			data,
 		),
@@ -287,15 +287,15 @@ type FileStatusResponse struct {
 	Version                   uint32
 	StatusWord1               uint32
 	StatusWord2               uint32
-	FileAccessibility         UiccFileAccessibility
-	FileType                  UiccFileType
-	FileStructure             UiccFileStructure
+	FileAccessibility         UICCFileAccessibility
+	FileType                  UICCFileType
+	FileStructure             UICCFileStructure
 	FileItemCount             uint32
 	FileItemSize              uint32
-	AccessConditionRead       PinType
-	AccessConditionUpdate     PinType
-	AccessConditionActivate   PinType
-	AccessConditionDeactivate PinType
+	AccessConditionRead       PINType
+	AccessConditionUpdate     PINType
+	AccessConditionActivate   PINType
+	AccessConditionDeactivate PINType
 }
 
 func (r *FileStatusResponse) UnmarshalBinary(data []byte) error {
@@ -306,31 +306,31 @@ func (r *FileStatusResponse) UnmarshalBinary(data []byte) error {
 	if version != 1 {
 		return fmt.Errorf("parsing MBIM file status: version is %d, want 1", version)
 	}
-	fileAccessibility := UiccFileAccessibility(binary.LittleEndian.Uint32(data[12:16]))
-	if fileAccessibility > UiccFileAccessibilityShareable {
-		return fmt.Errorf("parsing MBIM file status: file accessibility is %d, want 0..%d", fileAccessibility, UiccFileAccessibilityShareable)
+	fileAccessibility := UICCFileAccessibility(binary.LittleEndian.Uint32(data[12:16]))
+	if fileAccessibility > UICCFileAccessibilityShareable {
+		return fmt.Errorf("parsing MBIM file status: file accessibility is %d, want 0..%d", fileAccessibility, UICCFileAccessibilityShareable)
 	}
-	fileType := UiccFileType(binary.LittleEndian.Uint32(data[16:20]))
-	if fileType > UiccFileTypeDFOrADF {
-		return fmt.Errorf("parsing MBIM file status: file type is %d, want 0..%d", fileType, UiccFileTypeDFOrADF)
+	fileType := UICCFileType(binary.LittleEndian.Uint32(data[16:20]))
+	if fileType > UICCFileTypeDFOrADF {
+		return fmt.Errorf("parsing MBIM file status: file type is %d, want 0..%d", fileType, UICCFileTypeDFOrADF)
 	}
-	fileStructure := UiccFileStructure(binary.LittleEndian.Uint32(data[20:24]))
-	if fileStructure > UiccFileStructureBERTLV {
-		return fmt.Errorf("parsing MBIM file status: file structure is %d, want 0..%d", fileStructure, UiccFileStructureBERTLV)
+	fileStructure := UICCFileStructure(binary.LittleEndian.Uint32(data[20:24]))
+	if fileStructure > UICCFileStructureBERTLV {
+		return fmt.Errorf("parsing MBIM file status: file structure is %d, want 0..%d", fileStructure, UICCFileStructureBERTLV)
 	}
 	fileItemCount := binary.LittleEndian.Uint32(data[24:28])
-	if (fileStructure == UiccFileStructureTransparent || fileStructure == UiccFileStructureBERTLV) && fileItemCount != 1 {
+	if (fileStructure == UICCFileStructureTransparent || fileStructure == UICCFileStructureBERTLV) && fileItemCount != 1 {
 		return fmt.Errorf("parsing MBIM file status: item count is %d, want 1 for file structure %d", fileItemCount, fileStructure)
 	}
-	accessConditions := [...]PinType{
-		PinType(binary.LittleEndian.Uint32(data[32:36])),
-		PinType(binary.LittleEndian.Uint32(data[36:40])),
-		PinType(binary.LittleEndian.Uint32(data[40:44])),
-		PinType(binary.LittleEndian.Uint32(data[44:48])),
+	accessConditions := [...]PINType{
+		PINType(binary.LittleEndian.Uint32(data[32:36])),
+		PINType(binary.LittleEndian.Uint32(data[36:40])),
+		PINType(binary.LittleEndian.Uint32(data[40:44])),
+		PINType(binary.LittleEndian.Uint32(data[44:48])),
 	}
 	for i, condition := range accessConditions {
-		if condition > PinTypeADM {
-			return fmt.Errorf("parsing MBIM file status: access condition %d is %d, want 0..%d", i, condition, PinTypeADM)
+		if condition > PINTypeADM {
+			return fmt.Errorf("parsing MBIM file status: access condition %d is %d, want 0..%d", i, condition, PINTypeADM)
 		}
 	}
 
@@ -377,8 +377,8 @@ func (r *ReadBinaryRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccReadBinary,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCReadBinary,
 			CommandTypeQuery,
 			data,
 		),
@@ -441,8 +441,8 @@ func (r *ReadRecordRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccReadRecord,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCReadRecord,
 			CommandTypeQuery,
 			data,
 		),

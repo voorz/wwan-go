@@ -157,6 +157,32 @@ func TestWDSProfileEventReferences(t *testing.T) {
 		{
 			name: "shared and distinct profiles",
 			run: func(t *testing.T, client *Client, transport *fakeTransport) {
+				transport.calls = []transportCall{
+					{
+						check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{1, 0, 2}) },
+						resp:  successResponse(MessageWDSConfigureProfileEventList),
+					},
+					{
+						check: func(req Request) { assertTLV(t, req.TLVs, 0x19, []byte{1}) },
+						resp:  successResponse(MessageWDSIndicationRegister),
+					},
+					{
+						check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{2, 0, 2, 1, 3}) },
+						resp:  successResponse(MessageWDSConfigureProfileEventList),
+					},
+					{
+						check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{1, 1, 3}) },
+						resp:  successResponse(MessageWDSConfigureProfileEventList),
+					},
+					{
+						check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{0}) },
+						resp:  successResponse(MessageWDSConfigureProfileEventList),
+					},
+					{
+						check: func(req Request) { assertTLV(t, req.TLVs, 0x19, []byte{0}) },
+						resp:  successResponse(MessageWDSIndicationRegister),
+					},
+				}
 				ctx := context.Background()
 				if err := client.acquireWDSProfileEvents(ctx, 7, []WDSProfileID{profileA}); err != nil {
 					t.Fatalf("first acquire error = %v", err)
@@ -181,36 +207,32 @@ func TestWDSProfileEventReferences(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "combined profile limit",
+			run: func(t *testing.T, client *Client, transport *fakeTransport) {
+				profiles := profileEventRegistrationsForTest(wdsMaxProfileEventRegistrations + 1)
+				client.wdsProfileEventRefs = make(map[WDSProfileID]int, wdsMaxProfileEventRegistrations)
+				for _, profile := range profiles[:wdsMaxProfileEventRegistrations] {
+					client.wdsProfileEventRefs[profile] = 1
+				}
+
+				err := client.acquireWDSProfileEvents(context.Background(), 7, profiles[wdsMaxProfileEventRegistrations:])
+				if err == nil || !strings.Contains(err.Error(), "exceeds maximum") {
+					t.Fatalf("acquireWDSProfileEvents() error = %v, want profile-limit error", err)
+				}
+				if _, ok := client.wdsProfileEventRefs[profiles[wdsMaxProfileEventRegistrations]]; ok {
+					t.Fatalf("profile refs contain rejected profile %+v", profiles[wdsMaxProfileEventRegistrations])
+				}
+				if got := transport.callCount(); got != 0 {
+					t.Fatalf("modem calls = %d, want 0", got)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			transport := &fakeTransport{t: t, calls: []transportCall{
-				{
-					check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{1, 0, 2}) },
-					resp:  successResponse(MessageWDSConfigureProfileEventList),
-				},
-				{
-					check: func(req Request) { assertTLV(t, req.TLVs, 0x19, []byte{1}) },
-					resp:  successResponse(MessageWDSIndicationRegister),
-				},
-				{
-					check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{2, 0, 2, 1, 3}) },
-					resp:  successResponse(MessageWDSConfigureProfileEventList),
-				},
-				{
-					check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{1, 1, 3}) },
-					resp:  successResponse(MessageWDSConfigureProfileEventList),
-				},
-				{
-					check: func(req Request) { assertTLV(t, req.TLVs, 0x10, []byte{0}) },
-					resp:  successResponse(MessageWDSConfigureProfileEventList),
-				},
-				{
-					check: func(req Request) { assertTLV(t, req.TLVs, 0x19, []byte{0}) },
-					resp:  successResponse(MessageWDSIndicationRegister),
-				},
-			}}
+			transport := &fakeTransport{t: t}
 			client := &Client{transport: transport, slot: 1, clientIDs: map[ServiceType]uint8{ServiceWDS: 7}}
 			tt.run(t, client, transport)
 		})

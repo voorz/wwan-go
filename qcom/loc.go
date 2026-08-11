@@ -633,6 +633,7 @@ func (c *Client) releaseLOCEvents(mask LOCEventRegistration) {
 	}
 	newMask := c.locEventMask | combinedLOCEventMask(c.locEventRefs)
 	if oldMask != newMask {
+		// Deregistration is best effort during watcher cleanup.
 		_ = c.locRegisterEvents(ctx, LOCRegisterEventsConfig{Mask: newMask})
 	}
 }

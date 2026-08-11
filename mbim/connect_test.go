@@ -1036,11 +1036,11 @@ func TestClientOpenIMSPDN(t *testing.T) {
 
 				transactionID := uint32(1)
 				if tt.mbimExVersion >= mbimExVersion20 {
-					if err := expectMBIMCommandWithService(server, transactionID, ServiceMsBasicConnectExtensions, CIDMsDeviceCapsV2, CommandTypeQuery, nil); err != nil {
+					if err := expectMBIMCommandWithService(server, transactionID, ServiceMSBasicConnectExtensions, CIDMSDeviceCapsV2, CommandTypeQuery, nil); err != nil {
 						errc <- err
 						return
 					}
-					if _, err := server.Write(mbimCommandDone(transactionID, ServiceMsBasicConnectExtensions, CIDMsDeviceCapsV2, deviceCapsPayloadV3ForTest(2))); err != nil {
+					if _, err := server.Write(mbimCommandDone(transactionID, ServiceMSBasicConnectExtensions, CIDMSDeviceCapsV2, deviceCapsPayloadV3ForTest(2))); err != nil {
 						errc <- err
 						return
 					}
@@ -1171,7 +1171,7 @@ func TestClientOpenIMSPDN(t *testing.T) {
 				t.Fatalf("Close() error = %v", err)
 			}
 			if err := <-errc; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1259,7 +1259,7 @@ func TestClientQueryConnect(t *testing.T) {
 				t.Fatalf("QueryConnect() = %+v", got)
 			}
 			if err := <-errC; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1329,7 +1329,7 @@ func TestClientSetConnect(t *testing.T) {
 				t.Fatalf("SetConnect() = %+v", got)
 			}
 			if err := <-errC; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1435,7 +1435,7 @@ func TestClientSetConnectMatchingPDUSession(t *testing.T) {
 				t.Fatalf("SetConnect() = %+v, want zero response", got)
 			}
 			if err := <-errC; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1601,7 +1601,7 @@ func TestClientOpenIMSPDNValidatesSessionCapacity(t *testing.T) {
 				t.Fatalf("OpenIMSPDN() error = %v, want %q", err, tt.want)
 			}
 			if err := <-errc; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

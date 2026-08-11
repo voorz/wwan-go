@@ -299,16 +299,16 @@ var (
 	imsPolicyManagerIndicationTLVs = imsPolicyManagerTLVs{0x14, 0x15, 0x16, 0x17, 0x18, 0x19}
 )
 
-func (settings *IMSPolicyManagerSettings) unmarshalTLVs(tlvs tlv.TLVs, ids imsPolicyManagerTLVs) error {
+func (s *IMSPolicyManagerSettings) unmarshalTLVs(tlvs tlv.TLVs, ids imsPolicyManagerTLVs) error {
 	for _, field := range []struct {
 		typ   uint8
 		value *uint8
 		known *bool
 	}{
-		{ids.acsPriority, &settings.ACSPriority, &settings.ACSPriorityKnown},
-		{ids.isimPriority, &settings.ISIMPriority, &settings.ISIMPriorityKnown},
-		{ids.nvPriority, &settings.NVPriority, &settings.NVPriorityKnown},
-		{ids.pcoPriority, &settings.PCOPriority, &settings.PCOPriorityKnown},
+		{ids.acsPriority, &s.ACSPriority, &s.ACSPriorityKnown},
+		{ids.isimPriority, &s.ISIMPriority, &s.ISIMPriorityKnown},
+		{ids.nvPriority, &s.NVPriority, &s.NVPriorityKnown},
+		{ids.pcoPriority, &s.PCOPriority, &s.PCOPriorityKnown},
 	} {
 		if err := decodeIMSByte(tlvs, field.typ, field.value, field.known); err != nil {
 			return err
@@ -318,16 +318,16 @@ func (settings *IMSPolicyManagerSettings) unmarshalTLVs(tlvs tlv.TLVs, ids imsPo
 		if len(value) != 8 {
 			return fmt.Errorf("parsing QMI IMS Policy Manager service mask: TLV length %d, want 8", len(value))
 		}
-		settings.ServiceMask = IMSServiceMask(binary.LittleEndian.Uint64(value))
-		settings.ServiceMaskKnown = true
+		s.ServiceMask = IMSServiceMask(binary.LittleEndian.Uint64(value))
+		s.ServiceMaskKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, ids.apns); ok {
 		var apns IMSPolicyManagerAPNs
 		if err := apns.UnmarshalBinary(value); err != nil {
 			return fmt.Errorf("parsing QMI IMS Policy Manager APNs: %w", err)
 		}
-		settings.APNs = apns
-		settings.APNsKnown = true
+		s.APNs = apns
+		s.APNsKnown = true
 	}
 	return nil
 }
@@ -753,6 +753,7 @@ func (c *Client) releaseIMSSettingsIndication(registration imsSettingsIndication
 		return
 	}
 	delete(c.imsSettingsIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setIMSSettingsIndicationRegistration(ctx, registration, false)
 }
 

@@ -20,8 +20,8 @@ func (r *ProvisionedContextsV2Request) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsProvisionedContexts,
+			ServiceMSBasicConnectExtensions,
+			CIDMSProvisionedContexts,
 			CommandTypeQuery,
 			nil,
 		),
@@ -45,8 +45,8 @@ func (r *ProvisionedContextV2SetRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: commandWithError(
-			ServiceMsBasicConnectExtensions,
-			CIDMsProvisionedContexts,
+			ServiceMSBasicConnectExtensions,
+			CIDMSProvisionedContexts,
 			CommandTypeSet,
 			data,
 			err,

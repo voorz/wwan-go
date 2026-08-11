@@ -82,7 +82,7 @@ func TestNITZRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := (&NITZRequest{TransactionID: 1, MBIMExVersion: tt.version}).Request()
 			command := request.Command.(*Command)
-			if command.ServiceID != ServiceMsVoiceExtensions || command.CommandID != CIDMsVoiceExtensionsNITZ || command.CommandType != CommandTypeQuery {
+			if command.ServiceID != ServiceMSVoiceExtensions || command.CommandID != CIDMSVoiceExtensionsNITZ || command.CommandType != CommandTypeQuery {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if len(command.Data) != 0 {
@@ -113,11 +113,11 @@ func TestNITZClientAPI(t *testing.T) {
 			go func() {
 				defer close(errCh)
 				defer serverConn.Close()
-				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMsVoiceExtensions, CIDMsVoiceExtensionsNITZ, CommandTypeQuery, nil); err != nil {
+				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMSVoiceExtensions, CIDMSVoiceExtensionsNITZ, CommandTypeQuery, nil); err != nil {
 					errCh <- err
 					return
 				}
-				_, err := serverConn.Write(mbimCommandDone(1, ServiceMsVoiceExtensions, CIDMsVoiceExtensionsNITZ, payload))
+				_, err := serverConn.Write(mbimCommandDone(1, ServiceMSVoiceExtensions, CIDMSVoiceExtensionsNITZ, payload))
 				errCh <- err
 			}()
 
@@ -132,7 +132,7 @@ func TestNITZClientAPI(t *testing.T) {
 				t.Fatalf("NITZ() = %+v", got)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -157,7 +157,7 @@ func TestNITZNotificationAPIs(t *testing.T) {
 			go func() {
 				defer close(errCh)
 				defer serverConn.Close()
-				_, err := serverConn.Write(mbimIndication(ServiceMsVoiceExtensions, CIDMsVoiceExtensionsNITZ, payload))
+				_, err := serverConn.Write(mbimIndication(ServiceMSVoiceExtensions, CIDMSVoiceExtensionsNITZ, payload))
 				errCh <- err
 			}()
 
@@ -173,7 +173,7 @@ func TestNITZNotificationAPIs(t *testing.T) {
 				select {
 				case got = <-updates:
 				case <-ctx.Done():
-					t.Fatal(ctx.Err())
+					t.Fatalf("waiting for NITZ update: %v", ctx.Err())
 				}
 			} else {
 				var err error
@@ -186,7 +186,7 @@ func TestNITZNotificationAPIs(t *testing.T) {
 				t.Fatalf("NITZ notification = %+v", got)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

@@ -68,7 +68,7 @@ func openQMIClient(ctx context.Context, device string, access Access, slot uint8
 	}
 	client, err := qcom.NewClient(transport, qcom.WithSlot(slot))
 	if err != nil {
-		_ = transport.Close()
+		_ = transport.Close() // Cleanup cannot change the client-construction error.
 		return nil, err
 	}
 	return client, nil

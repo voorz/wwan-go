@@ -300,34 +300,34 @@ func (c *Client) RegisterNetwork(ctx context.Context, registration NASNetworkReg
 }
 
 // MarshalTLVs encodes network-scan configuration fields.
-func (config NASNetworkScanConfig) MarshalTLVs() (tlv.TLVs, error) {
+func (c NASNetworkScanConfig) MarshalTLVs() (tlv.TLVs, error) {
 	var tlvs tlv.TLVs
-	if config.NetworkTypes != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVScanNetworkTypes, uint8(*config.NetworkTypes)))
+	if c.NetworkTypes != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVScanNetworkTypes, uint8(*c.NetworkTypes)))
 	}
-	if config.ScanType != nil {
-		if *config.ScanType > NASNetworkScanCellSearch {
-			return nil, fmt.Errorf("encoding QMI NAS network scan: scan type %d is out of range", *config.ScanType)
+	if c.ScanType != nil {
+		if *c.ScanType > NASNetworkScanCellSearch {
+			return nil, fmt.Errorf("encoding QMI NAS network scan: scan type %d is out of range", *c.ScanType)
 		}
-		tlvs = append(tlvs, tlv.Uint(nasTLVScanType, uint32(*config.ScanType)))
+		tlvs = append(tlvs, tlv.Uint(nasTLVScanType, uint32(*c.ScanType)))
 	}
-	if config.BandPreference != nil {
-		tlvs = append(tlvs, nasUint64TLV(nasTLVScanBandPreference, uint64(*config.BandPreference)))
+	if c.BandPreference != nil {
+		tlvs = append(tlvs, nasUint64TLV(nasTLVScanBandPreference, uint64(*c.BandPreference)))
 	}
-	if config.LTEBandPreference != nil {
-		tlvs = append(tlvs, nasUint64TLV(nasTLVScanLTEBandPreference, uint64(*config.LTEBandPreference)))
+	if c.LTEBandPreference != nil {
+		tlvs = append(tlvs, nasUint64TLV(nasTLVScanLTEBandPreference, uint64(*c.LTEBandPreference)))
 	}
-	if config.TDSBandPreference != nil {
-		tlvs = append(tlvs, nasUint64TLV(nasTLVScanTDSBandPreference, uint64(*config.TDSBandPreference)))
+	if c.TDSBandPreference != nil {
+		tlvs = append(tlvs, nasUint64TLV(nasTLVScanTDSBandPreference, uint64(*c.TDSBandPreference)))
 	}
-	if config.Scope != nil {
-		if *config.Scope > NASNetworkScanAcquisitionDatabase {
-			return nil, fmt.Errorf("encoding QMI NAS network scan: scope %d is out of range", *config.Scope)
+	if c.Scope != nil {
+		if *c.Scope > NASNetworkScanAcquisitionDatabase {
+			return nil, fmt.Errorf("encoding QMI NAS network scan: scope %d is out of range", *c.Scope)
 		}
-		tlvs = append(tlvs, tlv.Uint(nasTLVScanScope, uint32(*config.Scope)))
+		tlvs = append(tlvs, tlv.Uint(nasTLVScanScope, uint32(*c.Scope)))
 	}
-	if config.LTEBandsExtended != nil {
-		value, err := config.LTEBandsExtended.MarshalBinary()
+	if c.LTEBandsExtended != nil {
+		value, err := c.LTEBandsExtended.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS extended LTE band preference: %w", err)
 		}
@@ -337,28 +337,28 @@ func (config NASNetworkScanConfig) MarshalTLVs() (tlv.TLVs, error) {
 }
 
 // MarshalTLVs encodes network-registration fields.
-func (registration NASNetworkRegistration) MarshalTLVs() (tlv.TLVs, error) {
-	if registration.Action != NASRegisterAutomatically && registration.Action != NASRegisterManually {
-		return nil, fmt.Errorf("encoding QMI NAS network registration: action %d is out of range", registration.Action)
+func (r NASNetworkRegistration) MarshalTLVs() (tlv.TLVs, error) {
+	if r.Action != NASRegisterAutomatically && r.Action != NASRegisterManually {
+		return nil, fmt.Errorf("encoding QMI NAS network registration: action %d is out of range", r.Action)
 	}
-	if registration.Action == NASRegisterManually && registration.Manual == nil {
+	if r.Action == NASRegisterManually && r.Manual == nil {
 		return nil, errors.New("encoding QMI NAS network registration: manual network is required")
 	}
-	tlvs := tlv.TLVs{tlv.Uint(nasTLVRegisterAction, uint8(registration.Action))}
-	if registration.Manual != nil {
-		if registration.Manual.PLMN.MCC > 999 || registration.Manual.PLMN.MNC > 999 {
-			return nil, fmt.Errorf("encoding QMI NAS network registration: PLMN %d/%d is out of range", registration.Manual.PLMN.MCC, registration.Manual.PLMN.MNC)
+	tlvs := tlv.TLVs{tlv.Uint(nasTLVRegisterAction, uint8(r.Action))}
+	if r.Manual != nil {
+		if r.Manual.PLMN.MCC > 999 || r.Manual.PLMN.MNC > 999 {
+			return nil, fmt.Errorf("encoding QMI NAS network registration: PLMN %d/%d is out of range", r.Manual.PLMN.MCC, r.Manual.PLMN.MNC)
 		}
-		value := binary.LittleEndian.AppendUint16(nil, registration.Manual.PLMN.MCC)
-		value = binary.LittleEndian.AppendUint16(value, registration.Manual.PLMN.MNC)
-		value = append(value, byte(registration.Manual.RadioInterface))
+		value := binary.LittleEndian.AppendUint16(nil, r.Manual.PLMN.MCC)
+		value = binary.LittleEndian.AppendUint16(value, r.Manual.PLMN.MNC)
+		value = append(value, byte(r.Manual.RadioInterface))
 		tlvs = append(tlvs, tlv.Bytes(nasTLVRegisterManualNetwork, value))
-		if registration.Manual.PLMN.MNCThreeDigitsKnown {
-			tlvs = append(tlvs, tlv.Uint(nasTLVRegisterMNCThreeDigit, boolByte(registration.Manual.PLMN.MNCThreeDigits)))
+		if r.Manual.PLMN.MNCThreeDigitsKnown {
+			tlvs = append(tlvs, tlv.Uint(nasTLVRegisterMNCThreeDigit, boolByte(r.Manual.PLMN.MNCThreeDigits)))
 		}
 	}
-	if registration.ChangeDuration != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVRegisterDuration, uint8(*registration.ChangeDuration)))
+	if r.ChangeDuration != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVRegisterDuration, uint8(*r.ChangeDuration)))
 	}
 	return tlvs, nil
 }

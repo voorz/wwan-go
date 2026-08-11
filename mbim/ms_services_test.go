@@ -12,23 +12,23 @@ func TestMicrosoftServiceIdentifiers(t *testing.T) {
 	}{
 		{
 			name:     "SAR configuration",
-			gotUUID:  ServiceMsSAR,
+			gotUUID:  ServiceMSSAR,
 			wantUUID: [16]byte{0x68, 0x22, 0x3D, 0x04, 0x9F, 0x6C, 0x4E, 0x0F, 0x82, 0x2D, 0x28, 0x44, 0x1F, 0xB7, 0x23, 0x40},
-			gotCID:   CIDMsSARConfig,
+			gotCID:   CIDMSSARConfig,
 			wantCID:  1,
 		},
 		{
 			name:     "SAR transmission status",
-			gotUUID:  ServiceMsSAR,
+			gotUUID:  ServiceMSSAR,
 			wantUUID: [16]byte{0x68, 0x22, 0x3D, 0x04, 0x9F, 0x6C, 0x4E, 0x0F, 0x82, 0x2D, 0x28, 0x44, 0x1F, 0xB7, 0x23, 0x40},
-			gotCID:   CIDMsSARTransmissionStatus,
+			gotCID:   CIDMSSARTransmissionStatus,
 			wantCID:  2,
 		},
 		{
 			name:     "voice extensions NITZ",
-			gotUUID:  ServiceMsVoiceExtensions,
+			gotUUID:  ServiceMSVoiceExtensions,
 			wantUUID: [16]byte{0x8D, 0x8B, 0x9E, 0xBA, 0x37, 0xBE, 0x44, 0x9B, 0x8F, 0x1E, 0x61, 0xCB, 0x03, 0x4A, 0x70, 0x2E},
-			gotCID:   CIDMsVoiceExtensionsNITZ,
+			gotCID:   CIDMSVoiceExtensionsNITZ,
 			wantCID:  10,
 		},
 		{

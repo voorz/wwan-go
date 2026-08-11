@@ -686,16 +686,16 @@ func nasEmptyRequest(clientID uint8, transactionID uint16, timeout time.Duration
 	}
 }
 
-func (signal NASCommonSignalInfo) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(signal.RSSI)}
-	return binary.LittleEndian.AppendUint16(value, uint16(signal.ECIO)), nil
+func (s NASCommonSignalInfo) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(s.RSSI)}
+	return binary.LittleEndian.AppendUint16(value, uint16(s.ECIO)), nil
 }
 
-func (signal *NASCommonSignalInfo) UnmarshalBinary(value []byte) error {
+func (s *NASCommonSignalInfo) UnmarshalBinary(value []byte) error {
 	if len(value) != 3 {
 		return fmt.Errorf("common signal length %d, want 3", len(value))
 	}
-	*signal = NASCommonSignalInfo{
+	*s = NASCommonSignalInfo{
 		RSSI: int8(value[0]),
 		ECIO: int16(binary.LittleEndian.Uint16(value[1:3])),
 	}
@@ -775,16 +775,16 @@ func parseNASRFDedicatedBands(value []byte) ([]NASRFDedicatedBand, error) {
 	return bands, nil
 }
 
-func (band NASRFDedicatedBand) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(band.RadioInterface)}
-	return binary.LittleEndian.AppendUint16(value, uint16(band.Band)), nil
+func (b NASRFDedicatedBand) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(b.RadioInterface)}
+	return binary.LittleEndian.AppendUint16(value, uint16(b.Band)), nil
 }
 
-func (band *NASRFDedicatedBand) UnmarshalBinary(value []byte) error {
+func (b *NASRFDedicatedBand) UnmarshalBinary(value []byte) error {
 	if len(value) != 3 {
 		return fmt.Errorf("dedicated RF band length %d, want 3", len(value))
 	}
-	*band = NASRFDedicatedBand{
+	*b = NASRFDedicatedBand{
 		RadioInterface: NASRadioInterface(value[0]),
 		Band:           NASActiveBand(binary.LittleEndian.Uint16(value[1:3])),
 	}
@@ -813,16 +813,16 @@ func parseNASRFBandwidths(value []byte) ([]NASRFBandwidth, error) {
 	return bandwidths, nil
 }
 
-func (bandwidth NASRFBandwidth) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(bandwidth.RadioInterface)}
-	return binary.LittleEndian.AppendUint32(value, uint32(bandwidth.Bandwidth)), nil
+func (b NASRFBandwidth) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(b.RadioInterface)}
+	return binary.LittleEndian.AppendUint32(value, uint32(b.Bandwidth)), nil
 }
 
-func (bandwidth *NASRFBandwidth) UnmarshalBinary(value []byte) error {
+func (b *NASRFBandwidth) UnmarshalBinary(value []byte) error {
 	if len(value) != 5 {
 		return fmt.Errorf("RF bandwidth length %d, want 5", len(value))
 	}
-	*bandwidth = NASRFBandwidth{
+	*b = NASRFBandwidth{
 		RadioInterface: NASRadioInterface(value[0]),
 		Bandwidth:      NASBandwidth(binary.LittleEndian.Uint32(value[1:5])),
 	}

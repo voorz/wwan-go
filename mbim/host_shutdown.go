@@ -16,7 +16,7 @@ func (r *HostShutdownRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceMsHostShutdown, CIDMsHostShutdownNotify, CommandTypeSet, nil),
+		Command:       command(ServiceMSHostShutdown, CIDMSHostShutdownNotify, CommandTypeSet, nil),
 		Response:      r.Response,
 	}
 }

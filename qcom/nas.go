@@ -101,13 +101,13 @@ func (s *NASServingSystem) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	return nil
 }
 
-func (serving *NASServingSystem) unmarshalOptionalTLVs(tlvs tlv.TLVs) error {
+func (s *NASServingSystem) unmarshalOptionalTLVs(tlvs tlv.TLVs) error {
 	if value, ok := tlv.Value(tlvs, nasTLVRoamingIndicator); ok {
 		if len(value) != 1 {
 			return fmt.Errorf("parsing QMI NAS serving system: roaming indicator TLV length %d, want 1", len(value))
 		}
-		serving.RoamingIndicator = NASRoamingIndicator(value[0])
-		serving.RoamingIndicatorKnown = true
+		s.RoamingIndicator = NASRoamingIndicator(value[0])
+		s.RoamingIndicatorKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVDataCapabilities); ok {
 		if len(value) < 1 {
@@ -120,54 +120,54 @@ func (serving *NASServingSystem) unmarshalOptionalTLVs(tlvs tlv.TLVs) error {
 		if len(value) != 1+count {
 			return fmt.Errorf("parsing QMI NAS serving system: data capabilities TLV length %d, want %d", len(value), 1+count)
 		}
-		serving.DataCapabilities = make([]NASDataCapability, count)
+		s.DataCapabilities = make([]NASDataCapability, count)
 		for i, capability := range value[1:] {
-			serving.DataCapabilities[i] = NASDataCapability(capability)
+			s.DataCapabilities[i] = NASDataCapability(capability)
 		}
-		serving.DataCapabilitiesKnown = true
+		s.DataCapabilitiesKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVCurrentPLMN); ok {
 		plmn, err := parseNASPLMN(value)
 		if err != nil {
 			return fmt.Errorf("parsing QMI NAS serving system current PLMN: %w", err)
 		}
-		serving.PLMN = plmn
-		serving.PLMNKnown = true
+		s.PLMN = plmn
+		s.PLMNKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVTimeZone); ok {
 		if len(value) != 1 {
 			return fmt.Errorf("parsing QMI NAS serving system: time zone TLV length %d, want 1", len(value))
 		}
-		serving.TimeZoneQuarterHours = int8(value[0])
-		serving.TimeZoneKnown = true
+		s.TimeZoneQuarterHours = int8(value[0])
+		s.TimeZoneKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVDaylightSaving); ok {
 		if len(value) != 1 {
 			return fmt.Errorf("parsing QMI NAS serving system: daylight saving TLV length %d, want 1", len(value))
 		}
-		serving.DaylightSavingHours = value[0]
-		serving.DaylightSavingKnown = true
+		s.DaylightSavingHours = value[0]
+		s.DaylightSavingKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVLocationAreaCode); ok {
 		if len(value) != 2 {
 			return fmt.Errorf("parsing QMI NAS serving system: location area code TLV length %d, want 2", len(value))
 		}
-		serving.LocationAreaCode = binary.LittleEndian.Uint16(value)
-		serving.LocationAreaKnown = true
+		s.LocationAreaCode = binary.LittleEndian.Uint16(value)
+		s.LocationAreaKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVCellID); ok {
 		if len(value) != 4 {
 			return fmt.Errorf("parsing QMI NAS serving system: cell ID TLV length %d, want 4", len(value))
 		}
-		serving.CellID = binary.LittleEndian.Uint32(value)
-		serving.CellIDKnown = true
+		s.CellID = binary.LittleEndian.Uint32(value)
+		s.CellIDKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVTrackingAreaCode); ok {
 		if len(value) != 2 {
 			return fmt.Errorf("parsing QMI NAS serving system: tracking area code TLV length %d, want 2", len(value))
 		}
-		serving.TrackingAreaCode = binary.LittleEndian.Uint16(value)
-		serving.TrackingAreaKnown = true
+		s.TrackingAreaCode = binary.LittleEndian.Uint16(value)
+		s.TrackingAreaKnown = true
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVMNCIncludesPCSDigit); ok {
 		if len(value) != 5 {
@@ -175,17 +175,17 @@ func (serving *NASServingSystem) unmarshalOptionalTLVs(tlvs tlv.TLVs) error {
 		}
 		mcc := binary.LittleEndian.Uint16(value[0:2])
 		mnc := binary.LittleEndian.Uint16(value[2:4])
-		if serving.PLMNKnown && serving.PLMN.MCC == mcc && serving.PLMN.MNC == mnc {
-			serving.PLMN.MNCThreeDigits = value[4] != 0
-			serving.PLMN.MNCThreeDigitsKnown = true
+		if s.PLMNKnown && s.PLMN.MCC == mcc && s.PLMN.MNC == mnc {
+			s.PLMN.MNCThreeDigits = value[4] != 0
+			s.PLMN.MNCThreeDigitsKnown = true
 		}
 	}
 	if value, ok := tlv.Value(tlvs, nasTLVNetworkNameSource); ok {
 		if len(value) != 4 {
 			return fmt.Errorf("parsing QMI NAS serving system: network name source TLV length %d, want 4", len(value))
 		}
-		serving.NetworkNameSource = NASNetworkNameSource(binary.LittleEndian.Uint32(value))
-		serving.NetworkNameSourceKnown = true
+		s.NetworkNameSource = NASNetworkNameSource(binary.LittleEndian.Uint32(value))
+		s.NetworkNameSourceKnown = true
 	}
 	return nil
 }

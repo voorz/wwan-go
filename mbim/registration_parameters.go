@@ -20,8 +20,8 @@ func (r *RegistrationParametersRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsRegistrationParameters,
+			ServiceMSBasicConnectExtensions,
+			CIDMSRegistrationParameters,
 			CommandTypeQuery,
 			nil,
 		),
@@ -46,8 +46,8 @@ func (r *RegistrationParametersSetRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: commandWithError(
-			ServiceMsBasicConnectExtensions,
-			CIDMsRegistrationParameters,
+			ServiceMSBasicConnectExtensions,
+			CIDMSRegistrationParameters,
 			CommandTypeSet,
 			data,
 			err,

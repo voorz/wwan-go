@@ -29,32 +29,32 @@ func NewComprehension(tag byte, value []byte) Item {
 	return item
 }
 
-func (item Item) ComprehensionTag() byte {
-	return item.Tag & 0x7f
+func (i Item) ComprehensionTag() byte {
+	return i.Tag & 0x7f
 }
 
-func (item Item) ComprehensionRequired() bool {
-	return item.Tag&0x80 != 0
+func (i Item) ComprehensionRequired() bool {
+	return i.Tag&0x80 != 0
 }
 
-func (item Item) MarshalBinary() ([]byte, error) {
+func (i Item) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
-	if _, err := item.WriteTo(&buf); err != nil {
+	if _, err := i.WriteTo(&buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 
-func (item Item) WriteTo(w io.Writer) (int64, error) {
-	length, err := marshalLength(len(item.Value))
+func (i Item) WriteTo(w io.Writer) (int64, error) {
+	length, err := marshalLength(len(i.Value))
 	if err != nil {
 		return 0, err
 	}
 
-	encoded := make([]byte, 0, 1+len(length)+len(item.Value))
-	encoded = append(encoded, item.Tag)
+	encoded := make([]byte, 0, 1+len(length)+len(i.Value))
+	encoded = append(encoded, i.Tag)
 	encoded = append(encoded, length...)
-	encoded = append(encoded, item.Value...)
+	encoded = append(encoded, i.Value...)
 	n, err := w.Write(encoded)
 	if err == nil && n != len(encoded) {
 		err = io.ErrShortWrite
@@ -62,7 +62,7 @@ func (item Item) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
-func (item *Item) UnmarshalBinary(data []byte) error {
+func (i *Item) UnmarshalBinary(data []byte) error {
 	parsed, consumed, err := consume(data)
 	if err != nil {
 		return err
@@ -71,19 +71,19 @@ func (item *Item) UnmarshalBinary(data []byte) error {
 		return ErrMalformed
 	}
 
-	*item = parsed
+	*i = parsed
 	return nil
 }
 
-func (items Items) MarshalBinary() ([]byte, error) {
+func (i Items) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
-	if _, err := items.WriteTo(&buf); err != nil {
+	if _, err := i.WriteTo(&buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 
-func (items *Items) UnmarshalBinary(data []byte) error {
+func (i *Items) UnmarshalBinary(data []byte) error {
 	parsed := make(Items, 0, len(data)/2)
 	for len(data) > 0 {
 		item, consumed, err := consume(data)
@@ -94,13 +94,13 @@ func (items *Items) UnmarshalBinary(data []byte) error {
 		data = data[consumed:]
 	}
 
-	*items = parsed
+	*i = parsed
 	return nil
 }
 
-func (items Items) WriteTo(w io.Writer) (int64, error) {
+func (i Items) WriteTo(w io.Writer) (int64, error) {
 	var written int64
-	for _, item := range items {
+	for _, item := range i {
 		n, err := item.WriteTo(w)
 		written += n
 		if err != nil {
@@ -110,17 +110,17 @@ func (items Items) WriteTo(w io.Writer) (int64, error) {
 	return written, nil
 }
 
-func (items *Items) ReadFrom(r io.Reader) (int64, error) {
+func (i *Items) ReadFrom(r io.Reader) (int64, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return int64(len(data)), err
 	}
-	return int64(len(data)), items.UnmarshalBinary(data)
+	return int64(len(data)), i.UnmarshalBinary(data)
 }
 
-func (items Items) Find(tag byte) (Item, bool) {
+func (i Items) Find(tag byte) (Item, bool) {
 	tag &= 0x7f
-	for _, item := range items {
+	for _, item := range i {
 		if item.ComprehensionTag() == tag {
 			return CloneItem(item), true
 		}
@@ -128,10 +128,10 @@ func (items Items) Find(tag byte) (Item, bool) {
 	return Item{}, false
 }
 
-func (items Items) All(tag byte) Items {
+func (i Items) All(tag byte) Items {
 	tag &= 0x7f
 	out := make(Items, 0)
-	for _, item := range items {
+	for _, item := range i {
 		if item.ComprehensionTag() == tag {
 			out = append(out, CloneItem(item))
 		}

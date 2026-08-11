@@ -943,6 +943,7 @@ func (c *Client) releasePDCIndication(registration pdcIndicationRegistration) {
 		return
 	}
 	delete(c.pdcIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.syncPDCIndications(ctx)
 }
 
@@ -965,21 +966,21 @@ func validatePDCConfigurationType(configType PDCConfigurationType) error {
 }
 
 // MarshalBinary encodes a QMI PDC configuration reference.
-func (config PDCConfig) MarshalBinary() ([]byte, error) {
-	if err := validatePDCConfigurationType(config.Type); err != nil {
+func (c PDCConfig) MarshalBinary() ([]byte, error) {
+	if err := validatePDCConfigurationType(c.Type); err != nil {
 		return nil, err
 	}
-	if len(config.ID) > pdcConfigIDMax {
-		return nil, fmt.Errorf("configuration ID length %d exceeds %d", len(config.ID), pdcConfigIDMax)
+	if len(c.ID) > pdcConfigIDMax {
+		return nil, fmt.Errorf("configuration ID length %d exceeds %d", len(c.ID), pdcConfigIDMax)
 	}
-	value := binary.LittleEndian.AppendUint32(nil, uint32(config.Type))
-	value = append(value, byte(len(config.ID)))
-	value = append(value, config.ID...)
+	value := binary.LittleEndian.AppendUint32(nil, uint32(c.Type))
+	value = append(value, byte(len(c.ID)))
+	value = append(value, c.ID...)
 	return value, nil
 }
 
 // UnmarshalBinary decodes a QMI PDC configuration reference.
-func (config *PDCConfig) UnmarshalBinary(value []byte) error {
+func (c *PDCConfig) UnmarshalBinary(value []byte) error {
 	if len(value) < 5 {
 		return errors.New("configuration type or ID length is truncated")
 	}
@@ -994,7 +995,7 @@ func (config *PDCConfig) UnmarshalBinary(value []byte) error {
 	if len(value) != 5+length {
 		return fmt.Errorf("configuration value length %d, want %d", len(value), 5+length)
 	}
-	*config = PDCConfig{Type: configType, ID: slices.Clone(value[5:])}
+	*c = PDCConfig{Type: configType, ID: slices.Clone(value[5:])}
 	return nil
 }
 
@@ -1031,8 +1032,8 @@ func decodePDCConfigList(value []byte) ([]PDCConfig, error) {
 }
 
 // UnmarshalTLVs parses the common QMI PDC indication result and token.
-func (result *PDCIndicationResult) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*result = PDCIndicationResult{}
+func (r *PDCIndicationResult) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*r = PDCIndicationResult{}
 	value, ok := tlv.Value(tlvs, 0x01)
 	if !ok {
 		return errors.New("parsing QMI PDC indication: result TLV missing")
@@ -1040,12 +1041,12 @@ func (result *PDCIndicationResult) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	if len(value) != 2 {
 		return fmt.Errorf("parsing QMI PDC indication: result TLV length %d, want 2", len(value))
 	}
-	result.Error = QMIError(binary.LittleEndian.Uint16(value))
+	r.Error = QMIError(binary.LittleEndian.Uint16(value))
 	token, known, err := decodePDCIndicationToken(tlvs)
 	if err != nil {
 		return err
 	}
-	result.Token, result.TokenKnown = token, known
+	r.Token, r.TokenKnown = token, known
 	return nil
 }
 
@@ -1069,20 +1070,20 @@ func decodePDCUint32(value []byte) (uint32, error) {
 
 type pdcUTF16 string
 
-func (text pdcUTF16) String() string {
-	return string(text)
+func (t pdcUTF16) String() string {
+	return string(t)
 }
 
-func (text pdcUTF16) MarshalBinary() ([]byte, error) {
-	if !utf8.ValidString(string(text)) {
+func (t pdcUTF16) MarshalBinary() ([]byte, error) {
+	if !utf8.ValidString(string(t)) {
 		return nil, errors.New("UTF-16 value is not valid UTF-8")
 	}
-	for _, r := range text {
+	for _, r := range t {
 		if r == 0 {
 			return nil, errors.New("UTF-16 value contains a NUL character")
 		}
 	}
-	codeUnits := utf16.Encode([]rune(text))
+	codeUnits := utf16.Encode([]rune(t))
 	if len(codeUnits) > pdcConfigPathMax {
 		return nil, fmt.Errorf("UTF-16 value length %d exceeds %d", len(codeUnits), pdcConfigPathMax)
 	}
@@ -1093,7 +1094,7 @@ func (text pdcUTF16) MarshalBinary() ([]byte, error) {
 	return value, nil
 }
 
-func (text *pdcUTF16) UnmarshalBinary(value []byte) error {
+func (t *pdcUTF16) UnmarshalBinary(value []byte) error {
 	if len(value)%2 != 0 {
 		return fmt.Errorf("UTF-16 value has odd byte length %d", len(value))
 	}
@@ -1123,18 +1124,18 @@ func (text *pdcUTF16) UnmarshalBinary(value []byte) error {
 			return fmt.Errorf("UTF-16 value contains an unpaired low surrogate at code unit %d", index)
 		}
 	}
-	*text = pdcUTF16(string(utf16.Decode(codeUnits)))
+	*t = pdcUTF16(string(utf16.Decode(codeUnits)))
 	return nil
 }
 
-func (text pdcUTF16) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t pdcUTF16) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
-func (text *pdcUTF16) UnmarshalText(value []byte) error {
+func (t *pdcUTF16) UnmarshalText(value []byte) error {
 	if !utf8.Valid(value) {
 		return errors.New("decoding UTF-16 text: value is not valid UTF-8")
 	}
@@ -1142,6 +1143,6 @@ func (text *pdcUTF16) UnmarshalText(value []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }

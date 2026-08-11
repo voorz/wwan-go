@@ -136,7 +136,7 @@ func TestDepersonalize(t *testing.T) {
 				Operation:  UIMDepersonalizationUnblock,
 				ControlKey: "00000000",
 			},
-			resp:    errorResponse(MessageDepersonalization, QMIErrorIncorrectPin, tlv.Bytes(0x10, []byte{2, 5})),
+			resp:    errorResponse(MessageDepersonalization, QMIErrorIncorrectPIN, tlv.Bytes(0x10, []byte{2, 5})),
 			want:    UIMDepersonalizationResult{VerifyRetries: 2, UnblockRetries: 5, RetriesKnown: true},
 			wantErr: true,
 		},

@@ -23,13 +23,13 @@ func TestMSBasicConnectExtensionRequests(t *testing.T) {
 		{
 			name:        "system capabilities",
 			request:     (&SystemCapabilitiesRequest{TransactionID: 1}).Request(),
-			cid:         CIDMsSystemCapabilities,
+			cid:         CIDMSSystemCapabilities,
 			commandType: CommandTypeQuery,
 		},
 		{
 			name:        "slot info status",
 			request:     (&SlotInfoStatusRequest{TransactionID: 1, SlotIndex: 2}).Request(),
-			cid:         CIDMsSlotInfoStatus,
+			cid:         CIDMSSlotInfoStatus,
 			commandType: CommandTypeQuery,
 			wantData:    binary.LittleEndian.AppendUint32(nil, 2),
 		},
@@ -52,20 +52,20 @@ func TestMSBasicConnectExtensionRequests(t *testing.T) {
 		{
 			name:        "PCO",
 			request:     (&PCORequest{TransactionID: 1, Value: pco}).Request(),
-			cid:         CIDMsPCO,
+			cid:         CIDMSPCO,
 			commandType: CommandTypeQuery,
 			wantData:    pcoData,
 		},
 		{
 			name:        "device reset",
 			request:     (&DeviceResetRequest{TransactionID: 1}).Request(),
-			cid:         CIDMsDeviceReset,
+			cid:         CIDMSDeviceReset,
 			commandType: CommandTypeSet,
 		},
 		{
 			name:        "location info status",
 			request:     (&LocationInfoStatusRequest{TransactionID: 1}).Request(),
-			cid:         CIDMsLocationInfoStatus,
+			cid:         CIDMSLocationInfoStatus,
 			commandType: CommandTypeQuery,
 		},
 	}
@@ -73,7 +73,7 @@ func TestMSBasicConnectExtensionRequests(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.request.Command.(*Command)
-			if command.ServiceID != ServiceMsBasicConnectExtensions || command.CommandID != tt.cid || command.CommandType != tt.commandType {
+			if command.ServiceID != ServiceMSBasicConnectExtensions || command.CommandID != tt.cid || command.CommandType != tt.commandType {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if !bytes.Equal(command.Data, tt.wantData) {

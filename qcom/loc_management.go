@@ -179,18 +179,18 @@ type LOCVector3 struct {
 }
 
 // MarshalBinary encodes an east, north, and up vector.
-func (vector LOCVector3) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint32(nil, math.Float32bits(vector.East))
-	value = binary.LittleEndian.AppendUint32(value, math.Float32bits(vector.North))
-	return binary.LittleEndian.AppendUint32(value, math.Float32bits(vector.Up)), nil
+func (v LOCVector3) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint32(nil, math.Float32bits(v.East))
+	value = binary.LittleEndian.AppendUint32(value, math.Float32bits(v.North))
+	return binary.LittleEndian.AppendUint32(value, math.Float32bits(v.Up)), nil
 }
 
 // UnmarshalBinary decodes an east, north, and up vector.
-func (vector *LOCVector3) UnmarshalBinary(value []byte) error {
+func (v *LOCVector3) UnmarshalBinary(value []byte) error {
 	if len(value) != 12 {
 		return fmt.Errorf("LOC vector length %d, want 12", len(value))
 	}
-	*vector = LOCVector3{
+	*v = LOCVector3{
 		East:  math.Float32frombits(binary.LittleEndian.Uint32(value[:4])),
 		North: math.Float32frombits(binary.LittleEndian.Uint32(value[4:8])),
 		Up:    math.Float32frombits(binary.LittleEndian.Uint32(value[8:12])),
@@ -630,29 +630,29 @@ func (c *Client) LOCDeleteAssistanceData(ctx context.Context, config LOCDeleteAs
 	return nil
 }
 
-func (config *LOCInjectPositionConfig) validate() error {
-	if config.HorizontalReliability != nil && *config.HorizontalReliability > LOCReliabilityHigh {
-		return fmt.Errorf("horizontal reliability %d is out of range", *config.HorizontalReliability)
+func (c *LOCInjectPositionConfig) validate() error {
+	if c.HorizontalReliability != nil && *c.HorizontalReliability > LOCReliabilityHigh {
+		return fmt.Errorf("horizontal reliability %d is out of range", *c.HorizontalReliability)
 	}
-	if config.VerticalReliability != nil && *config.VerticalReliability > LOCReliabilityHigh {
-		return fmt.Errorf("vertical reliability %d is out of range", *config.VerticalReliability)
+	if c.VerticalReliability != nil && *c.VerticalReliability > LOCReliabilityHigh {
+		return fmt.Errorf("vertical reliability %d is out of range", *c.VerticalReliability)
 	}
-	if config.AltitudeSource != nil {
-		if config.AltitudeSource.Source > LOCAltitudeOther {
-			return fmt.Errorf("altitude source %d is out of range", config.AltitudeSource.Source)
+	if c.AltitudeSource != nil {
+		if c.AltitudeSource.Source > LOCAltitudeOther {
+			return fmt.Errorf("altitude source %d is out of range", c.AltitudeSource.Source)
 		}
-		if config.AltitudeSource.Dependency > LOCAltitudeFullyIndependent {
-			return fmt.Errorf("altitude dependency %d is out of range", config.AltitudeSource.Dependency)
+		if c.AltitudeSource.Dependency > LOCAltitudeFullyIndependent {
+			return fmt.Errorf("altitude dependency %d is out of range", c.AltitudeSource.Dependency)
 		}
-		if config.AltitudeSource.Uncertainty > LOCAltitudeUncertaintyFullRegion {
-			return fmt.Errorf("altitude uncertainty %d is out of range", config.AltitudeSource.Uncertainty)
+		if c.AltitudeSource.Uncertainty > LOCAltitudeUncertaintyFullRegion {
+			return fmt.Errorf("altitude uncertainty %d is out of range", c.AltitudeSource.Uncertainty)
 		}
 	}
-	if config.PositionSource != nil && *config.PositionSource > LOCPositionSourceFusedAndroidEngine {
-		return fmt.Errorf("position source %d is out of range", *config.PositionSource)
+	if c.PositionSource != nil && *c.PositionSource > LOCPositionSourceFusedAndroidEngine {
+		return fmt.Errorf("position source %d is out of range", *c.PositionSource)
 	}
-	if config.PositionSourceProvider != nil && *config.PositionSourceProvider > LOCPositionProviderInternal {
-		return fmt.Errorf("position source provider %d is out of range", *config.PositionSourceProvider)
+	if c.PositionSourceProvider != nil && *c.PositionSourceProvider > LOCPositionProviderInternal {
+		return fmt.Errorf("position source provider %d is out of range", *c.PositionSourceProvider)
 	}
 	return nil
 }

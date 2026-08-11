@@ -125,7 +125,7 @@ func TestDMSLegacyPINOperationReturnsRetriesOnFailure(t *testing.T) {
 				t.Fatalf("request = %+v", req)
 			}
 		},
-		resp: errorResponse(MessageDMSUIMVerifyPIN, QMIErrorIncorrectPin, tlv.Bytes(dmsTLVPINRetries, []byte{2, 7})),
+		resp: errorResponse(MessageDMSUIMVerifyPIN, QMIErrorIncorrectPIN, tlv.Bytes(dmsTLVPINRetries, []byte{2, 7})),
 	}}}
 	client := &Client{transport: transport, clientIDs: map[ServiceType]uint8{ServiceDMS: 7}}
 	result, err := client.DMSVerifyPIN(context.Background(), DMSPINVerifyRequest{ID: DMSPINIDPIN1, PIN: "0000"})

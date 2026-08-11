@@ -51,13 +51,13 @@ func openSerialPort(name string, baudRate int) (io.ReadWriteCloser, error) {
 
 	readEvent, err := windows.CreateEvent(nil, 1, 0, nil)
 	if err != nil {
-		_ = windows.CloseHandle(handle)
+		_ = windows.CloseHandle(handle) // Cleanup cannot change the event-creation error.
 		return nil, fmt.Errorf("creating serial read event: %w", err)
 	}
 	writeEvent, err := windows.CreateEvent(nil, 1, 0, nil)
 	if err != nil {
-		_ = windows.CloseHandle(readEvent)
-		_ = windows.CloseHandle(handle)
+		_ = windows.CloseHandle(readEvent) // Cleanup cannot change the event-creation error.
+		_ = windows.CloseHandle(handle)    // Cleanup cannot change the event-creation error.
 		return nil, fmt.Errorf("creating serial write event: %w", err)
 	}
 
@@ -67,7 +67,7 @@ func openSerialPort(name string, baudRate int) (io.ReadWriteCloser, error) {
 		writeEvent: writeEvent,
 	}
 	if err := port.configure(baudRate); err != nil {
-		_ = port.Close()
+		_ = port.Close() // Cleanup cannot change the configuration error.
 		return nil, err
 	}
 	return port, nil
@@ -140,7 +140,7 @@ func (p *serialPort) Read(buf []byte) (int, error) {
 		switch waitStatus {
 		case uint32(windows.WAIT_OBJECT_0):
 		case uint32(windows.WAIT_TIMEOUT):
-			_ = windows.CancelIoEx(p.handle, &overlapped)
+			_ = windows.CancelIoEx(p.handle, &overlapped) // The timeout remains authoritative.
 			return 0, errIOTimedOut
 		default:
 			return 0, fmt.Errorf("waiting for serial read: unexpected status %d", waitStatus)
@@ -204,7 +204,7 @@ func (p *serialPort) Write(buf []byte) (int, error) {
 		switch waitStatus {
 		case uint32(windows.WAIT_OBJECT_0):
 		case uint32(windows.WAIT_TIMEOUT):
-			_ = windows.CancelIoEx(p.handle, &overlapped)
+			_ = windows.CancelIoEx(p.handle, &overlapped) // The timeout remains authoritative.
 			return 0, errIOTimedOut
 		default:
 			return 0, fmt.Errorf("waiting for serial write: unexpected status %d", waitStatus)

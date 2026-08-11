@@ -412,12 +412,12 @@ func encodeNASSignalThresholds2(values []int16) ([]byte, error) {
 	return append([]byte{byte(len(values))}, encodeNASInt16s(values)...), nil
 }
 
-func (config NASLTESignalReportConfig) validate() error {
-	if config.Rate > NASLTESignalReportRateFiveSeconds {
-		return fmt.Errorf("encoding QMI NAS LTE signal report: rate %d is out of range", config.Rate)
+func (c NASLTESignalReportConfig) validate() error {
+	if c.Rate > NASLTESignalReportRateFiveSeconds {
+		return fmt.Errorf("encoding QMI NAS LTE signal report: rate %d is out of range", c.Rate)
 	}
-	if config.AveragePeriod > NASLTESignalAverageTenSeconds {
-		return fmt.Errorf("encoding QMI NAS LTE signal report: averaging period %d is out of range", config.AveragePeriod)
+	if c.AveragePeriod > NASLTESignalAverageTenSeconds {
+		return fmt.Errorf("encoding QMI NAS LTE signal report: averaging period %d is out of range", c.AveragePeriod)
 	}
 	return nil
 }

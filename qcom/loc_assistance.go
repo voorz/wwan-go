@@ -454,23 +454,23 @@ func validateLOCServerType(serverType LOCServerType) error {
 }
 
 // MarshalBinary encodes a QMI LOC IPv4 server.
-func (server LOCIPv4Server) MarshalBinary() ([]byte, error) {
-	address := server.Address.Unmap()
+func (s LOCIPv4Server) MarshalBinary() ([]byte, error) {
+	address := s.Address.Unmap()
 	if !address.Is4() {
-		return nil, fmt.Errorf("server address %q is not IPv4", server.Address)
+		return nil, fmt.Errorf("server address %q is not IPv4", s.Address)
 	}
 	addressBytes := address.As4()
 	value := append([]byte(nil), addressBytes[:]...)
-	value = binary.LittleEndian.AppendUint16(value, server.Port)
+	value = binary.LittleEndian.AppendUint16(value, s.Port)
 	return value, nil
 }
 
 // UnmarshalBinary decodes a QMI LOC IPv4 server.
-func (server *LOCIPv4Server) UnmarshalBinary(value []byte) error {
+func (s *LOCIPv4Server) UnmarshalBinary(value []byte) error {
 	if len(value) != 6 {
 		return fmt.Errorf("parsing QMI LOC server: IPv4 TLV length %d, want 6", len(value))
 	}
-	*server = LOCIPv4Server{
+	*s = LOCIPv4Server{
 		Address: netip.AddrFrom4([4]byte(value[:4])),
 		Port:    binary.LittleEndian.Uint16(value[4:6]),
 	}
@@ -478,23 +478,23 @@ func (server *LOCIPv4Server) UnmarshalBinary(value []byte) error {
 }
 
 // MarshalBinary encodes a QMI LOC IPv6 server.
-func (server LOCIPv6Server) MarshalBinary() ([]byte, error) {
-	address := server.Address.Unmap()
+func (s LOCIPv6Server) MarshalBinary() ([]byte, error) {
+	address := s.Address.Unmap()
 	if !address.Is6() {
-		return nil, fmt.Errorf("server address %q is not IPv6", server.Address)
+		return nil, fmt.Errorf("server address %q is not IPv6", s.Address)
 	}
 	addressBytes := address.As16()
 	value := append([]byte(nil), addressBytes[:]...)
-	value = binary.LittleEndian.AppendUint32(value, server.Port)
+	value = binary.LittleEndian.AppendUint32(value, s.Port)
 	return value, nil
 }
 
 // UnmarshalBinary decodes a QMI LOC IPv6 server.
-func (server *LOCIPv6Server) UnmarshalBinary(value []byte) error {
+func (s *LOCIPv6Server) UnmarshalBinary(value []byte) error {
 	if len(value) != 20 {
 		return fmt.Errorf("parsing QMI LOC server: IPv6 TLV length %d, want 20", len(value))
 	}
-	*server = LOCIPv6Server{
+	*s = LOCIPv6Server{
 		Address: netip.AddrFrom16([16]byte(value[:16])),
 		Port:    binary.LittleEndian.Uint32(value[16:20]),
 	}
@@ -502,16 +502,16 @@ func (server *LOCIPv6Server) UnmarshalBinary(value []byte) error {
 }
 
 // MarshalTLVs encodes one LOC assistance-data fragment.
-func (part LOCAssistanceDataPart) MarshalTLVs() (tlv.TLVs, error) {
-	if len(part.Data) > locAssistanceDataPartMax {
-		return nil, fmt.Errorf("part data length %d exceeds %d", len(part.Data), locAssistanceDataPartMax)
+func (p LOCAssistanceDataPart) MarshalTLVs() (tlv.TLVs, error) {
+	if len(p.Data) > locAssistanceDataPartMax {
+		return nil, fmt.Errorf("part data length %d exceeds %d", len(p.Data), locAssistanceDataPartMax)
 	}
-	value := binary.LittleEndian.AppendUint16(nil, uint16(len(part.Data)))
-	value = append(value, part.Data...)
+	value := binary.LittleEndian.AppendUint16(nil, uint16(len(p.Data)))
+	value = append(value, p.Data...)
 	return tlv.TLVs{
-		tlv.Uint(0x01, part.TotalSize),
-		tlv.Uint(0x02, part.TotalParts),
-		tlv.Uint(0x03, part.PartNumber),
+		tlv.Uint(0x01, p.TotalSize),
+		tlv.Uint(0x02, p.TotalParts),
+		tlv.Uint(0x03, p.PartNumber),
 		tlv.Bytes(0x04, value),
 	}, nil
 }

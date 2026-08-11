@@ -151,7 +151,7 @@ func (r *SARConfigRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceMsSAR, CIDMsSARConfig, CommandTypeQuery, nil),
+		Command:       command(ServiceMSSAR, CIDMSSARConfig, CommandTypeQuery, nil),
 		Response:      r.Response,
 	}
 }
@@ -169,7 +169,7 @@ func (r *SARConfigSetRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       commandWithError(ServiceMsSAR, CIDMsSARConfig, CommandTypeSet, data, err),
+		Command:       commandWithError(ServiceMSSAR, CIDMSSARConfig, CommandTypeSet, data, err),
 		Response:      r.Response,
 	}
 }
@@ -211,7 +211,7 @@ func (r *TransmissionStatusRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceMsSAR, CIDMsSARTransmissionStatus, CommandTypeQuery, nil),
+		Command:       command(ServiceMSSAR, CIDMSSARTransmissionStatus, CommandTypeQuery, nil),
 		Response:      r.Response,
 	}
 }
@@ -231,7 +231,7 @@ func (r *TransmissionStatusSetRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceMsSAR, CIDMsSARTransmissionStatus, CommandTypeSet, data),
+		Command:       command(ServiceMSSAR, CIDMSSARTransmissionStatus, CommandTypeSet, data),
 		Response:      r.Response,
 	}
 }
@@ -283,7 +283,7 @@ func (c *Client) SetTransmissionStatus(ctx context.Context, notification Transmi
 
 // ReadTransmissionStatus waits for the next SAR transmission status notification.
 func (c *Client) ReadTransmissionStatus(ctx context.Context) (TransmissionStatusInfo, error) {
-	indication, err := c.NextIndication(ctx, ServiceMsSAR, CIDMsSARTransmissionStatus)
+	indication, err := c.NextIndication(ctx, ServiceMSSAR, CIDMSSARTransmissionStatus)
 	if err != nil {
 		return TransmissionStatusInfo{}, fmt.Errorf("reading MBIM SAR transmission notification: %w", err)
 	}
@@ -306,7 +306,7 @@ func (c *Client) WatchTransmissionStatus(ctx context.Context) (<-chan Transmissi
 // WatchTransmissionStatusResults streams SAR transmission status
 // notifications and reports receiver or payload errors through the terminal result.
 func (c *Client) WatchTransmissionStatusResults(ctx context.Context) (<-chan WatchResult[TransmissionStatusInfo], error) {
-	indications, err := c.WatchIndicationResults(ctx, ServiceMsSAR, CIDMsSARTransmissionStatus)
+	indications, err := c.WatchIndicationResults(ctx, ServiceMSSAR, CIDMSSARTransmissionStatus)
 	if err != nil {
 		return nil, fmt.Errorf("watching MBIM SAR transmission notifications: %w", err)
 	}

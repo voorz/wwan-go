@@ -424,6 +424,7 @@ func (c *CAT) setConfiguration(ctx context.Context, service ServiceType, clientI
 func (c *CAT) releaseCATClient(service ServiceType, clientID uint8) {
 	ctx, cancel := context.WithTimeout(context.Background(), catCleanupTimeout)
 	defer cancel()
+	// Client-ID release is best effort after the command stream has ended.
 	_ = c.client.releaseCATClient(ctx, service, clientID)
 }
 

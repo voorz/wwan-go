@@ -18,7 +18,7 @@ func (r *FirmwareIDRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceMsFirmwareID, CIDMsFirmwareIDGet, CommandTypeQuery, nil),
+		Command:       command(ServiceMSFirmwareID, CIDMSFirmwareIDGet, CommandTypeQuery, nil),
 		Response:      r.Response,
 	}
 }

@@ -250,52 +250,52 @@ func (c *Client) NASSetEventReport(ctx context.Context, config NASSetEventReport
 }
 
 // MarshalTLVs encodes NAS event-report fields.
-func (config NASSetEventReportConfig) MarshalTLVs() (tlv.TLVs, error) {
+func (c NASSetEventReportConfig) MarshalTLVs() (tlv.TLVs, error) {
 	var tlvs tlv.TLVs
-	if config.SignalStrength != nil {
-		if err := validateNASLegacyThresholds(config.SignalStrength.Report, config.SignalStrength.Thresholds, nasMaxEventSignalStrengthThresholds); err != nil {
+	if c.SignalStrength != nil {
+		if err := validateNASLegacyThresholds(c.SignalStrength.Report, c.SignalStrength.Thresholds, nasMaxEventSignalStrengthThresholds); err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS signal strength event thresholds: %w", err)
 		}
-		value := append([]byte{boolByte(config.SignalStrength.Report), byte(len(config.SignalStrength.Thresholds))}, encodeNASInt8s(config.SignalStrength.Thresholds)...)
+		value := append([]byte{boolByte(c.SignalStrength.Report), byte(len(c.SignalStrength.Thresholds))}, encodeNASInt8s(c.SignalStrength.Thresholds)...)
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSetEventReportSignalStrength, value))
 	}
-	if config.RFBandInfo != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSetEventReportRFBand, boolByte(*config.RFBandInfo)))
+	if c.RFBandInfo != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSetEventReportRFBand, boolByte(*c.RFBandInfo)))
 	}
-	if config.RegistrationReject != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSetEventReportReject, boolByte(*config.RegistrationReject)))
+	if c.RegistrationReject != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSetEventReportReject, boolByte(*c.RegistrationReject)))
 	}
 	appendDelta := func(kind byte, config *NASLegacyDeltaConfig) {
 		if config != nil {
 			tlvs = append(tlvs, tlv.Bytes(kind, []byte{boolByte(config.Report), config.Delta}))
 		}
 	}
-	appendDelta(nasTLVSetEventReportRSSI, config.RSSI)
-	appendDelta(nasTLVSetEventReportECIO, config.ECIO)
-	appendDelta(nasTLVSetEventReportIO, config.IO)
-	appendDelta(nasTLVSetEventReportSINR, config.SINR)
-	if config.ErrorRate != nil {
-		tlvs = append(tlvs, tlv.Uint(nasTLVSetEventReportErrorRate, boolByte(*config.ErrorRate)))
+	appendDelta(nasTLVSetEventReportRSSI, c.RSSI)
+	appendDelta(nasTLVSetEventReportECIO, c.ECIO)
+	appendDelta(nasTLVSetEventReportIO, c.IO)
+	appendDelta(nasTLVSetEventReportSINR, c.SINR)
+	if c.ErrorRate != nil {
+		tlvs = append(tlvs, tlv.Uint(nasTLVSetEventReportErrorRate, boolByte(*c.ErrorRate)))
 	}
-	appendDelta(nasTLVSetEventReportRSRQ, config.RSRQ)
-	if config.ECIOThreshold != nil {
-		if err := validateNASLegacyThresholds(config.ECIOThreshold.Report, config.ECIOThreshold.Thresholds, nasMaxEventECIOThresholds); err != nil {
+	appendDelta(nasTLVSetEventReportRSRQ, c.RSRQ)
+	if c.ECIOThreshold != nil {
+		if err := validateNASLegacyThresholds(c.ECIOThreshold.Report, c.ECIOThreshold.Thresholds, nasMaxEventECIOThresholds); err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS ECIO event thresholds: %w", err)
 		}
-		value := append([]byte{boolByte(config.ECIOThreshold.Report), byte(len(config.ECIOThreshold.Thresholds))}, encodeNASInt16s(config.ECIOThreshold.Thresholds)...)
+		value := append([]byte{boolByte(c.ECIOThreshold.Report), byte(len(c.ECIOThreshold.Thresholds))}, encodeNASInt16s(c.ECIOThreshold.Thresholds)...)
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSetEventReportECIOThreshold, value))
 	}
-	if config.SINRThreshold != nil {
-		if err := validateNASLegacyThresholds(config.SINRThreshold.Report, config.SINRThreshold.Thresholds, nasMaxEventSINRThresholds); err != nil {
+	if c.SINRThreshold != nil {
+		if err := validateNASLegacyThresholds(c.SINRThreshold.Report, c.SINRThreshold.Thresholds, nasMaxEventSINRThresholds); err != nil {
 			return nil, fmt.Errorf("encoding QMI NAS SINR event thresholds: %w", err)
 		}
-		value := append([]byte{boolByte(config.SINRThreshold.Report), byte(len(config.SINRThreshold.Thresholds))}, config.SINRThreshold.Thresholds...)
+		value := append([]byte{boolByte(c.SINRThreshold.Report), byte(len(c.SINRThreshold.Thresholds))}, c.SINRThreshold.Thresholds...)
 		tlvs = append(tlvs, tlv.Bytes(nasTLVSetEventReportSINRThreshold, value))
 	}
-	if config.LTESNR != nil {
-		tlvs = append(tlvs, tlv.Bytes(nasTLVSetEventReportLTESNR, append([]byte{boolByte(config.LTESNR.Report)}, binary.LittleEndian.AppendUint16(nil, config.LTESNR.Delta)...)))
+	if c.LTESNR != nil {
+		tlvs = append(tlvs, tlv.Bytes(nasTLVSetEventReportLTESNR, append([]byte{boolByte(c.LTESNR.Report)}, binary.LittleEndian.AppendUint16(nil, c.LTESNR.Delta)...)))
 	}
-	appendDelta(nasTLVSetEventReportLTERSRP, config.LTERSRP)
+	appendDelta(nasTLVSetEventReportLTERSRP, c.LTERSRP)
 	return tlvs, nil
 }
 

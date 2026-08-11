@@ -462,18 +462,18 @@ func parseWDSDomainList(value []byte) ([]string, error) {
 	return domains, nil
 }
 
-func (pco WDSOperatorReservedPCO) MarshalBinary() ([]byte, error) {
-	if len(pco.AppSpecificInfo) > 0xff {
-		return nil, fmt.Errorf("operator reserved PCO application information length %d exceeds 255", len(pco.AppSpecificInfo))
+func (p WDSOperatorReservedPCO) MarshalBinary() ([]byte, error) {
+	if len(p.AppSpecificInfo) > 0xff {
+		return nil, fmt.Errorf("operator reserved PCO application information length %d exceeds 255", len(p.AppSpecificInfo))
 	}
-	value := binary.LittleEndian.AppendUint16(nil, pco.MCC)
-	value = binary.LittleEndian.AppendUint16(value, pco.MNC)
-	value = append(value, boolByte(pco.MNCIncludesPCSDigit), byte(len(pco.AppSpecificInfo)))
-	value = append(value, pco.AppSpecificInfo...)
-	return binary.LittleEndian.AppendUint16(value, pco.ContainerID), nil
+	value := binary.LittleEndian.AppendUint16(nil, p.MCC)
+	value = binary.LittleEndian.AppendUint16(value, p.MNC)
+	value = append(value, boolByte(p.MNCIncludesPCSDigit), byte(len(p.AppSpecificInfo)))
+	value = append(value, p.AppSpecificInfo...)
+	return binary.LittleEndian.AppendUint16(value, p.ContainerID), nil
 }
 
-func (pco *WDSOperatorReservedPCO) UnmarshalBinary(value []byte) error {
+func (p *WDSOperatorReservedPCO) UnmarshalBinary(value []byte) error {
 	if len(value) < 8 {
 		return errors.New("operator reserved PCO is truncated")
 	}
@@ -482,7 +482,7 @@ func (pco *WDSOperatorReservedPCO) UnmarshalBinary(value []byte) error {
 	if len(value) != want {
 		return fmt.Errorf("operator reserved PCO length %d, want %d", len(value), want)
 	}
-	*pco = WDSOperatorReservedPCO{
+	*p = WDSOperatorReservedPCO{
 		MCC:                 binary.LittleEndian.Uint16(value[:2]),
 		MNC:                 binary.LittleEndian.Uint16(value[2:4]),
 		MNCIncludesPCSDigit: value[4] != 0,

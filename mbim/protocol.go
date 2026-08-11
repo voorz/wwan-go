@@ -57,7 +57,10 @@ func (r *Request) writeConn(ctx context.Context, conn Conn) (int, error) {
 		if err := conn.SetWriteDeadline(deadline); err != nil {
 			return 0, fmt.Errorf("setting MBIM write deadline: %w", err)
 		}
-		defer func() { _ = conn.SetWriteDeadline(time.Time{}) }()
+		defer func() {
+			// The write result is authoritative; clearing the deadline is best effort.
+			_ = conn.SetWriteDeadline(time.Time{})
+		}()
 	}
 
 	var written int
@@ -320,7 +323,7 @@ func (r *Request) statusCarriesResponse(status Status, data []byte) bool {
 		return false
 	}
 	switch command.CommandID {
-	case CIDPin, CIDRegisterState, CIDPacketService, CIDConnect, CIDServiceActivation:
+	case CIDPIN, CIDRegisterState, CIDPacketService, CIDConnect, CIDServiceActivation:
 		return true
 	default:
 		return false

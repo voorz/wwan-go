@@ -9,13 +9,13 @@ import (
 func TestPINInfoEnumValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		pinType PinType
-		state   PinState
+		pinType PINType
+		state   PINState
 		wantErr bool
 	}{
-		{name: "maximum values", pinType: PinTypeCorporatePUK, state: PinStateLocked},
-		{name: "UICC-only PIN type", pinType: PinTypeNEV, wantErr: true},
-		{name: "reserved state", state: PinStateLocked + 1, wantErr: true},
+		{name: "maximum values", pinType: PINTypeCorporatePUK, state: PINStateLocked},
+		{name: "UICC-only PIN type", pinType: PINTypeNEV, wantErr: true},
+		{name: "reserved state", state: PINStateLocked + 1, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -23,7 +23,7 @@ func TestPINInfoEnumValidation(t *testing.T) {
 			data := make([]byte, 12)
 			binary.LittleEndian.PutUint32(data[0:4], uint32(tt.pinType))
 			binary.LittleEndian.PutUint32(data[4:8], uint32(tt.state))
-			var got PinInfo
+			var got PINInfo
 			err := got.UnmarshalBinary(data)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalBinary() error = %v, wantErr %v", err, tt.wantErr)
@@ -35,16 +35,16 @@ func TestPINInfoEnumValidation(t *testing.T) {
 func TestPINListDescriptorValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		mode    PinMode
-		format  PinFormat
+		mode    PINMode
+		format  PINFormat
 		min     uint32
 		max     uint32
 		wantErr bool
 	}{
-		{name: "known lengths", mode: PinModeEnabled, format: PinFormatNumeric, min: 4, max: 8},
+		{name: "known lengths", mode: PINModeEnabled, format: PINFormatNumeric, min: 4, max: 8},
 		{name: "unknown lengths", min: pinLengthUnknown, max: pinLengthUnknown},
-		{name: "reserved mode", mode: PinModeDisabled + 1, wantErr: true},
-		{name: "reserved format", format: PinFormatAlphanumeric + 1, wantErr: true},
+		{name: "reserved mode", mode: PINModeDisabled + 1, wantErr: true},
+		{name: "reserved format", format: PINFormatAlphanumeric + 1, wantErr: true},
 		{name: "minimum too large", min: 17, max: 17, wantErr: true},
 		{name: "maximum too large", max: 17, wantErr: true},
 		{name: "inverted range", min: 8, max: 4, wantErr: true},
@@ -57,7 +57,7 @@ func TestPINListDescriptorValidation(t *testing.T) {
 			binary.LittleEndian.PutUint32(data[4:8], uint32(tt.format))
 			binary.LittleEndian.PutUint32(data[8:12], tt.min)
 			binary.LittleEndian.PutUint32(data[12:16], tt.max)
-			var got PinListInfo
+			var got PINListInfo
 			err := got.UnmarshalBinary(data)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalBinary() error = %v, wantErr %v", err, tt.wantErr)
@@ -69,14 +69,14 @@ func TestPINListDescriptorValidation(t *testing.T) {
 func TestSetPINInputValidation(t *testing.T) {
 	tests := []struct {
 		name      string
-		pinType   PinType
-		operation PinOperation
+		pinType   PINType
+		operation PINOperation
 		newPIN    string
 	}{
-		{name: "UICC-only PIN type", pinType: PinTypeADM},
-		{name: "reserved operation", pinType: PinTypePIN1, operation: PinOperationChange + 1},
-		{name: "new PIN on enable", pinType: PinTypePIN1, operation: PinOperationEnable, newPIN: "1234"},
-		{name: "new PIN on non-PUK enter", pinType: PinTypePIN1, operation: PinOperationEnter, newPIN: "1234"},
+		{name: "UICC-only PIN type", pinType: PINTypeADM},
+		{name: "reserved operation", pinType: PINTypePIN1, operation: PINOperationChange + 1},
+		{name: "new PIN on enable", pinType: PINTypePIN1, operation: PINOperationEnable, newPIN: "1234"},
+		{name: "new PIN on non-PUK enter", pinType: PINTypePIN1, operation: PINOperationEnter, newPIN: "1234"},
 	}
 
 	for _, tt := range tests {

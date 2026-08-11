@@ -31,7 +31,7 @@ func (t *simTransport) Do(_ context.Context, req qcom.Request) (qcom.Response, e
 		path := decodeFileTLV(req.TLVs)
 		file, ok := t.files[simFileKey(session, aid, path)]
 		if !ok {
-			return errorResponse(qcom.MessageGetFileAttributes, qcom.QMIErrorSimFileNotFound), nil
+			return errorResponse(qcom.MessageGetFileAttributes, qcom.QMIErrorSIMFileNotFound), nil
 		}
 		return successResponse(qcom.MessageGetFileAttributes,
 			tlv.Bytes(0x10, []byte{0x90, 0x00}),
@@ -42,7 +42,7 @@ func (t *simTransport) Do(_ context.Context, req qcom.Request) (qcom.Response, e
 		path := decodeFileTLV(req.TLVs)
 		file, ok := t.files[simFileKey(session, aid, path)]
 		if !ok || len(file.data) == 0 {
-			return errorResponse(qcom.MessageReadTransparent, qcom.QMIErrorSimFileNotFound), nil
+			return errorResponse(qcom.MessageReadTransparent, qcom.QMIErrorSIMFileNotFound), nil
 		}
 		return successResponse(qcom.MessageReadTransparent,
 			tlv.Bytes(0x10, []byte{0x90, 0x00}),
@@ -54,11 +54,11 @@ func (t *simTransport) Do(_ context.Context, req qcom.Request) (qcom.Response, e
 		record := decodeRecordTLV(req.TLVs)
 		file, ok := t.files[simFileKey(session, aid, path)]
 		if !ok {
-			return errorResponse(qcom.MessageReadRecord, qcom.QMIErrorSimFileNotFound), nil
+			return errorResponse(qcom.MessageReadRecord, qcom.QMIErrorSIMFileNotFound), nil
 		}
 		row, ok := file.rows[record]
 		if !ok {
-			return errorResponse(qcom.MessageReadRecord, qcom.QMIErrorSimFileNotFound), nil
+			return errorResponse(qcom.MessageReadRecord, qcom.QMIErrorSIMFileNotFound), nil
 		}
 		return successResponse(qcom.MessageReadRecord,
 			tlv.Bytes(0x10, []byte{0x90, 0x00}),

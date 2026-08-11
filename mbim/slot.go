@@ -140,7 +140,7 @@ func (r *DeviceSlotMappingsRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
+			ServiceMSBasicConnectExtensions,
 			CIDDeviceSlotMappings,
 			CommandTypeQuery,
 			nil,
@@ -175,7 +175,7 @@ func (r *DeviceSlotMappingsSetRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
+			ServiceMSBasicConnectExtensions,
 			CIDDeviceSlotMappings,
 			CommandTypeSet,
 			data,

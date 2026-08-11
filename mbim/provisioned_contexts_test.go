@@ -238,7 +238,7 @@ func TestClientSetProvisionedContext(t *testing.T) {
 				t.Fatalf("SetProvisionedContext() = %+v, want %+v", got, []ProvisionedContext{tt.response})
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

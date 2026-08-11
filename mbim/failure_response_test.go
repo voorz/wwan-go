@@ -21,12 +21,12 @@ func TestBasicConnectFailureResponsesPreservePayload(t *testing.T) {
 	}{
 		{
 			name:        "PIN",
-			commandID:   CIDPin,
+			commandID:   CIDPIN,
 			commandType: CommandTypeQuery,
 			response: func() []byte {
 				data := make([]byte, 12)
-				binary.LittleEndian.PutUint32(data[0:4], uint32(PinTypePIN1))
-				binary.LittleEndian.PutUint32(data[4:8], uint32(PinStateLocked))
+				binary.LittleEndian.PutUint32(data[0:4], uint32(PINTypePIN1))
+				binary.LittleEndian.PutUint32(data[4:8], uint32(PINStateLocked))
 				binary.LittleEndian.PutUint32(data[8:12], 46)
 				return data
 			},
@@ -143,7 +143,7 @@ func TestBasicConnectFailureResponsesPreservePayload(t *testing.T) {
 				t.Fatalf("response marker = %d, want %d", got, tt.want)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

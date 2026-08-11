@@ -129,16 +129,16 @@ func (r *RawFileAttributes) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (security UIMFileSecurity) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(security.Logic)}
-	return binary.LittleEndian.AppendUint16(value, uint16(security.Attributes)), nil
+func (s UIMFileSecurity) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(s.Logic)}
+	return binary.LittleEndian.AppendUint16(value, uint16(s.Attributes)), nil
 }
 
-func (security *UIMFileSecurity) UnmarshalBinary(data []byte) error {
+func (s *UIMFileSecurity) UnmarshalBinary(data []byte) error {
 	if len(data) != 3 {
 		return fmt.Errorf("file security length %d, want 3", len(data))
 	}
-	*security = UIMFileSecurity{
+	*s = UIMFileSecurity{
 		Logic:      UIMSecurityAttributeLogic(data[0]),
 		Attributes: UIMSecurityAttribute(binary.LittleEndian.Uint16(data[1:])),
 	}
@@ -146,10 +146,6 @@ func (security *UIMFileSecurity) UnmarshalBinary(data []byte) error {
 }
 
 func (c *Client) FileAttributes(ctx context.Context, file File) (FileAttributes, error) {
-	return c.GetFileAttributes(ctx, file)
-}
-
-func (c *Client) GetFileAttributes(ctx context.Context, file File) (FileAttributes, error) {
 	response, err := c.fileAttributesResponse(ctx, file)
 	if err != nil {
 		return FileAttributes{}, err

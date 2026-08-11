@@ -121,7 +121,7 @@ func Open(ctx context.Context, opts ...Option) (*Transport, error) {
 	}
 
 	if err := transport.openProxy(ctx, device); err != nil {
-		_ = conn.Close()
+		_ = conn.Close() // Cleanup cannot change the proxy-open error.
 		return nil, &OpenError{Proxy: true, Err: fmt.Errorf("opening QMI proxy for %s: %w", device, err)}
 	}
 	return transport, nil
@@ -138,7 +138,7 @@ func openAuto(ctx context.Context, device string) (*Transport, error) {
 		transport := New(conn)
 		transport.proxy = true
 		if err := transport.openProxy(ctx, device); err != nil {
-			_ = transport.Close()
+			_ = transport.Close() // Cleanup cannot change the proxy-open error.
 			return nil, &OpenError{Proxy: true, Err: fmt.Errorf("opening QMI proxy for %s: %w", device, err)}
 		}
 		return transport, nil

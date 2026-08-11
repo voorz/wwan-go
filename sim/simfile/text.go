@@ -9,20 +9,20 @@ import (
 
 type Text string
 
-func (text Text) String() string {
-	return string(text)
+func (t Text) String() string {
+	return string(t)
 }
 
-func (text Text) MarshalText() ([]byte, error) {
-	return []byte(string(text)), nil
+func (t Text) MarshalText() ([]byte, error) {
+	return []byte(string(t)), nil
 }
 
-func (text *Text) UnmarshalText(data []byte) error {
-	*text = Text(string(data))
+func (t *Text) UnmarshalText(data []byte) error {
+	*t = Text(string(data))
 	return nil
 }
 
-func (text *Text) UnmarshalBinary(data []byte) error {
+func (t *Text) UnmarshalBinary(data []byte) error {
 	for len(data) > 0 && (data[len(data)-1] == 0xFF || data[len(data)-1] == 0x00) {
 		data = data[:len(data)-1]
 	}
@@ -37,7 +37,7 @@ func (text *Text) UnmarshalBinary(data []byte) error {
 			if len(item.Value) == 0 {
 				continue
 			}
-			*text = Text(string(item.Value))
+			*t = Text(string(item.Value))
 			return nil
 		}
 		return errors.New("parsing TLV string: missing value")
@@ -48,7 +48,7 @@ func (text *Text) UnmarshalBinary(data []byte) error {
 			return malformedTLV(err)
 		}
 	}
-	*text = Text(string(data))
+	*t = Text(string(data))
 	return nil
 }
 

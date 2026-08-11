@@ -22,7 +22,7 @@ func TestDeviceCapsV2Request(t *testing.T) {
 				MBIMExVersion: tt.version,
 			}).Request()
 			command := request.Command.(*Command)
-			if command.ServiceID != ServiceMsBasicConnectExtensions || command.CommandID != CIDMsDeviceCapsV2 || command.CommandType != CommandTypeQuery {
+			if command.ServiceID != ServiceMSBasicConnectExtensions || command.CommandID != CIDMSDeviceCapsV2 || command.CommandType != CommandTypeQuery {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if len(command.Data) != 0 {

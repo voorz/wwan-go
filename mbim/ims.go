@@ -89,13 +89,13 @@ func (c *Client) OpenIMSPDN(ctx context.Context, cfg IMSPDNConfig) (*IMSPDNSessi
 		return nil, err
 	}
 	if connect.ActivationState != ActivationStateActivated {
-		_ = session.Close()
+		_ = session.Close() // Cleanup cannot change the activation-state error.
 		return nil, fmt.Errorf("opening MBIM IMS PDN: activation state %d, want %d", connect.ActivationState, ActivationStateActivated)
 	}
 
 	ipConfig, err := c.IPConfiguration(ctx, cfg.SessionID)
 	if err != nil {
-		_ = session.Close()
+		_ = session.Close() // Cleanup cannot change the IP-configuration error.
 		return nil, fmt.Errorf("opening MBIM IMS PDN: %w", err)
 	}
 

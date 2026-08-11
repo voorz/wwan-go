@@ -217,6 +217,7 @@ func (m *MBIM) setSTKPAC(ctx context.Context, profile stk.Profile) error {
 func (m *MBIM) clearSTKPAC() {
 	ctx, cancel := context.WithTimeout(context.Background(), mbimSTKCleanupTimeout)
 	defer cancel()
+	// Profile cleanup is best effort after the STK session has ended.
 	_, _ = m.client.SetSTKPAC(ctx, make([]byte, mbimSTKPACHostControlLength))
 }
 

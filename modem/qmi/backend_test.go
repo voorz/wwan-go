@@ -25,7 +25,7 @@ func TestErrorClassification(t *testing.T) {
 		wantRadioUnavailable bool
 	}{
 		{name: "not supported", err: fmt.Errorf("query: %w", qcom.QMIErrorNotSupported), wantUnsupported: true, wantSARUnsupported: true},
-		{name: "invalid command", err: qcom.QMIErrorInvalidQmiCommand, wantUnsupported: true, wantSARUnsupported: true},
+		{name: "invalid command", err: qcom.QMIErrorInvalidQMICommand, wantUnsupported: true, wantSARUnsupported: true},
 		{name: "SAR no memory", err: qcom.QMIErrorNoMemory, wantSARUnsupported: true},
 		{name: "information unavailable", err: qcom.QMIErrorInformationUnavailable, wantRadioUnavailable: true},
 		{name: "no radio", err: qcom.QMIErrorNoRadio, wantRadioUnavailable: true},

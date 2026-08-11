@@ -57,7 +57,7 @@ func TestClientEmergencyMode(t *testing.T) {
 				t.Fatalf("EmergencyMode() = %d, want %d", got, tt.mode)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

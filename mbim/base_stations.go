@@ -30,8 +30,8 @@ func (r *BaseStationsRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsBaseStationsInfo,
+			ServiceMSBasicConnectExtensions,
+			CIDMSBaseStationsInfo,
 			CommandTypeQuery,
 			marshalBaseStationCounts(r.Maximum, r.MBIMExVersion),
 		),

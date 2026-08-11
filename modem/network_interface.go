@@ -3,6 +3,7 @@ package modem
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -31,7 +32,7 @@ func selectNetworkPortFromDevices(devices []Device, controlPort, requested strin
 		return Port{}, fmt.Errorf("selecting modem network interface: %s is not associated with %s", requested, controlPort)
 	}
 	if len(ports) == 0 {
-		return Port{}, fmt.Errorf("selecting modem network interface: found 0 associated interfaces, want at least one")
+		return Port{}, errors.New("selecting modem network interface: found 0 associated interfaces, want at least one")
 	}
 	return ports[0], nil
 }

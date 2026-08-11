@@ -18,8 +18,8 @@ func TestWMSRequestEncoding(t *testing.T) {
 	index := uint32(0x11223344)
 	ims := true
 	forceOnDC := WMSCDMAForceOnDC{Force: true, ServiceOption: WMSCDMAServiceOption14}
-	failure3GPP2 := WMSAck3GPP2Failure{ErrorClass: 2, CauseCode: 0x60}
-	failure3GPP := WMSAck3GPPFailure{RPCause: 0x21, TPCause: 0xD3}
+	failure3GPP2 := WMSACK3GPP2Failure{ErrorClass: 2, CauseCode: 0x60}
+	failure3GPP := WMSACK3GPPFailure{RPCause: 0x21, TPCause: 0xD3}
 	tests := []struct {
 		name  string
 		call  func(*Client) error
@@ -132,7 +132,7 @@ func TestWMSRequestEncoding(t *testing.T) {
 		{
 			name: "ack",
 			call: func(c *Client) error {
-				return c.WMSAcknowledge(context.Background(), WMSAckRequest{
+				return c.WMSAcknowledge(context.Background(), WMSACKRequest{
 					TransactionID: 0xAABBCCDD,
 					Protocol:      WMSMessageProtocolWCDMA,
 					Success:       false,
@@ -141,14 +141,14 @@ func TestWMSRequestEncoding(t *testing.T) {
 					SMSOnIMS:      &ims,
 				})
 			},
-			want: MessageWMSSendAck,
+			want: MessageWMSSendACK,
 			check: func(t *testing.T, req Request) {
 				assertTLV(t, req.TLVs, 0x01, []byte{0xDD, 0xCC, 0xBB, 0xAA, 0x01, 0x00})
 				assertTLV(t, req.TLVs, 0x10, []byte{0x02, 0x60})
 				assertTLV(t, req.TLVs, 0x11, []byte{0x21, 0xD3})
 				assertTLV(t, req.TLVs, 0x12, []byte{0x01})
 			},
-			resp: successResponse(MessageWMSSendAck),
+			resp: successResponse(MessageWMSSendACK),
 		},
 		{
 			name: "set SMSC",
@@ -479,15 +479,15 @@ func TestWMSAcknowledgeFailure(t *testing.T) {
 		{
 			name: "network released link",
 			response: errorResponse(
-				MessageWMSSendAck,
-				QMIErrorAckNotSent,
-				tlv.Bytes(0x10, []byte{byte(WMSAckFailureNetworkReleasedLink)}),
+				MessageWMSSendACK,
+				QMIErrorACKNotSent,
+				tlv.Bytes(0x10, []byte{byte(WMSACKFailureNetworkReleasedLink)}),
 			),
 			wantTyped: true,
 		},
 		{
 			name:      "malformed failure cause",
-			response:  errorResponse(MessageWMSSendAck, QMIErrorAckNotSent, tlv.Bytes(0x10, []byte{0, 1})),
+			response:  errorResponse(MessageWMSSendACK, QMIErrorACKNotSent, tlv.Bytes(0x10, []byte{0, 1})),
 			wantTyped: false,
 		},
 	}
@@ -496,16 +496,16 @@ func TestWMSAcknowledgeFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{{resp: tt.response}}}
 			client := &Client{transport: transport, clientIDs: map[ServiceType]uint8{ServiceWMS: 7}}
-			err := client.WMSAcknowledge(context.Background(), WMSAckRequest{})
+			err := client.WMSAcknowledge(context.Background(), WMSACKRequest{})
 			if err == nil {
 				t.Fatal("WMSAcknowledge() error = nil, want non-nil")
 			}
-			var ackErr *WMSAckError
+			var ackErr *WMSACKError
 			if errors.As(err, &ackErr) != tt.wantTyped {
-				t.Fatalf("errors.As(WMSAckError) = %t, want %t; error = %v", ackErr != nil, tt.wantTyped, err)
+				t.Fatalf("errors.As(WMSACKError) = %t, want %t; error = %v", ackErr != nil, tt.wantTyped, err)
 			}
 			if tt.wantTyped {
-				if !errors.Is(err, QMIErrorAckNotSent) || !ackErr.FailureCauseKnown || ackErr.FailureCause != WMSAckFailureNetworkReleasedLink {
+				if !errors.Is(err, QMIErrorACKNotSent) || !ackErr.FailureCauseKnown || ackErr.FailureCause != WMSACKFailureNetworkReleasedLink {
 					t.Fatalf("WMSAcknowledge() error = %#v", ackErr)
 				}
 			}
@@ -569,17 +569,17 @@ func TestWMSDecodeIncomingVariants(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stored decode error = %v", err)
 	}
-	if !stored.Stored || stored.AckIndicatorKnown || stored.Reference != (WMSMessageReference{Storage: WMSStorageNV, Index: 1}) || !stored.SMSOnIMS || !stored.SMSOnIMSKnown {
+	if !stored.Stored || stored.ACKIndicatorKnown || stored.Reference != (WMSMessageReference{Storage: WMSStorageNV, Index: 1}) || !stored.SMSOnIMS || !stored.SMSOnIMSKnown {
 		t.Fatalf("stored = %+v", stored)
 	}
 
-	transferValue := []byte{byte(WMSAckRequired), 1, 0, 0, 0, byte(WMSMessageFormatGWPointToPoint), 2, 0, 0xAA, 0xBB}
+	transferValue := []byte{byte(WMSACKRequired), 1, 0, 0, 0, byte(WMSMessageFormatGWPointToPoint), 2, 0, 0xAA, 0xBB}
 	var transfer WMSIncomingMessage
 	err = transfer.UnmarshalTLVs(tlv.TLVs{tlv.Bytes(0x11, transferValue)})
 	if err != nil {
 		t.Fatalf("transfer decode error = %v", err)
 	}
-	if transfer.Stored || !transfer.AckIndicatorKnown || transfer.AckIndicator != WMSAckRequired || transfer.TransactionID != 1 || !bytes.Equal(transfer.Data, []byte{0xAA, 0xBB}) {
+	if transfer.Stored || !transfer.ACKIndicatorKnown || transfer.ACKIndicator != WMSACKRequired || transfer.TransactionID != 1 || !bytes.Equal(transfer.Data, []byte{0xAA, 0xBB}) {
 		t.Fatalf("transfer = %+v", transfer)
 	}
 }
@@ -588,12 +588,12 @@ func TestWMSDecodeIncomingPrefersTransferRoute(t *testing.T) {
 	var message WMSIncomingMessage
 	err := message.UnmarshalTLVs(tlv.TLVs{
 		tlv.Bytes(0x10, []byte{byte(WMSStorageNV), 1, 0, 0, 0}),
-		tlv.Bytes(0x11, []byte{byte(WMSAckRequired), 2, 0, 0, 0, byte(WMSMessageFormatGWPointToPoint), 1, 0, 0xAA}),
+		tlv.Bytes(0x11, []byte{byte(WMSACKRequired), 2, 0, 0, 0, byte(WMSMessageFormatGWPointToPoint), 1, 0, 0xAA}),
 	})
 	if err != nil {
 		t.Fatalf("decode error = %v", err)
 	}
-	if message.Stored || !message.AckIndicatorKnown || message.TransactionID != 2 || !bytes.Equal(message.Data, []byte{0xAA}) {
+	if message.Stored || !message.ACKIndicatorKnown || message.TransactionID != 2 || !bytes.Equal(message.Data, []byte{0xAA}) {
 		t.Fatalf("message = %+v", message)
 	}
 }

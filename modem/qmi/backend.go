@@ -405,7 +405,7 @@ func (b *Backend) simMetadata(ctx context.Context, iccid string) SIMInfo {
 			metadata.OperatorName = card.SPN()
 			metadata.GID1 = card.GID1()
 			metadata.SPN = card.SPN()
-			_ = card.Close()
+			_ = card.Close() // Metadata has been read; cleanup cannot change the result.
 		}
 	}
 	if metadata.ICCID == "" || metadata.ICCID != iccid {
@@ -942,7 +942,7 @@ func isSignalV2Unsupported(err error) bool {
 	if !errors.As(err, &protocolErr) {
 		return false
 	}
-	return protocolErr == qcom.QMIErrorInvalidQmiCommand || protocolErr == qcom.QMIErrorNotSupported
+	return protocolErr == qcom.QMIErrorInvalidQMICommand || protocolErr == qcom.QMIErrorNotSupported
 }
 
 func (b *Backend) Profiles(ctx context.Context) ([]Profile, error) {
@@ -1082,7 +1082,7 @@ func (b *Backend) SAR(ctx context.Context) (SARState, error) {
 func isUnsupported(err error) bool {
 	return errors.Is(err, qcom.QMIErrorNotSupported) ||
 		errors.Is(err, qcom.QMIErrorDeviceUnsupported) ||
-		errors.Is(err, qcom.QMIErrorInvalidQmiCommand)
+		errors.Is(err, qcom.QMIErrorInvalidQMICommand)
 }
 
 func isSARUnsupported(err error) bool {

@@ -399,44 +399,44 @@ func (s *PDNSession) SetEventReport(ctx context.Context, config WDSSetEventRepor
 }
 
 // MarshalTLVs encodes WDS event-report fields.
-func (config WDSSetEventReportConfig) MarshalTLVs() (tlv.TLVs, error) {
+func (c WDSSetEventReportConfig) MarshalTLVs() (tlv.TLVs, error) {
 	var tlvs tlv.TLVs
 	appendBool := func(kind uint8, value *bool) {
 		if value != nil {
 			tlvs = append(tlvs, tlv.Uint(kind, boolByte(*value)))
 		}
 	}
-	appendBool(wdsTLVSetEventChannelRate, config.ChannelRate)
-	if config.TransferStatistics != nil {
-		if unknown := config.TransferStatistics.Indicators &^ WDSStatisticsAll; unknown != 0 {
+	appendBool(wdsTLVSetEventChannelRate, c.ChannelRate)
+	if c.TransferStatistics != nil {
+		if unknown := c.TransferStatistics.Indicators &^ WDSStatisticsAll; unknown != 0 {
 			return nil, fmt.Errorf("encoding QMI WDS transfer statistics: indicator mask 0x%08X contains reserved bits", uint32(unknown))
 		}
-		value := binary.LittleEndian.AppendUint32([]byte{config.TransferStatistics.IntervalSeconds}, uint32(config.TransferStatistics.Indicators))
+		value := binary.LittleEndian.AppendUint32([]byte{c.TransferStatistics.IntervalSeconds}, uint32(c.TransferStatistics.Indicators))
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVSetEventTransferStatistics, value))
 	}
-	appendBool(wdsTLVSetEventDataBearer, config.DataBearerTechnology)
-	appendBool(wdsTLVSetEventDormancy, config.DormancyStatus)
-	if config.MIPStatus != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVSetEventMIPStatus, *config.MIPStatus))
+	appendBool(wdsTLVSetEventDataBearer, c.DataBearerTechnology)
+	appendBool(wdsTLVSetEventDormancy, c.DormancyStatus)
+	if c.MIPStatus != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVSetEventMIPStatus, *c.MIPStatus))
 	}
-	appendBool(wdsTLVSetEventCurrentDataBearer, config.CurrentDataBearerTechnology)
-	appendBool(wdsTLVSetEventDataCallStatus, config.DataCallStatus)
-	appendBool(wdsTLVSetEventPreferredDataSystem, config.PreferredDataSystem)
-	appendBool(wdsTLVSetEventEVDOPageMonitor, config.EVDOPageMonitorChange)
-	appendBool(wdsTLVSetEventDataSystems, config.DataSystems)
-	appendBool(wdsTLVSetEventUplinkFlowControl, config.UplinkFlowControl)
-	appendBool(wdsTLVSetEventLimitedDataSystems, config.LimitedDataSystems)
-	appendBool(wdsTLVSetEventPDNFilterRemovals, config.PDNFilterRemovals)
-	appendBool(wdsTLVSetEventExtendedDataBearer, config.ExtendedDataBearer)
+	appendBool(wdsTLVSetEventCurrentDataBearer, c.CurrentDataBearerTechnology)
+	appendBool(wdsTLVSetEventDataCallStatus, c.DataCallStatus)
+	appendBool(wdsTLVSetEventPreferredDataSystem, c.PreferredDataSystem)
+	appendBool(wdsTLVSetEventEVDOPageMonitor, c.EVDOPageMonitorChange)
+	appendBool(wdsTLVSetEventDataSystems, c.DataSystems)
+	appendBool(wdsTLVSetEventUplinkFlowControl, c.UplinkFlowControl)
+	appendBool(wdsTLVSetEventLimitedDataSystems, c.LimitedDataSystems)
+	appendBool(wdsTLVSetEventPDNFilterRemovals, c.PDNFilterRemovals)
+	appendBool(wdsTLVSetEventExtendedDataBearer, c.ExtendedDataBearer)
 	return tlvs, nil
 }
 
-func (systems WDSDataSystems) MarshalBinary() ([]byte, error) {
-	if len(systems.Networks) > wdsMaxEventDataSystems {
-		return nil, fmt.Errorf("data systems count %d exceeds maximum %d", len(systems.Networks), wdsMaxEventDataSystems)
+func (s WDSDataSystems) MarshalBinary() ([]byte, error) {
+	if len(s.Networks) > wdsMaxEventDataSystems {
+		return nil, fmt.Errorf("data systems count %d exceeds maximum %d", len(s.Networks), wdsMaxEventDataSystems)
 	}
-	value := []byte{byte(systems.Preferred), byte(len(systems.Networks))}
-	for _, network := range systems.Networks {
+	value := []byte{byte(s.Preferred), byte(len(s.Networks))}
+	for _, network := range s.Networks {
 		value = append(value, byte(network.Type))
 		value = binary.LittleEndian.AppendUint32(value, network.RATMask)
 		value = binary.LittleEndian.AppendUint32(value, network.ServiceOptionMask)
@@ -444,7 +444,7 @@ func (systems WDSDataSystems) MarshalBinary() ([]byte, error) {
 	return value, nil
 }
 
-func (systems *WDSDataSystems) UnmarshalBinary(value []byte) error {
+func (s *WDSDataSystems) UnmarshalBinary(value []byte) error {
 	if len(value) < 2 {
 		return errors.New("data systems header is truncated")
 	}
@@ -468,7 +468,7 @@ func (systems *WDSDataSystems) UnmarshalBinary(value []byte) error {
 			ServiceOptionMask: binary.LittleEndian.Uint32(value[offset+5 : offset+9]),
 		}
 	}
-	*systems = result
+	*s = result
 	return nil
 }
 

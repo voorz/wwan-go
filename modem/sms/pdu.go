@@ -146,7 +146,7 @@ func buildSubmitPDU(cfg MessageConfig, alphabet smsAlphabet, data, header []byte
 	return append(pdu, userData...)
 }
 
-func (part *Part) UnmarshalBinary(pdu []byte) error {
+func (p *Part) UnmarshalBinary(pdu []byte) error {
 	if len(pdu) < 2 {
 		return errors.New("decoding SMS PDU: PDU is truncated")
 	}
@@ -173,53 +173,57 @@ func (part *Part) UnmarshalBinary(pdu []byte) error {
 	var err error
 	switch first & 0x03 {
 	case 0:
-		decoded, err = decodeDeliverPDU(pdu, offset, first, decoded)
+		err = decoded.unmarshalDeliverPDU(pdu, offset, first)
 	case 1:
-		decoded, err = decodeSubmitPDU(pdu, offset, first, decoded)
+		err = decoded.unmarshalSubmitPDU(pdu, offset, first)
 	case 2:
-		decoded, err = decodeStatusReportPDU(pdu, offset, decoded)
+		err = decoded.unmarshalStatusReportPDU(pdu, offset)
 	default:
 		return fmt.Errorf("decoding SMS PDU: message type %#x is reserved", first&0x03)
 	}
 	if err != nil {
 		return err
 	}
-	*part = decoded
+	*p = decoded
 	return nil
 }
 
-func decodeDeliverPDU(pdu []byte, offset int, first byte, part Part) (Part, error) {
+func (p *Part) unmarshalDeliverPDU(pdu []byte, offset int, first byte) error {
 	number, next, err := readAddress(pdu, offset)
 	if err != nil {
-		return Part{}, err
+		return err
 	}
-	part.Message.Number = number
+	p.Message.Number = number
 	offset = next
 	if len(pdu)-offset < 10 {
-		return Part{}, errors.New("decoding SMS-DELIVER: fixed fields are truncated")
+		return errors.New("decoding SMS-DELIVER: fixed fields are truncated")
 	}
 	offset++
 	dcs := pdu[offset]
 	offset++
-	part.Message.Timestamp = decodeSMSTimestamp(pdu[offset : offset+7])
+	var timestamp smsTimestamp
+	if err := timestamp.UnmarshalBinary(pdu[offset : offset+7]); err != nil {
+		return err
+	}
+	p.Message.Timestamp = time.Time(timestamp)
 	offset += 7
-	return decodeUserData(pdu, offset, first&0x40 != 0, dcs, part)
+	return p.unmarshalUserData(pdu, offset, first&0x40 != 0, dcs)
 }
 
-func decodeSubmitPDU(pdu []byte, offset int, first byte, part Part) (Part, error) {
+func (p *Part) unmarshalSubmitPDU(pdu []byte, offset int, first byte) error {
 	if offset >= len(pdu) {
-		return Part{}, errors.New("decoding SMS-SUBMIT: message reference is missing")
+		return errors.New("decoding SMS-SUBMIT: message reference is missing")
 	}
-	part.Message.MessageReference = uint32(pdu[offset])
+	p.Message.MessageReference = uint32(pdu[offset])
 	offset++
 	number, next, err := readAddress(pdu, offset)
 	if err != nil {
-		return Part{}, err
+		return err
 	}
-	part.Message.Number = number
+	p.Message.Number = number
 	offset = next
 	if len(pdu)-offset < 2 {
-		return Part{}, errors.New("decoding SMS-SUBMIT: PID or DCS is missing")
+		return errors.New("decoding SMS-SUBMIT: PID or DCS is missing")
 	}
 	offset++
 	dcs := pdu[offset]
@@ -233,35 +237,39 @@ func decodeSubmitPDU(pdu []byte, offset int, first byte, part Part) (Part, error
 		offset += 7
 	}
 	if offset > len(pdu) {
-		return Part{}, errors.New("decoding SMS-SUBMIT: validity period is truncated")
+		return errors.New("decoding SMS-SUBMIT: validity period is truncated")
 	}
-	part.Message.DeliveryReport = first&0x20 != 0
-	return decodeUserData(pdu, offset, first&0x40 != 0, dcs, part)
+	p.Message.DeliveryReport = first&0x20 != 0
+	return p.unmarshalUserData(pdu, offset, first&0x40 != 0, dcs)
 }
 
-func decodeStatusReportPDU(pdu []byte, offset int, part Part) (Part, error) {
+func (p *Part) unmarshalStatusReportPDU(pdu []byte, offset int) error {
 	if offset >= len(pdu) {
-		return Part{}, errors.New("decoding SMS-STATUS-REPORT: message reference is missing")
+		return errors.New("decoding SMS-STATUS-REPORT: message reference is missing")
 	}
-	part.Message.MessageReference = uint32(pdu[offset])
-	part.Message.DeliveryReport = true
+	p.Message.MessageReference = uint32(pdu[offset])
+	p.Message.DeliveryReport = true
 	offset++
 	number, next, err := readAddress(pdu, offset)
 	if err != nil {
-		return Part{}, err
+		return err
 	}
-	part.Message.Number = number
+	p.Message.Number = number
 	offset = next
 	if len(pdu)-offset < 15 {
-		return Part{}, errors.New("decoding SMS-STATUS-REPORT: timestamps or status are truncated")
+		return errors.New("decoding SMS-STATUS-REPORT: timestamps or status are truncated")
 	}
-	part.Message.Timestamp = decodeSMSTimestamp(pdu[offset : offset+7])
-	return part, nil
+	var timestamp smsTimestamp
+	if err := timestamp.UnmarshalBinary(pdu[offset : offset+7]); err != nil {
+		return err
+	}
+	p.Message.Timestamp = time.Time(timestamp)
+	return nil
 }
 
-func decodeUserData(pdu []byte, offset int, hasHeader bool, dcs byte, part Part) (Part, error) {
+func (p *Part) unmarshalUserData(pdu []byte, offset int, hasHeader bool, dcs byte) error {
 	if offset >= len(pdu) {
-		return Part{}, errors.New("decoding SMS PDU: user data length is missing")
+		return errors.New("decoding SMS PDU: user data length is missing")
 	}
 	length := int(pdu[offset])
 	offset++
@@ -269,65 +277,65 @@ func decodeUserData(pdu []byte, offset int, hasHeader bool, dcs byte, part Part)
 	if alphabet == smsAlphabetGSM7 {
 		octets := (length*7 + 7) / 8
 		if octets > len(pdu)-offset {
-			return Part{}, errors.New("decoding SMS PDU: GSM7 user data is truncated")
+			return errors.New("decoding SMS PDU: GSM7 user data is truncated")
 		}
 		data := pdu[offset : offset+octets]
 		headerSeptets := 0
 		if hasHeader {
 			var err error
-			headerSeptets, err = parseUserDataHeader(data, &part)
+			headerSeptets, err = p.unmarshalGSM7UserDataHeader(data)
 			if err != nil {
-				return Part{}, err
+				return err
 			}
 		}
 		if headerSeptets > length {
-			return Part{}, errors.New("decoding SMS PDU: UDH exceeds GSM7 user data length")
+			return errors.New("decoding SMS PDU: UDH exceeds GSM7 user data length")
 		}
 		septets := UnpackSeptets(data, headerSeptets*7, length-headerSeptets)
 		var text GSM7
 		if err := text.UnmarshalBinary(septets); err != nil {
-			return Part{}, err
+			return err
 		}
-		part.Message.Text = text.String()
-		return part, nil
+		p.Message.Text = text.String()
+		return nil
 	}
 	if length > len(pdu)-offset {
-		return Part{}, errors.New("decoding SMS PDU: user data is truncated")
+		return errors.New("decoding SMS PDU: user data is truncated")
 	}
 	data := pdu[offset : offset+length]
 	headerLength := 0
 	if hasHeader {
 		var err error
-		headerLength, err = parseUserDataHeaderOctets(data, &part)
+		headerLength, err = p.unmarshalUserDataHeader(data)
 		if err != nil {
-			return Part{}, err
+			return err
 		}
 	}
 	payload := data[headerLength:]
 	if alphabet == smsAlphabetBinary {
-		part.Message.Data = slices.Clone(payload)
-		return part, nil
+		p.Message.Data = slices.Clone(payload)
+		return nil
 	}
 	if len(payload)%2 != 0 {
-		return Part{}, errors.New("decoding SMS PDU: UCS-2 user data has odd length")
+		return errors.New("decoding SMS PDU: UCS-2 user data has odd length")
 	}
 	var text UTF16
 	if err := text.UnmarshalBinary(payload); err != nil {
-		return Part{}, err
+		return err
 	}
-	part.Message.Text = text.String()
-	return part, nil
+	p.Message.Text = text.String()
+	return nil
 }
 
-func parseUserDataHeader(data []byte, part *Part) (int, error) {
-	headerLength, err := parseUserDataHeaderOctets(data, part)
+func (p *Part) unmarshalGSM7UserDataHeader(data []byte) (int, error) {
+	headerLength, err := p.unmarshalUserDataHeader(data)
 	if err != nil {
 		return 0, err
 	}
 	return (headerLength*8 + 6) / 7, nil
 }
 
-func parseUserDataHeaderOctets(data []byte, part *Part) (int, error) {
+func (p *Part) unmarshalUserDataHeader(data []byte) (int, error) {
 	if len(data) == 0 {
 		return 0, errors.New("decoding SMS PDU: UDH length is missing")
 	}
@@ -347,14 +355,14 @@ func parseUserDataHeaderOctets(data []byte, part *Part) (int, error) {
 		value := data[offset : offset+length]
 		switch {
 		case kind == 0 && length == 3:
-			part.Reference, part.Total, part.Index = uint16(value[0]), value[1], value[2]
+			p.Reference, p.Total, p.Index = uint16(value[0]), value[1], value[2]
 		case kind == 8 && length == 4:
-			part.Reference, part.Total, part.Index = binary.BigEndian.Uint16(value[:2]), value[2], value[3]
+			p.Reference, p.Total, p.Index = binary.BigEndian.Uint16(value[:2]), value[2], value[3]
 		}
 		offset += length
 	}
-	if part.Total != 0 && (part.Index == 0 || part.Index > part.Total) {
-		return 0, fmt.Errorf("decoding SMS PDU: multipart index %d is outside 1..%d", part.Index, part.Total)
+	if p.Total != 0 && (p.Index == 0 || p.Index > p.Total) {
+		return 0, fmt.Errorf("decoding SMS PDU: multipart index %d is outside 1..%d", p.Index, p.Total)
 	}
 	return headerLength, nil
 }
@@ -489,7 +497,7 @@ func PackSeptets(septets, header []byte) ([]byte, int) {
 func UnpackSeptets(data []byte, startBit, count int) []byte {
 	result := make([]byte, count)
 	for i := range count {
-		result[i] = getBits(data, startBit+i*7, 7)
+		result[i] = readBits(data, startBit+i*7, 7)
 	}
 	return result
 }
@@ -502,7 +510,7 @@ func putBits(dst []byte, offset int, value byte, count int) {
 	}
 }
 
-func getBits(src []byte, offset, count int) byte {
+func readBits(src []byte, offset, count int) byte {
 	var value byte
 	for bit := range count {
 		if src[(offset+bit)/8]&(1<<((offset+bit)%8)) != 0 {
@@ -532,23 +540,30 @@ func splitGSM7(text string, capacity int) ([][]byte, error) {
 	return chunks, nil
 }
 
-func decodeSMSTimestamp(value []byte) time.Time {
+type smsTimestamp time.Time
+
+func (t *smsTimestamp) UnmarshalBinary(value []byte) error {
 	if len(value) != 7 {
-		return time.Time{}
+		return fmt.Errorf("decoding SMS timestamp: payload length is %d, want 7", len(value))
 	}
-	fields := [7]int{}
-	for i, octet := range value {
-		fields[i] = int(octet&0x0f)*10 + int(octet>>4&0x07)
+	fields := [6]int{}
+	for i, octet := range value[:6] {
+		fields[i] = int(octet&0x0f)*10 + int(octet>>4)
 	}
 	year := 2000 + fields[0]
 	if fields[0] >= 90 {
 		year = 1900 + fields[0]
 	}
-	offset := fields[6] * 15 * 60
+	quarters := int(value[6]&0x07)*10 + int(value[6]>>4)
+	offset := quarters * 15 * 60
 	if value[6]&0x08 != 0 {
 		offset = -offset
 	}
-	return time.Date(year, time.Month(fields[1]), fields[2], fields[3], fields[4], fields[5], 0, time.FixedZone("SMS", offset))
+	*t = smsTimestamp(time.Date(
+		year, time.Month(fields[1]), fields[2], fields[3], fields[4], fields[5], 0,
+		time.FixedZone("SMS", offset),
+	))
+	return nil
 }
 
 func encodeGSM7Rune(r rune) ([]byte, bool) {

@@ -260,11 +260,11 @@ func TestClientNetworkParameters(t *testing.T) {
 			go func() {
 				defer close(errC)
 				defer serverConn.Close()
-				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMsBasicConnectExtensions, CIDMsNetworkParameters, CommandTypeQuery, tt.wantData); err != nil {
+				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMSBasicConnectExtensions, CIDMSNetworkParameters, CommandTypeQuery, tt.wantData); err != nil {
 					errC <- err
 					return
 				}
-				_, err := serverConn.Write(mbimCommandDone(1, ServiceMsBasicConnectExtensions, CIDMsNetworkParameters, responseData))
+				_, err := serverConn.Write(mbimCommandDone(1, ServiceMSBasicConnectExtensions, CIDMSNetworkParameters, responseData))
 				errC <- err
 			}()
 
@@ -279,7 +279,7 @@ func TestClientNetworkParameters(t *testing.T) {
 				t.Fatalf("NetworkParameters() = %+v", got)
 			}
 			if err := <-errC; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

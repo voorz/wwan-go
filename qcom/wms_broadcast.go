@@ -80,17 +80,17 @@ type WMS3GPPBroadcastChannel struct {
 }
 
 // MarshalBinary encodes one 3GPP broadcast channel range.
-func (channel WMS3GPPBroadcastChannel) MarshalBinary() ([]byte, error) {
-	if channel.Start > channel.End {
-		return nil, fmt.Errorf("3GPP broadcast channel starts at %d after end %d", channel.Start, channel.End)
+func (c WMS3GPPBroadcastChannel) MarshalBinary() ([]byte, error) {
+	if c.Start > c.End {
+		return nil, fmt.Errorf("3GPP broadcast channel starts at %d after end %d", c.Start, c.End)
 	}
-	value := binary.LittleEndian.AppendUint16(nil, channel.Start)
-	value = binary.LittleEndian.AppendUint16(value, channel.End)
-	return append(value, boolByte(channel.Selected)), nil
+	value := binary.LittleEndian.AppendUint16(nil, c.Start)
+	value = binary.LittleEndian.AppendUint16(value, c.End)
+	return append(value, boolByte(c.Selected)), nil
 }
 
 // UnmarshalBinary decodes one 3GPP broadcast channel range.
-func (channel *WMS3GPPBroadcastChannel) UnmarshalBinary(value []byte) error {
+func (c *WMS3GPPBroadcastChannel) UnmarshalBinary(value []byte) error {
 	if len(value) != 5 {
 		return fmt.Errorf("3GPP broadcast channel length %d, want 5", len(value))
 	}
@@ -106,7 +106,7 @@ func (channel *WMS3GPPBroadcastChannel) UnmarshalBinary(value []byte) error {
 	if parsed.Start > parsed.End {
 		return fmt.Errorf("3GPP broadcast channel start %d is after end %d", parsed.Start, parsed.End)
 	}
-	*channel = parsed
+	*c = parsed
 	return nil
 }
 
@@ -118,17 +118,17 @@ type WMS3GPP2BroadcastChannel struct {
 }
 
 // MarshalBinary encodes one 3GPP2 broadcast category.
-func (channel WMS3GPP2BroadcastChannel) MarshalBinary() ([]byte, error) {
-	if channel.Language > WMSLanguageHebrew {
-		return nil, fmt.Errorf("3GPP2 broadcast channel language %d is outside the supported range", channel.Language)
+func (c WMS3GPP2BroadcastChannel) MarshalBinary() ([]byte, error) {
+	if c.Language > WMSLanguageHebrew {
+		return nil, fmt.Errorf("3GPP2 broadcast channel language %d is outside the supported range", c.Language)
 	}
-	value := binary.LittleEndian.AppendUint16(nil, uint16(channel.ServiceCategory))
-	value = binary.LittleEndian.AppendUint16(value, uint16(channel.Language))
-	return append(value, boolByte(channel.Selected)), nil
+	value := binary.LittleEndian.AppendUint16(nil, uint16(c.ServiceCategory))
+	value = binary.LittleEndian.AppendUint16(value, uint16(c.Language))
+	return append(value, boolByte(c.Selected)), nil
 }
 
 // UnmarshalBinary decodes one 3GPP2 broadcast category.
-func (channel *WMS3GPP2BroadcastChannel) UnmarshalBinary(value []byte) error {
+func (c *WMS3GPP2BroadcastChannel) UnmarshalBinary(value []byte) error {
 	if len(value) != 5 {
 		return fmt.Errorf("3GPP2 broadcast channel length %d, want 5", len(value))
 	}
@@ -140,7 +140,7 @@ func (channel *WMS3GPP2BroadcastChannel) UnmarshalBinary(value []byte) error {
 	if err != nil {
 		return fmt.Errorf("3GPP2 broadcast channel selection: %w", err)
 	}
-	*channel = WMS3GPP2BroadcastChannel{
+	*c = WMS3GPP2BroadcastChannel{
 		ServiceCategory: WMSServiceCategory(binary.LittleEndian.Uint16(value[:2])),
 		Language:        language,
 		Selected:        selected,

@@ -52,11 +52,11 @@ type TextString struct {
 	Value string
 }
 
-func (text TextString) String() string { return text.Value }
+func (t TextString) String() string { return t.Value }
 
-func (text *TextString) UnmarshalBinary(data []byte) error {
+func (t *TextString) UnmarshalBinary(data []byte) error {
 	if len(data) == 0 {
-		*text = TextString{}
+		*t = TextString{}
 		return nil
 	}
 	dcs := DataCodingScheme(data[0])
@@ -64,30 +64,30 @@ func (text *TextString) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*text = TextString{DCS: dcs, Value: value}
+	*t = TextString{DCS: dcs, Value: value}
 	return nil
 }
 
-func (text TextString) MarshalBinary() ([]byte, error) {
-	dcs := text.DCS
+func (t TextString) MarshalBinary() ([]byte, error) {
+	dcs := t.DCS
 	var raw []byte
-	if text.Value != "" {
+	if t.Value != "" {
 		switch dcs {
 		case DCSGSM7Packed:
 			var err error
-			raw, err = gsm7Text(text.Value).MarshalBinary()
+			raw, err = gsm7Text(t.Value).MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("encoding packed GSM text: %w", err)
 			}
 		case DCSGSM8Unpacked:
 			var err error
-			raw, err = gsmDefaultText(text.Value).MarshalBinary()
+			raw, err = gsmDefaultText(t.Value).MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("encoding GSM text: %w", err)
 			}
 		case DCSUCS2:
 			var err error
-			raw, err = ucs2Text(text.Value).MarshalBinary()
+			raw, err = ucs2Text(t.Value).MarshalBinary()
 			if err != nil {
 				return nil, fmt.Errorf("encoding UCS2 text: %w", err)
 			}
@@ -95,7 +95,7 @@ func (text TextString) MarshalBinary() ([]byte, error) {
 			return nil, fmt.Errorf("unsupported data coding scheme 0x%02X", dcs)
 		}
 	}
-	if len(raw) == 0 && text.Value == "" && dcs == 0 {
+	if len(raw) == 0 && t.Value == "" && dcs == 0 {
 		return nil, nil
 	}
 	return append([]byte{byte(dcs)}, raw...), nil
@@ -211,13 +211,13 @@ func decodeCompressedUCS2(data []byte) (string, error) {
 
 type gsmDefaultText string
 
-func (text gsmDefaultText) String() string {
-	return string(text)
+func (t gsmDefaultText) String() string {
+	return string(t)
 }
 
-func (text gsmDefaultText) MarshalBinary() ([]byte, error) {
-	out := make([]byte, 0, len(text))
-	for _, r := range text {
+func (t gsmDefaultText) MarshalBinary() ([]byte, error) {
+	out := make([]byte, 0, len(t))
+	for _, r := range t {
 		septets, ok := gsm7SeptetsForRune(r)
 		if !ok {
 			return nil, fmt.Errorf("character %q is not in the GSM default alphabet", r)
@@ -227,7 +227,7 @@ func (text gsmDefaultText) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (text *gsmDefaultText) UnmarshalBinary(data []byte) error {
+func (t *gsmDefaultText) UnmarshalBinary(data []byte) error {
 	out := make([]rune, 0, len(data))
 	for i := 0; i < len(data); i++ {
 		if data[i] == 0x1b {
@@ -248,18 +248,18 @@ func (text *gsmDefaultText) UnmarshalBinary(data []byte) error {
 		}
 		out = append(out, r)
 	}
-	*text = gsmDefaultText(string(out))
+	*t = gsmDefaultText(string(out))
 	return nil
 }
 
-func (text gsmDefaultText) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t gsmDefaultText) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
-func (text *gsmDefaultText) UnmarshalText(data []byte) error {
+func (t *gsmDefaultText) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding GSM text: value is not valid UTF-8")
 	}
@@ -267,22 +267,22 @@ func (text *gsmDefaultText) UnmarshalText(data []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }
 
 type ucs2Text string
 
-func (text ucs2Text) String() string {
-	return string(text)
+func (t ucs2Text) String() string {
+	return string(t)
 }
 
-func (text ucs2Text) MarshalBinary() ([]byte, error) {
-	if !utf8.ValidString(string(text)) {
+func (t ucs2Text) MarshalBinary() ([]byte, error) {
+	if !utf8.ValidString(string(t)) {
 		return nil, errors.New("encoding UCS2 text: value is not valid UTF-8")
 	}
-	out := make([]byte, 0, len(text)*2)
-	for _, r := range text {
+	out := make([]byte, 0, len(t)*2)
+	for _, r := range t {
 		if r > 0xffff || r >= 0xd800 && r <= 0xdfff {
 			return nil, fmt.Errorf("character %q is outside UCS2", r)
 		}
@@ -291,7 +291,7 @@ func (text ucs2Text) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (text *ucs2Text) UnmarshalBinary(data []byte) error {
+func (t *ucs2Text) UnmarshalBinary(data []byte) error {
 	if len(data)%2 != 0 {
 		return errInvalidUCS2Length
 	}
@@ -307,18 +307,18 @@ func (text *ucs2Text) UnmarshalBinary(data []byte) error {
 		}
 		runes[i] = rune(unit)
 	}
-	*text = ucs2Text(string(runes))
+	*t = ucs2Text(string(runes))
 	return nil
 }
 
-func (text ucs2Text) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t ucs2Text) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
-func (text *ucs2Text) UnmarshalText(data []byte) error {
+func (t *ucs2Text) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding UCS2 text: value is not valid UTF-8")
 	}
@@ -326,7 +326,7 @@ func (text *ucs2Text) UnmarshalText(data []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }
 

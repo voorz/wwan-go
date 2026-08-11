@@ -236,12 +236,12 @@ func (r EnvelopeResponse) HasMore() bool {
 
 type gsm7Text string
 
-func (text gsm7Text) String() string {
-	return string(text)
+func (t gsm7Text) String() string {
+	return string(t)
 }
 
-func (text gsm7Text) MarshalBinary() ([]byte, error) {
-	value := string(text)
+func (t gsm7Text) MarshalBinary() ([]byte, error) {
+	value := string(t)
 	if value == "" {
 		return nil, nil
 	}
@@ -268,9 +268,9 @@ func (text gsm7Text) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (text *gsm7Text) UnmarshalBinary(data []byte) error {
+func (t *gsm7Text) UnmarshalBinary(data []byte) error {
 	if len(data) == 0 {
-		*text = ""
+		*t = ""
 		return nil
 	}
 
@@ -310,18 +310,18 @@ func (text *gsm7Text) UnmarshalBinary(data []byte) error {
 		}
 		out = append(out, r)
 	}
-	*text = gsm7Text(string(out))
+	*t = gsm7Text(string(out))
 	return nil
 }
 
-func (text gsm7Text) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t gsm7Text) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
-func (text *gsm7Text) UnmarshalText(data []byte) error {
+func (t *gsm7Text) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding packed GSM text: value is not valid UTF-8")
 	}
@@ -329,7 +329,7 @@ func (text *gsm7Text) UnmarshalText(data []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }
 

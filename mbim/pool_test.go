@@ -87,7 +87,7 @@ func TestDirectClientPoolLeaseLifecycle(t *testing.T) {
 			t.Fatalf("first watcher error = %v, want %v", result.Err, errClientLeaseClosed)
 		}
 	case <-ctx.Done():
-		t.Fatal(ctx.Err())
+		t.Fatalf("waiting for first watcher to close: %v", ctx.Err())
 	}
 	if _, err := first.WatchIndications(ctx, ServiceBasicConnect, CIDRadioState); !errors.Is(err, errClientLeaseClosed) {
 		t.Fatalf("closed lease WatchIndications() error = %v, want %v", err, errClientLeaseClosed)
@@ -106,7 +106,7 @@ func TestDirectClientPoolLeaseLifecycle(t *testing.T) {
 			t.Fatalf("second watcher payload = %x, want %x", got, payload)
 		}
 	case <-ctx.Done():
-		t.Fatal(ctx.Err())
+		t.Fatalf("waiting for second watcher indication: %v", ctx.Err())
 	}
 
 	serverErr := make(chan error, 1)

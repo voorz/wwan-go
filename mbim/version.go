@@ -33,7 +33,7 @@ func (c *Client) negotiateVersion(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("negotiating MBIM version: %w", err)
 	}
-	if !services.SupportsCID(ServiceMsBasicConnectExtensions, CIDVersion) {
+	if !services.SupportsCID(ServiceMSBasicConnectExtensions, CIDVersion) {
 		return nil
 	}
 
@@ -49,12 +49,12 @@ func (c *Client) negotiateVersion(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) usesUiccSlotID() bool {
+func (c *Client) usesUICCSlotID() bool {
 	return c.mbimExVersion >= mbimExVersion40
 }
 
-func (c *Client) validateUiccSlotID() error {
-	if c.usesUiccSlotID() && c.slot > uiccSlotIDMaximum {
+func (c *Client) validateUICCSlotID() error {
+	if c.usesUICCSlotID() && c.slot > uiccSlotIDMaximum {
 		return fmt.Errorf(
 			"MBIMEx 4 UICC slot ID %d is outside 0..%d: %w",
 			c.slot,
@@ -66,7 +66,7 @@ func (c *Client) validateUiccSlotID() error {
 }
 
 func (c *Client) subscriberReadySlotID() uint32 {
-	if c.usesUiccSlotID() {
+	if c.usesUICCSlotID() {
 		return c.slot
 	}
 	return activeSubscriberSlot
@@ -88,7 +88,7 @@ func (r *VersionRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
+			ServiceMSBasicConnectExtensions,
 			CIDVersion,
 			CommandTypeQuery,
 			data,

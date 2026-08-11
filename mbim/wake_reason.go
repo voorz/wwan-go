@@ -30,8 +30,8 @@ func (r *WakeReasonRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimWakeReasonResponseTimeout,
 		Command: command(
-			ServiceMsBasicConnectExtensions,
-			CIDMsWakeReason,
+			ServiceMSBasicConnectExtensions,
+			CIDMSWakeReason,
 			CommandTypeQuery,
 			nil,
 		),

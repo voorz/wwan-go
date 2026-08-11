@@ -4,6 +4,7 @@ package modem
 
 import (
 	"context"
+	"encoding"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,17 +13,20 @@ import (
 	"time"
 )
 
+var _ encoding.BinaryUnmarshaler = (*kernelUevent)(nil)
+
 func TestDiscoverFixture(t *testing.T) {
 	root := t.TempDir()
 	sysRoot := filepath.Join(root, "sys")
 	devRoot := filepath.Join(root, "dev")
 	if err := os.MkdirAll(devRoot, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", devRoot, err)
 	}
 	addDiscoveryFixture(t, sysRoot, "wwan", "wwan0qmi", "QMI", "qmi_wwan", []string{"wwan0"})
 	addDiscoveryFixture(t, sysRoot, "usbmisc", "cdc-wdm1", "MBIM", "cdc_mbim", []string{"wwan1", "wwan1.1"})
-	if err := os.MkdirAll(filepath.Join(sysRoot, "class", "usbmisc", "cdc-wdm9", "device"), 0o755); err != nil {
-		t.Fatal(err)
+	missingDevice := filepath.Join(sysRoot, "class", "usbmisc", "cdc-wdm9", "device")
+	if err := os.MkdirAll(missingDevice, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) error = %v", missingDevice, err)
 	}
 
 	devices, err := discover(context.Background(), discoveryConfig{sysRoot: sysRoot, devRoot: devRoot})
@@ -82,12 +86,13 @@ func TestDiscoverAggregatesUSBPortsWithoutSelectingOne(t *testing.T) {
 		filepath.Join(sysRoot, "class", "tty"),
 	} {
 		if err := os.MkdirAll(path, 0o755); err != nil {
-			t.Fatal(err)
+			t.Fatalf("os.MkdirAll(%q) error = %v", path, err)
 		}
 	}
 	for name, value := range map[string]string{"idVendor": "2c7c\n", "idProduct": "0306\n"} {
-		if err := os.WriteFile(filepath.Join(usbDevice, name), []byte(value), 0o644); err != nil {
-			t.Fatal(err)
+		path := filepath.Join(usbDevice, name)
+		if err := os.WriteFile(path, []byte(value), 0o644); err != nil {
+			t.Fatalf("os.WriteFile(%q) error = %v", path, err)
 		}
 	}
 	addUSBInterfaceMetadata(t, qmiInterface, 4, 0xff, 0xff, 0xff)
@@ -98,30 +103,30 @@ func TestDiscoverAggregatesUSBPortsWithoutSelectingOne(t *testing.T) {
 	addDriverLink(t, sysRoot, atInterface, "option")
 	qmiEntry := filepath.Join(sysRoot, "class", "usbmisc", "cdc-wdm0")
 	if err := os.MkdirAll(qmiEntry, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", qmiEntry, err)
 	}
 	if err := os.WriteFile(filepath.Join(qmiEntry, "type"), []byte("QMI\n"), 0o644); err != nil {
-		t.Fatal(err)
+		t.Fatalf("writing QMI type metadata: %v", err)
 	}
 	if err := os.Symlink(qmiInterface, filepath.Join(qmiEntry, "device")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking QMI device %q: %v", qmiInterface, err)
 	}
 	mbimEntry := filepath.Join(sysRoot, "class", "wwan", "wwan0mbim0")
 	if err := os.MkdirAll(mbimEntry, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", mbimEntry, err)
 	}
 	if err := os.WriteFile(filepath.Join(mbimEntry, "type"), []byte("MBIM\n"), 0o644); err != nil {
-		t.Fatal(err)
+		t.Fatalf("writing MBIM type metadata: %v", err)
 	}
 	if err := os.Symlink(mbimInterface, filepath.Join(mbimEntry, "device")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking MBIM device %q: %v", mbimInterface, err)
 	}
 	atEntry := filepath.Join(sysRoot, "class", "tty", "ttyUSB2")
 	if err := os.MkdirAll(atEntry, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", atEntry, err)
 	}
 	if err := os.Symlink(atInterface, filepath.Join(atEntry, "device")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking AT device %q: %v", atInterface, err)
 	}
 
 	devices, err := discover(context.Background(), discoveryConfig{sysRoot: sysRoot, devRoot: devRoot})
@@ -174,15 +179,16 @@ func TestDiscoverPreservesKernelProtocolOnQCOMAncestor(t *testing.T) {
 			entryPath := filepath.Join(sysRoot, "class", "wwan", tt.portName)
 			for _, path := range []string{portPath, entryPath} {
 				if err := os.MkdirAll(path, 0o755); err != nil {
-					t.Fatal(err)
+					t.Fatalf("os.MkdirAll(%q) error = %v", path, err)
 				}
 			}
 			addPlatformDriverLink(t, sysRoot, modemPath, qcomSoCDriverName)
-			if err := os.WriteFile(filepath.Join(entryPath, "type"), []byte(tt.protocol+"\n"), 0o644); err != nil {
-				t.Fatal(err)
+			typePath := filepath.Join(entryPath, "type")
+			if err := os.WriteFile(typePath, []byte(tt.protocol+"\n"), 0o644); err != nil {
+				t.Fatalf("os.WriteFile(%q) error = %v", typePath, err)
 			}
 			if err := os.Symlink(portPath, filepath.Join(entryPath, "device")); err != nil {
-				t.Fatal(err)
+				t.Fatalf("linking port %q: %v", portPath, err)
 			}
 
 			devices, err := discover(context.Background(), discoveryConfig{sysRoot: sysRoot, devRoot: devRoot})
@@ -218,20 +224,20 @@ func TestKernelProtocolUsesMetadataOnly(t *testing.T) {
 			root := t.TempDir()
 			entry := filepath.Join(root, tt.entryName)
 			if err := os.MkdirAll(filepath.Join(entry, "device"), 0o755); err != nil {
-				t.Fatal(err)
+				t.Fatalf("creating device metadata for %q: %v", entry, err)
 			}
 			if tt.typeValue != "" {
 				if err := os.WriteFile(filepath.Join(entry, "type"), []byte(tt.typeValue), 0o644); err != nil {
-					t.Fatal(err)
+					t.Fatalf("writing protocol metadata for %q: %v", entry, err)
 				}
 			}
 			if tt.driver != "" {
 				driverTarget := filepath.Join(root, "drivers", tt.driver)
 				if err := os.MkdirAll(driverTarget, 0o755); err != nil {
-					t.Fatal(err)
+					t.Fatalf("os.MkdirAll(%q) error = %v", driverTarget, err)
 				}
 				if err := os.Symlink(driverTarget, filepath.Join(entry, "device", "driver")); err != nil {
-					t.Fatal(err)
+					t.Fatalf("linking driver %q: %v", driverTarget, err)
 				}
 			}
 
@@ -384,22 +390,33 @@ func TestDeviceUeventQueueCoalescesNoiseAndRetainsRemoval(t *testing.T) {
 	}
 }
 
-func TestModemUevent(t *testing.T) {
+func TestKernelUeventUnmarshalBinary(t *testing.T) {
 	tests := []struct {
-		name string
-		data string
-		want bool
+		name    string
+		data    string
+		want    kernelUevent
+		wantErr bool
 	}{
-		{name: "wwan", data: "add@/devices/x\x00SUBSYSTEM=wwan\x00", want: true},
-		{name: "usbmisc", data: "change@/devices/x\x00SUBSYSTEM=usbmisc\x00", want: true},
-		{name: "net", data: "add@/devices/x\x00SUBSYSTEM=net\x00", want: true},
-		{name: "tty", data: "add@/devices/x\x00SUBSYSTEM=tty\x00", want: true},
-		{name: "rpmsg", data: "add@/devices/x\x00SUBSYSTEM=rpmsg\x00", want: true},
+		{name: "wwan", data: "add@/devices/x\x00SUBSYSTEM=wwan\x00", want: kernelUevent{action: "add", subsystem: "wwan", devPath: "/devices/x"}},
+		{name: "usbmisc", data: "change@/devices/x\x00SUBSYSTEM=usbmisc\x00", want: kernelUevent{action: "change", subsystem: "usbmisc", devPath: "/devices/x"}},
+		{name: "net", data: "add@/devices/x\x00SUBSYSTEM=net\x00DEVNAME=wwan0\x00", want: kernelUevent{action: "add", subsystem: "net", devName: "wwan0", devPath: "/devices/x"}},
+		{name: "tty", data: "add@/devices/x\x00SUBSYSTEM=tty\x00", want: kernelUevent{action: "add", subsystem: "tty", devPath: "/devices/x"}},
+		{name: "rpmsg", data: "add@/devices/x\x00SUBSYSTEM=rpmsg\x00", want: kernelUevent{action: "add", subsystem: "rpmsg", devPath: "/devices/x"}},
+		{name: "unrelated subsystem", data: "add@/devices/x\x00SUBSYSTEM=block\x00", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := modemUevent([]byte(tt.data)); got != tt.want {
-				t.Errorf("modemUevent() = %v, want %v", got, tt.want)
+			got := kernelUevent{action: "unchanged"}
+			want := tt.want
+			if tt.wantErr {
+				want = got
+			}
+			err := got.UnmarshalBinary([]byte(tt.data))
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("UnmarshalBinary() error = %v, wantErr %t", err, tt.wantErr)
+			}
+			if got != want {
+				t.Errorf("UnmarshalBinary() = %#v, want %#v", got, want)
 			}
 		})
 	}
@@ -409,21 +426,21 @@ func addDiscoveryFixture(t *testing.T, sysRoot, class, name, protocol, driver st
 	t.Helper()
 	entry := filepath.Join(sysRoot, "class", class, name)
 	if err := os.MkdirAll(filepath.Join(entry, "device", "net"), 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("creating discovery fixture network directory: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(entry, "type"), []byte(protocol+"\n"), 0o644); err != nil {
-		t.Fatal(err)
+		t.Fatalf("writing discovery fixture protocol: %v", err)
 	}
 	driverTarget := filepath.Join(sysRoot, "bus", "usb", "drivers", driver)
 	if err := os.MkdirAll(driverTarget, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("creating discovery fixture driver directory: %v", err)
 	}
 	if err := os.Symlink(driverTarget, filepath.Join(entry, "device", "driver")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking discovery fixture driver: %v", err)
 	}
 	for _, interfaceName := range interfaces {
 		if err := os.Mkdir(filepath.Join(entry, "device", "net", interfaceName), 0o755); err != nil {
-			t.Fatal(err)
+			t.Fatalf("creating discovery fixture interface %q: %v", interfaceName, err)
 		}
 	}
 }
@@ -437,8 +454,9 @@ func addUSBInterfaceMetadata(t *testing.T, path string, number, class, subclass,
 		"bInterfaceProtocol": protocol,
 	}
 	for name, value := range values {
-		if err := os.WriteFile(filepath.Join(path, name), fmt.Appendf(nil, "%02x\n", value), 0o644); err != nil {
-			t.Fatal(err)
+		metadataPath := filepath.Join(path, name)
+		if err := os.WriteFile(metadataPath, fmt.Appendf(nil, "%02x\n", value), 0o644); err != nil {
+			t.Fatalf("os.WriteFile(%q) error = %v", metadataPath, err)
 		}
 	}
 }
@@ -447,9 +465,9 @@ func addDriverLink(t *testing.T, sysRoot, devicePath, driver string) {
 	t.Helper()
 	driverTarget := filepath.Join(sysRoot, "bus", "usb", "drivers", driver)
 	if err := os.MkdirAll(driverTarget, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", driverTarget, err)
 	}
 	if err := os.Symlink(driverTarget, filepath.Join(devicePath, "driver")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking driver %q to %q: %v", driverTarget, devicePath, err)
 	}
 }

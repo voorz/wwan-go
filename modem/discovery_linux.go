@@ -28,6 +28,8 @@ type kernelUevent struct {
 	devPath   string
 }
 
+var errNotModemUevent = errors.New("not a modem uevent")
+
 func (e kernelUevent) removesControlNode() bool {
 	return e.action == "remove" && (e.subsystem == "wwan" || e.subsystem == "usbmisc" || e.subsystem == "rpmsg")
 }
@@ -147,7 +149,7 @@ func WatchDevices(ctx context.Context) (<-chan Result[DeviceEvent], error) {
 	}
 	initial, err := Discover(ctx)
 	if err != nil {
-		_ = unix.Close(fd)
+		_ = unix.Close(fd) // Cleanup cannot change the discovery error.
 		return nil, err
 	}
 
@@ -162,11 +164,11 @@ func openUeventSocket() (int, error) {
 		return -1, fmt.Errorf("opening modem uevent socket: %w", err)
 	}
 	if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_RCVBUF, ueventBufferSize); err != nil {
-		_ = unix.Close(fd)
+		_ = unix.Close(fd) // Cleanup cannot change the socket-option error.
 		return -1, fmt.Errorf("setting modem uevent receive buffer: %w", err)
 	}
 	if err := unix.Bind(fd, &unix.SockaddrNetlink{Family: unix.AF_NETLINK, Groups: 1}); err != nil {
-		_ = unix.Close(fd)
+		_ = unix.Close(fd) // Cleanup cannot change the bind error.
 		return -1, fmt.Errorf("binding modem uevent socket: %w", err)
 	}
 	return fd, nil
@@ -258,24 +260,19 @@ func readModemUevents(ctx context.Context, fd int, queue *deviceUeventQueue) {
 			queue.stop(fmt.Errorf("reading modem uevent: %w", err))
 			return
 		}
-		event, ok := parseModemUevent(buf[:length])
-		if !ok {
+		var event kernelUevent
+		if err := event.UnmarshalBinary(buf[:length]); err != nil {
 			continue
 		}
 		queue.push(event)
 	}
 }
 
-func modemUevent(data []byte) bool {
-	_, ok := parseModemUevent(data)
-	return ok
-}
-
-func parseModemUevent(data []byte) (kernelUevent, bool) {
+func (e *kernelUevent) UnmarshalBinary(data []byte) error {
 	fields := strings.Split(string(data), "\x00")
-	var event kernelUevent
+	var decoded kernelUevent
 	if len(fields) > 0 {
-		event.action, event.devPath, _ = strings.Cut(fields[0], "@")
+		decoded.action, decoded.devPath, _ = strings.Cut(fields[0], "@")
 	}
 	for _, field := range fields[1:] {
 		key, value, ok := strings.Cut(field, "=")
@@ -284,20 +281,21 @@ func parseModemUevent(data []byte) (kernelUevent, bool) {
 		}
 		switch key {
 		case "ACTION":
-			event.action = value
+			decoded.action = value
 		case "SUBSYSTEM":
-			event.subsystem = value
+			decoded.subsystem = value
 		case "DEVNAME":
-			event.devName = value
+			decoded.devName = value
 		case "DEVPATH":
-			event.devPath = value
+			decoded.devPath = value
 		}
 	}
-	switch event.subsystem {
+	switch decoded.subsystem {
 	case "wwan", "usbmisc", "net", "tty", "rpmsg":
-		return event, true
+		*e = decoded
+		return nil
 	default:
-		return kernelUevent{}, false
+		return errNotModemUevent
 	}
 }
 

@@ -177,11 +177,12 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 			if raw.Format != qcom.WMSMessageFormatGWPointToPoint {
 				continue
 			}
-			needsACK := raw.AckIndicatorKnown && raw.AckIndicator == qcom.WMSAckRequired
+			needsACK := raw.ACKIndicatorKnown && raw.ACKIndicator == qcom.WMSACKRequired
 			var part sms.Part
 			if err := part.UnmarshalBinary(raw.Data); err != nil {
 				if needsACK {
-					_ = b.client.WMSAcknowledge(ctx, qcom.WMSAckRequest{TransactionID: raw.TransactionID, Protocol: qcom.WMSMessageProtocolWCDMA, Success: false})
+					// The decode error is authoritative; the negative ACK is best effort.
+					_ = b.client.WMSAcknowledge(ctx, qcom.WMSACKRequest{TransactionID: raw.TransactionID, Protocol: qcom.WMSMessageProtocolWCDMA, Success: false})
 				}
 				sendStreamResult(ctx, out, Result[Message]{Err: err})
 				return
@@ -193,7 +194,7 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 			}
 			part.Message.State = messageState(raw.Tag)
 			if needsACK {
-				if err := b.client.WMSAcknowledge(ctx, qcom.WMSAckRequest{TransactionID: raw.TransactionID, Protocol: qcom.WMSMessageProtocolWCDMA, Success: true}); err != nil {
+				if err := b.client.WMSAcknowledge(ctx, qcom.WMSACKRequest{TransactionID: raw.TransactionID, Protocol: qcom.WMSMessageProtocolWCDMA, Success: true}); err != nil {
 					sendStreamResult(ctx, out, Result[Message]{Err: err})
 					return
 				}

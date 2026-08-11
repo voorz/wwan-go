@@ -55,7 +55,7 @@ func (p *directPool) acquire(ctx context.Context, device string, dialer Dialer) 
 
 				entry.closing = true
 				p.mu.Unlock()
-				_ = p.closeEntry(key, entry)
+				_ = p.closeEntry(key, entry) // A stale entry is discarded before retrying.
 				continue
 			}
 			opening := entry.opening

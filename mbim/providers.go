@@ -120,24 +120,24 @@ func (p Providers) MarshalBinary() ([]byte, error) {
 	return p.marshalBinary(), nil
 }
 
-func (provider Provider) validate() error {
-	if err := validateProviderID(provider.ID); err != nil {
+func (p Provider) validate() error {
+	if err := validateProviderID(p.ID); err != nil {
 		return err
 	}
-	if size := len(utf16Bytes(provider.Name)); size > 40 {
+	if size := len(utf16Bytes(p.Name)); size > 40 {
 		return fmt.Errorf("provider name length %d exceeds 40 bytes", size)
 	}
-	if provider.State&^providerStateMask != 0 {
-		return fmt.Errorf("provider state %#x contains reserved bits", provider.State)
+	if p.State&^providerStateMask != 0 {
+		return fmt.Errorf("provider state %#x contains reserved bits", p.State)
 	}
-	if !validCellularClass(provider.CellularClass) {
-		return fmt.Errorf("cellular class %#x contains reserved bits", provider.CellularClass)
+	if !validCellularClass(p.CellularClass) {
+		return fmt.Errorf("cellular class %#x contains reserved bits", p.CellularClass)
 	}
-	if !validRSSI(provider.RSSI) {
-		return fmt.Errorf("RSSI %d is outside 0..31 and is not the unknown value 99", provider.RSSI)
+	if !validRSSI(p.RSSI) {
+		return fmt.Errorf("RSSI %d is outside 0..31 and is not the unknown value 99", p.RSSI)
 	}
-	if !validErrorRate(provider.ErrorRate) {
-		return fmt.Errorf("error rate %d is outside 0..7 and is not the unknown value 99", provider.ErrorRate)
+	if !validErrorRate(p.ErrorRate) {
+		return fmt.Errorf("error rate %d is outside 0..7 and is not the unknown value 99", p.ErrorRate)
 	}
 	return nil
 }

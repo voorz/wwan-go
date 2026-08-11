@@ -940,6 +940,7 @@ func (c *Client) releaseVoiceIndication(registration voiceIndicationRegistration
 		return
 	}
 	delete(c.voiceIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.VoiceSetIndicationReport(ctx, voiceIndicationConfig(registration, false))
 }
 
@@ -1221,14 +1222,14 @@ type voiceCallDetailTLVs struct {
 	rtt       byte
 }
 
-func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kinds voiceCallDetailTLVs) error {
+func (c VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kinds voiceCallDetailTLVs) error {
 	if value, ok := tlv.Value(tlvs, kinds.name); ok {
-		if err := applyVoiceCallerNames(value, calls, byID); err != nil {
+		if err := applyVoiceCallerNames(value, c, byID); err != nil {
 			return fmt.Errorf("parsing QMI Voice caller names: %w", err)
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.endReason); ok {
-		if err := applyVoiceCallRecords(value, 3, calls, byID, func(call *VoiceCall, record []byte) {
+		if err := applyVoiceCallRecords(value, 3, c, byID, func(call *VoiceCall, record []byte) {
 			call.EndReason = VoiceCallEndReason(binary.LittleEndian.Uint16(record[1:]))
 			call.EndReasonKnown = true
 		}); err != nil {
@@ -1250,7 +1251,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 	}
 	for _, field := range attributeFields {
 		if value, ok := tlv.Value(tlvs, field.kind); ok {
-			if err := applyVoiceCallRecords(value, 9, calls, byID, func(call *VoiceCall, record []byte) {
+			if err := applyVoiceCallRecords(value, 9, c, byID, func(call *VoiceCall, record []byte) {
 				field.apply(call, VoiceCallAttribute(binary.LittleEndian.Uint64(record[1:])))
 			}); err != nil {
 				return fmt.Errorf("parsing QMI Voice call attributes TLV 0x%02X: %w", field.kind, err)
@@ -1258,7 +1259,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.sipURI); ok {
-		if err := applyVoiceCallStrings(value, voiceSIPURIMax, calls, byID, func(call *VoiceCall, value string) {
+		if err := applyVoiceCallStrings(value, voiceSIPURIMax, c, byID, func(call *VoiceCall, value string) {
 			call.SIPURI = value
 			call.SIPURIKnown = true
 		}); err != nil {
@@ -1266,7 +1267,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.ipName); ok {
-		if err := applyVoiceCallUTF16(value, 128, calls, byID, func(call *VoiceCall, value []uint16) {
+		if err := applyVoiceCallUTF16(value, 128, c, byID, func(call *VoiceCall, value []uint16) {
 			call.CallerName = string(utf16.Decode(value))
 			call.CallerNameKnown = true
 		}); err != nil {
@@ -1275,7 +1276,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 	}
 	if kinds.namePI != 0 {
 		if value, ok := tlv.Value(tlvs, kinds.namePI); ok {
-			if err := applyVoiceCallRecords(value, 2, calls, byID, func(call *VoiceCall, record []byte) {
+			if err := applyVoiceCallRecords(value, 2, c, byID, func(call *VoiceCall, record []byte) {
 				call.CallerNamePresentation = VoicePresentation(record[1])
 				call.CallerNamePresentationKnown = true
 			}); err != nil {
@@ -1284,7 +1285,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.endText); ok {
-		if err := applyVoiceCallUTF16(value, 128, calls, byID, func(call *VoiceCall, value []uint16) {
+		if err := applyVoiceCallUTF16(value, 128, c, byID, func(call *VoiceCall, value []uint16) {
 			call.EndReasonText = value
 		}); err != nil {
 			return fmt.Errorf("parsing QMI Voice call end reason text: %w", err)
@@ -1292,7 +1293,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 	}
 	if kinds.secure != 0 {
 		if value, ok := tlv.Value(tlvs, kinds.secure); ok {
-			if err := applyVoiceCallRecords(value, 2, calls, byID, func(call *VoiceCall, record []byte) {
+			if err := applyVoiceCallRecords(value, 2, c, byID, func(call *VoiceCall, record []byte) {
 				call.Secure = record[1] == 1
 				call.SecureKnown = true
 			}); err != nil {
@@ -1301,7 +1302,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.sipError); ok {
-		if err := applyVoiceCallRecords(value, 3, calls, byID, func(call *VoiceCall, record []byte) {
+		if err := applyVoiceCallRecords(value, 3, c, byID, func(call *VoiceCall, record []byte) {
 			call.SIPErrorCode = binary.LittleEndian.Uint16(record[1:])
 			call.SIPErrorCodeKnown = true
 		}); err != nil {
@@ -1309,7 +1310,7 @@ func (calls VoiceCalls) unmarshalDetails(tlvs tlv.TLVs, byID map[uint8]int, kind
 		}
 	}
 	if value, ok := tlv.Value(tlvs, kinds.rtt); ok {
-		if err := applyVoiceCallRecords(value, 5, calls, byID, func(call *VoiceCall, record []byte) {
+		if err := applyVoiceCallRecords(value, 5, c, byID, func(call *VoiceCall, record []byte) {
 			call.RTTMode = VoiceRTTMode(binary.LittleEndian.Uint32(record[1:]))
 			call.RTTModeKnown = true
 		}); err != nil {
@@ -1477,22 +1478,22 @@ func validVoiceDTMFDigit(digit byte) bool {
 }
 
 // MarshalBinary encodes QMI Voice USSD data.
-func (data VoiceUSSDData) MarshalBinary() ([]byte, error) {
-	if len(data.Data) == 0 {
+func (d VoiceUSSDData) MarshalBinary() ([]byte, error) {
+	if len(d.Data) == 0 {
 		return nil, errors.New("USSD data is empty")
 	}
-	if len(data.Data) > voiceUSSDDataMax {
-		return nil, fmt.Errorf("USSD data length %d exceeds %d", len(data.Data), voiceUSSDDataMax)
+	if len(d.Data) > voiceUSSDDataMax {
+		return nil, fmt.Errorf("USSD data length %d exceeds %d", len(d.Data), voiceUSSDDataMax)
 	}
-	if data.Encoding < VoiceUSSDEncodingASCII || data.Encoding > VoiceUSSDEncodingUCS2 {
-		return nil, fmt.Errorf("USSD encoding 0x%02X is invalid", data.Encoding)
+	if d.Encoding < VoiceUSSDEncodingASCII || d.Encoding > VoiceUSSDEncodingUCS2 {
+		return nil, fmt.Errorf("USSD encoding 0x%02X is invalid", d.Encoding)
 	}
-	value := []byte{byte(data.Encoding), byte(len(data.Data))}
-	return append(value, data.Data...), nil
+	value := []byte{byte(d.Encoding), byte(len(d.Data))}
+	return append(value, d.Data...), nil
 }
 
 // UnmarshalBinary decodes QMI Voice USSD data.
-func (data *VoiceUSSDData) UnmarshalBinary(value []byte) error {
+func (d *VoiceUSSDData) UnmarshalBinary(value []byte) error {
 	if len(value) < 2 {
 		return errors.New("parsing QMI Voice USSD data: header is truncated")
 	}
@@ -1504,7 +1505,7 @@ func (data *VoiceUSSDData) UnmarshalBinary(value []byte) error {
 	if length > voiceUSSDDataMax || len(value) != 2+length {
 		return fmt.Errorf("parsing QMI Voice USSD data: value length %d, want %d", len(value), 2+length)
 	}
-	*data = VoiceUSSDData{Encoding: encoding, Data: slices.Clone(value[2:])}
+	*d = VoiceUSSDData{Encoding: encoding, Data: slices.Clone(value[2:])}
 	return nil
 }
 
@@ -1636,17 +1637,17 @@ func decodeVoiceUint16Array(value []byte, length16 bool) ([]uint16, error) {
 	return out, nil
 }
 
-func (alpha VoiceAlphaIdentifier) MarshalBinary() ([]byte, error) {
-	if alpha.Encoding != VoiceAlphaEncodingGSM && alpha.Encoding != VoiceAlphaEncodingUCS2 {
-		return nil, fmt.Errorf("alpha identifier encoding %d is unsupported", alpha.Encoding)
+func (a VoiceAlphaIdentifier) MarshalBinary() ([]byte, error) {
+	if a.Encoding != VoiceAlphaEncodingGSM && a.Encoding != VoiceAlphaEncodingUCS2 {
+		return nil, fmt.Errorf("alpha identifier encoding %d is unsupported", a.Encoding)
 	}
-	if len(alpha.Data) > 0xff {
-		return nil, fmt.Errorf("alpha identifier length %d exceeds 255", len(alpha.Data))
+	if len(a.Data) > 0xff {
+		return nil, fmt.Errorf("alpha identifier length %d exceeds 255", len(a.Data))
 	}
-	return append([]byte{byte(alpha.Encoding), byte(len(alpha.Data))}, alpha.Data...), nil
+	return append([]byte{byte(a.Encoding), byte(len(a.Data))}, a.Data...), nil
 }
 
-func (alpha *VoiceAlphaIdentifier) UnmarshalBinary(value []byte) error {
+func (a *VoiceAlphaIdentifier) UnmarshalBinary(value []byte) error {
 	if len(value) < 2 {
 		return errors.New("alpha identifier header is truncated")
 	}
@@ -1658,7 +1659,7 @@ func (alpha *VoiceAlphaIdentifier) UnmarshalBinary(value []byte) error {
 	if len(value) != 2+length {
 		return fmt.Errorf("alpha identifier length %d, want %d", len(value), 2+length)
 	}
-	*alpha = VoiceAlphaIdentifier{Encoding: encoding, Data: slices.Clone(value[2:])}
+	*a = VoiceAlphaIdentifier{Encoding: encoding, Data: slices.Clone(value[2:])}
 	return nil
 }
 

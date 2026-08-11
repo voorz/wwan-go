@@ -582,8 +582,8 @@ func (c *Client) ActivationState(ctx context.Context) (DMSActivationState, error
 }
 
 // UnmarshalTLVs parses the QMI DMS activation state.
-func (state *DMSActivationState) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*state = DMSActivationNotActivated
+func (s *DMSActivationState) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*s = DMSActivationNotActivated
 	value, ok := tlv.Value(tlvs, dmsTLVActivationState)
 	if !ok {
 		return errors.New("parsing QMI DMS activation state: state TLV missing")
@@ -591,13 +591,8 @@ func (state *DMSActivationState) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	if len(value) != 2 {
 		return fmt.Errorf("parsing QMI DMS activation state: state TLV length %d, want 2", len(value))
 	}
-	*state = DMSActivationState(binary.LittleEndian.Uint16(value))
+	*s = DMSActivationState(binary.LittleEndian.Uint16(value))
 	return nil
-}
-
-// GetActivationState is an alias for ActivationState.
-func (c *Client) GetActivationState(ctx context.Context) (DMSActivationState, error) {
-	return c.ActivationState(ctx)
 }
 
 // DMSActivateAutomaticRequest encodes DMS Activate Automatic.

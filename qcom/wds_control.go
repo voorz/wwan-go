@@ -890,17 +890,17 @@ func (s *PDNSession) wdsControlRequest(ctx context.Context, id MessageID, reques
 	return resp, nil
 }
 
-func (technology WDSCurrentBearerTechnology) MarshalBinary() ([]byte, error) {
-	value := []byte{byte(technology.Network)}
-	value = binary.LittleEndian.AppendUint32(value, technology.RATMask)
-	return binary.LittleEndian.AppendUint32(value, technology.ServiceOptionMask), nil
+func (t WDSCurrentBearerTechnology) MarshalBinary() ([]byte, error) {
+	value := []byte{byte(t.Network)}
+	value = binary.LittleEndian.AppendUint32(value, t.RATMask)
+	return binary.LittleEndian.AppendUint32(value, t.ServiceOptionMask), nil
 }
 
-func (technology *WDSCurrentBearerTechnology) UnmarshalBinary(value []byte) error {
+func (t *WDSCurrentBearerTechnology) UnmarshalBinary(value []byte) error {
 	if len(value) != 9 {
 		return fmt.Errorf("current bearer length %d, want 9", len(value))
 	}
-	*technology = WDSCurrentBearerTechnology{
+	*t = WDSCurrentBearerTechnology{
 		Network:           WDSCurrentBearerNetwork(value[0]),
 		RATMask:           binary.LittleEndian.Uint32(value[1:5]),
 		ServiceOptionMask: binary.LittleEndian.Uint32(value[5:9]),
@@ -908,17 +908,17 @@ func (technology *WDSCurrentBearerTechnology) UnmarshalBinary(value []byte) erro
 	return nil
 }
 
-func (technology WDSBearerTechnology) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint32(nil, uint32(technology.Network))
-	value = binary.LittleEndian.AppendUint32(value, uint32(technology.RAT))
-	return binary.LittleEndian.AppendUint64(value, uint64(technology.ServiceOptions)), nil
+func (t WDSBearerTechnology) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint32(nil, uint32(t.Network))
+	value = binary.LittleEndian.AppendUint32(value, uint32(t.RAT))
+	return binary.LittleEndian.AppendUint64(value, uint64(t.ServiceOptions)), nil
 }
 
-func (technology *WDSBearerTechnology) UnmarshalBinary(value []byte) error {
+func (t *WDSBearerTechnology) UnmarshalBinary(value []byte) error {
 	if len(value) != 16 {
 		return fmt.Errorf("extended bearer length %d, want 16", len(value))
 	}
-	*technology = WDSBearerTechnology{
+	*t = WDSBearerTechnology{
 		Network:        WDSBearerNetwork(binary.LittleEndian.Uint32(value[:4])),
 		RAT:            WDSBearerRAT(binary.LittleEndian.Uint32(value[4:8])),
 		ServiceOptions: WDSBearerServiceOptionMask(binary.LittleEndian.Uint64(value[8:16])),

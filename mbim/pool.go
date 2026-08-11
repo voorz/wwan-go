@@ -44,7 +44,7 @@ func (p *directClientPool) acquire(ctx context.Context, device string, dialer Di
 					client := p.lease(key, entry.owner, slot)
 					p.mu.Unlock()
 					if err := client.connectLease(ctx); err != nil {
-						_ = client.Close()
+						_ = client.Close() // Cleanup cannot change the lease error.
 						return nil, err
 					}
 					return client, nil
@@ -52,7 +52,7 @@ func (p *directClientPool) acquire(ctx context.Context, device string, dialer Di
 
 				entry.closing = true
 				p.mu.Unlock()
-				_ = p.closeEntry(key, entry)
+				_ = p.closeEntry(key, entry) // A stale entry is discarded before retrying.
 				continue
 			}
 			opening := entry.opening
@@ -87,7 +87,7 @@ func (p *directClientPool) acquire(ctx context.Context, device string, dialer Di
 			err = owner.connect(ctx, "")
 		}
 		if err != nil && conn != nil {
-			_ = conn.Close()
+			_ = conn.Close() // Cleanup cannot change the dial error.
 		}
 
 		p.mu.Lock()
@@ -157,10 +157,10 @@ func directOwnerAvailable(owner *Client) bool {
 }
 
 func (c *Client) connectLease(ctx context.Context) error {
-	if err := c.validateUiccSlotID(); err != nil {
+	if err := c.validateUICCSlotID(); err != nil {
 		return fmt.Errorf("connecting MBIM client lease: %w", err)
 	}
-	if c.usesUiccSlotID() {
+	if c.usesUICCSlotID() {
 		return nil
 	}
 	return c.ensureSlotActivated(ctx)

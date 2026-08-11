@@ -66,16 +66,16 @@ func cardResultOK(resp Response) error {
 
 type qmiLength8Bytes []byte
 
-func (value qmiLength8Bytes) MarshalBinary() ([]byte, error) {
-	if len(value) > 0xff {
-		return nil, fmt.Errorf("value length %d exceeds 255", len(value))
+func (v qmiLength8Bytes) MarshalBinary() ([]byte, error) {
+	if len(v) > 0xff {
+		return nil, fmt.Errorf("value length %d exceeds 255", len(v))
 	}
-	data := make([]byte, 1, 1+len(value))
-	data[0] = byte(len(value))
-	return append(data, value...), nil
+	data := make([]byte, 1, 1+len(v))
+	data[0] = byte(len(v))
+	return append(data, v...), nil
 }
 
-func (value *qmiLength8Bytes) UnmarshalBinary(data []byte) error {
+func (v *qmiLength8Bytes) UnmarshalBinary(data []byte) error {
 	if len(data) < 1 {
 		return errors.New("length prefix is truncated")
 	}
@@ -83,21 +83,21 @@ func (value *qmiLength8Bytes) UnmarshalBinary(data []byte) error {
 	if len(data) != 1+length {
 		return fmt.Errorf("value length %d, want %d", len(data), 1+length)
 	}
-	*value = slices.Clone(data[1:])
+	*v = slices.Clone(data[1:])
 	return nil
 }
 
 type qmiLength16Bytes []byte
 
-func (value qmiLength16Bytes) MarshalBinary() ([]byte, error) {
-	if len(value) > 0xffff {
-		return nil, fmt.Errorf("value length %d exceeds 65535", len(value))
+func (v qmiLength16Bytes) MarshalBinary() ([]byte, error) {
+	if len(v) > 0xffff {
+		return nil, fmt.Errorf("value length %d exceeds 65535", len(v))
 	}
-	data := binary.LittleEndian.AppendUint16(nil, uint16(len(value)))
-	return append(data, value...), nil
+	data := binary.LittleEndian.AppendUint16(nil, uint16(len(v)))
+	return append(data, v...), nil
 }
 
-func (value *qmiLength16Bytes) UnmarshalBinary(data []byte) error {
+func (v *qmiLength16Bytes) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 {
 		return errors.New("length prefix is truncated")
 	}
@@ -105,7 +105,7 @@ func (value *qmiLength16Bytes) UnmarshalBinary(data []byte) error {
 	if len(data) != 2+length {
 		return fmt.Errorf("value length %d, want %d", len(data), 2+length)
 	}
-	*value = slices.Clone(data[2:])
+	*v = slices.Clone(data[2:])
 	return nil
 }
 
@@ -203,7 +203,7 @@ type serviceVersion = ServiceVersion
 type ServiceVersionList []ServiceVersion
 
 // UnmarshalTLVs parses a QMI control Get Version Info response.
-func (versions *ServiceVersionList) UnmarshalTLVs(tlvs tlv.TLVs) error {
+func (v *ServiceVersionList) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	value, ok := tlv.Value(tlvs, 0x01)
 	if !ok {
 		return errors.New("reading QMI service versions: service list TLV missing")
@@ -226,6 +226,6 @@ func (versions *ServiceVersionList) UnmarshalTLVs(tlvs tlv.TLVs) error {
 			Minor:   binary.LittleEndian.Uint16(value[offset+3 : offset+5]),
 		})
 	}
-	*versions = decoded
+	*v = decoded
 	return nil
 }

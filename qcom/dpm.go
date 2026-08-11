@@ -239,31 +239,31 @@ func (c *Client) DPMCapabilities(ctx context.Context) (DPMCapabilities, error) {
 }
 
 // MarshalTLVs encodes DPM open-port configuration.
-func (config DPMOpenPortConfig) MarshalTLVs() (tlv.TLVs, error) {
-	if len(config.ControlPorts) == 0 && len(config.HardwareDataPorts) == 0 &&
-		len(config.SoftwareDataPorts) == 0 && len(config.DataPortBuffers) == 0 {
+func (c DPMOpenPortConfig) MarshalTLVs() (tlv.TLVs, error) {
+	if len(c.ControlPorts) == 0 && len(c.HardwareDataPorts) == 0 &&
+		len(c.SoftwareDataPorts) == 0 && len(c.DataPortBuffers) == 0 {
 		return nil, errors.New("encoding QMI DPM open port: no ports configured")
 	}
 
 	var tlvs tlv.TLVs
-	if len(config.ControlPorts) > 0 {
-		value, err := encodeDPMList(len(config.ControlPorts), func(dst []byte, index int) ([]byte, error) {
-			name, err := dpmPortName(config.ControlPorts[index].Name)
+	if len(c.ControlPorts) > 0 {
+		value, err := encodeDPMList(len(c.ControlPorts), func(dst []byte, index int) ([]byte, error) {
+			name, err := dpmPortName(c.ControlPorts[index].Name)
 			if err != nil {
 				return nil, err
 			}
 			dst = append(dst, byte(len(name)))
 			dst = append(dst, name...)
-			return config.ControlPorts[index].DefaultEndpoint.AppendBinary(dst)
+			return c.ControlPorts[index].DefaultEndpoint.AppendBinary(dst)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI DPM control ports: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(0x10, value))
 	}
-	if len(config.HardwareDataPorts) > 0 {
-		value, err := encodeDPMList(len(config.HardwareDataPorts), func(dst []byte, index int) ([]byte, error) {
-			port := config.HardwareDataPorts[index]
+	if len(c.HardwareDataPorts) > 0 {
+		value, err := encodeDPMList(len(c.HardwareDataPorts), func(dst []byte, index int) ([]byte, error) {
+			port := c.HardwareDataPorts[index]
 			dst, err := port.Endpoint.AppendBinary(dst)
 			if err != nil {
 				return nil, err
@@ -276,9 +276,9 @@ func (config DPMOpenPortConfig) MarshalTLVs() (tlv.TLVs, error) {
 		}
 		tlvs = append(tlvs, tlv.Bytes(0x11, value))
 	}
-	if len(config.SoftwareDataPorts) > 0 {
-		value, err := encodeDPMList(len(config.SoftwareDataPorts), func(dst []byte, index int) ([]byte, error) {
-			port := config.SoftwareDataPorts[index]
+	if len(c.SoftwareDataPorts) > 0 {
+		value, err := encodeDPMList(len(c.SoftwareDataPorts), func(dst []byte, index int) ([]byte, error) {
+			port := c.SoftwareDataPorts[index]
 			dst, err := port.Endpoint.AppendBinary(dst)
 			if err != nil {
 				return nil, err
@@ -295,9 +295,9 @@ func (config DPMOpenPortConfig) MarshalTLVs() (tlv.TLVs, error) {
 		}
 		tlvs = append(tlvs, tlv.Bytes(0x12, value))
 	}
-	if len(config.DataPortBuffers) > 0 {
-		value, err := encodeDPMList(len(config.DataPortBuffers), func(dst []byte, index int) ([]byte, error) {
-			info := config.DataPortBuffers[index]
+	if len(c.DataPortBuffers) > 0 {
+		value, err := encodeDPMList(len(c.DataPortBuffers), func(dst []byte, index int) ([]byte, error) {
+			info := c.DataPortBuffers[index]
 			dst, err := info.Endpoint.AppendBinary(dst)
 			if err != nil {
 				return nil, err
@@ -315,14 +315,14 @@ func (config DPMOpenPortConfig) MarshalTLVs() (tlv.TLVs, error) {
 }
 
 // MarshalTLVs encodes DPM close-port configuration.
-func (config DPMClosePortConfig) MarshalTLVs() (tlv.TLVs, error) {
-	if len(config.ControlPortNames) == 0 && len(config.DataPorts) == 0 {
+func (c DPMClosePortConfig) MarshalTLVs() (tlv.TLVs, error) {
+	if len(c.ControlPortNames) == 0 && len(c.DataPorts) == 0 {
 		return nil, errors.New("encoding QMI DPM close port: no ports configured")
 	}
 	var tlvs tlv.TLVs
-	if len(config.ControlPortNames) > 0 {
-		value, err := encodeDPMList(len(config.ControlPortNames), func(dst []byte, index int) ([]byte, error) {
-			name, err := dpmPortName(config.ControlPortNames[index])
+	if len(c.ControlPortNames) > 0 {
+		value, err := encodeDPMList(len(c.ControlPortNames), func(dst []byte, index int) ([]byte, error) {
+			name, err := dpmPortName(c.ControlPortNames[index])
 			if err != nil {
 				return nil, err
 			}
@@ -334,9 +334,9 @@ func (config DPMClosePortConfig) MarshalTLVs() (tlv.TLVs, error) {
 		}
 		tlvs = append(tlvs, tlv.Bytes(0x10, value))
 	}
-	if len(config.DataPorts) > 0 {
-		value, err := encodeDPMList(len(config.DataPorts), func(dst []byte, index int) ([]byte, error) {
-			return config.DataPorts[index].AppendBinary(dst)
+	if len(c.DataPorts) > 0 {
+		value, err := encodeDPMList(len(c.DataPorts), func(dst []byte, index int) ([]byte, error) {
+			return c.DataPorts[index].AppendBinary(dst)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("encoding QMI DPM data ports: %w", err)

@@ -19,7 +19,7 @@ const (
 	ServiceWDS     ServiceType = 0x01        // Wireless Data Service
 	ServiceDMS     ServiceType = 0x02        // Device Management Service
 	ServiceNAS     ServiceType = 0x03        // Network Access Service
-	ServiceQOS     ServiceType = 0x04        // Quality of Service service
+	ServiceQoS     ServiceType = 0x04        // Quality of Service service
 	ServiceWMS     ServiceType = 0x05        // Wireless Messaging Service
 	ServicePDS     ServiceType = 0x06        // Position Determination Service
 	ServiceAUTH    ServiceType = 0x07        // Authentication service
@@ -110,31 +110,31 @@ const (
 	MessageWDSBindSubscription               MessageID = 0x00AF
 	MessageWDSGetBindSubscription            MessageID = 0x00B0
 
-	// QOS service commands
-	MessageQOSReset                       MessageID = 0x0000
-	MessageQOSSetEventReport              MessageID = 0x0001
-	MessageQOSRequest                     MessageID = 0x0020
-	MessageQOSRelease                     MessageID = 0x0021
-	MessageQOSSuspend                     MessageID = 0x0022
-	MessageQOSResume                      MessageID = 0x0023
-	MessageQOSGetGranted                  MessageID = 0x0025
-	MessageQOSGetStatus                   MessageID = 0x0026
-	MessageQOSStatus                      MessageID = 0x0026
-	MessageQOSGetNetworkStatus            MessageID = 0x0027
-	MessageQOSNetworkStatus               MessageID = 0x0027
-	MessageQOSGetNetworkSupportedProfiles MessageID = 0x0028
-	MessageQOSPrimaryEvent                MessageID = 0x0029
-	MessageQOSSetClientIPFamily           MessageID = 0x002A
-	MessageQOSBindDataPort                MessageID = 0x002B
-	MessageQOSGetFilterParams             MessageID = 0x002C
-	MessageQOSBindSubscription            MessageID = 0x002D
-	MessageQOSGetBindSubscription         MessageID = 0x002E
-	MessageQOSIndicationRegister          MessageID = 0x002F
-	MessageQOSRequestEx                   MessageID = 0x0030
-	MessageQOSGlobalFlow                  MessageID = 0x0031
-	MessageQOSModifyEx                    MessageID = 0x0032
-	MessageQOSGetInfo                     MessageID = 0x0033
-	MessageQOSPerformFlowOperation        MessageID = 0xFFFE
+	// QoS service commands
+	MessageQoSReset                       MessageID = 0x0000
+	MessageQoSSetEventReport              MessageID = 0x0001
+	MessageQoSRequest                     MessageID = 0x0020
+	MessageQoSRelease                     MessageID = 0x0021
+	MessageQoSSuspend                     MessageID = 0x0022
+	MessageQoSResume                      MessageID = 0x0023
+	MessageQoSGetGranted                  MessageID = 0x0025
+	MessageQoSGetStatus                   MessageID = 0x0026
+	MessageQoSStatus                      MessageID = 0x0026
+	MessageQoSGetNetworkStatus            MessageID = 0x0027
+	MessageQoSNetworkStatus               MessageID = 0x0027
+	MessageQoSGetNetworkSupportedProfiles MessageID = 0x0028
+	MessageQoSPrimaryEvent                MessageID = 0x0029
+	MessageQoSSetClientIPFamily           MessageID = 0x002A
+	MessageQoSBindDataPort                MessageID = 0x002B
+	MessageQoSGetFilterParams             MessageID = 0x002C
+	MessageQoSBindSubscription            MessageID = 0x002D
+	MessageQoSGetBindSubscription         MessageID = 0x002E
+	MessageQoSIndicationRegister          MessageID = 0x002F
+	MessageQoSRequestEx                   MessageID = 0x0030
+	MessageQoSGlobalFlow                  MessageID = 0x0031
+	MessageQoSModifyEx                    MessageID = 0x0032
+	MessageQoSGetInfo                     MessageID = 0x0033
+	MessageQoSPerformFlowOperation        MessageID = 0xFFFE
 
 	// AUTH service commands
 	MessageAUTHIndicationRegister  MessageID = 0x0003
@@ -165,7 +165,7 @@ const (
 	MessageWMSListMessages           MessageID = 0x0031
 	MessageWMSSetRoutes              MessageID = 0x0032
 	MessageWMSGetRoutes              MessageID = 0x0033
-	MessageWMSSendAck                MessageID = 0x0037
+	MessageWMSSendACK                MessageID = 0x0037
 	MessageWMSGetSMSCAddress         MessageID = 0x0034
 	MessageWMSSetSMSCAddress         MessageID = 0x0035
 	MessageWMSGetStoreMaxSize        MessageID = 0x0036
@@ -203,7 +203,7 @@ const (
 	MessageWMSGetPrimaryClient       MessageID = 0x0057
 	MessageWMSGetSubscription        MessageID = 0x0058
 	MessageWMSAsyncRawSend           MessageID = 0x0059
-	MessageWMSAsyncSendAck           MessageID = 0x005A
+	MessageWMSAsyncSendACK           MessageID = 0x005A
 	MessageWMSAsyncSendFromStore     MessageID = 0x005B
 	MessageWMSSetMessageWaiting      MessageID = 0x005F
 	MessageWMSEventReport            MessageID = 0x0001

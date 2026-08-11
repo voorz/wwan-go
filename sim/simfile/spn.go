@@ -8,30 +8,30 @@ import (
 
 type ServiceProviderName string
 
-func (name ServiceProviderName) String() string {
-	return string(name)
+func (n ServiceProviderName) String() string {
+	return string(n)
 }
 
-func (name ServiceProviderName) MarshalText() ([]byte, error) {
-	return []byte(name), nil
+func (n ServiceProviderName) MarshalText() ([]byte, error) {
+	return []byte(n), nil
 }
 
-func (name *ServiceProviderName) UnmarshalText(text []byte) error {
-	*name = ServiceProviderName(string(text))
+func (n *ServiceProviderName) UnmarshalText(text []byte) error {
+	*n = ServiceProviderName(string(text))
 	return nil
 }
 
-func (name *ServiceProviderName) UnmarshalBinary(data []byte) error {
+func (n *ServiceProviderName) UnmarshalBinary(data []byte) error {
 	if len(data) < 2 {
 		return errors.New("parsing EF_SPN: payload is too short")
 	}
 	data = trimFF(data[1:])
 	if len(data) == 0 {
-		*name = ""
+		*n = ""
 		return nil
 	}
 	if data[0] != 0x80 {
-		*name = ServiceProviderName(strings.TrimSpace(string(data)))
+		*n = ServiceProviderName(strings.TrimSpace(string(data)))
 		return nil
 	}
 	data = data[1:]
@@ -42,7 +42,7 @@ func (name *ServiceProviderName) UnmarshalBinary(data []byte) error {
 	for i := range code {
 		code[i] = uint16(data[2*i])<<8 | uint16(data[2*i+1])
 	}
-	*name = ServiceProviderName(strings.TrimSpace(string(utf16.Decode(code))))
+	*n = ServiceProviderName(strings.TrimSpace(string(utf16.Decode(code))))
 	return nil
 }
 

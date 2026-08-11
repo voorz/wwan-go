@@ -12,14 +12,14 @@ import (
 // GSM7 is text represented with unpacked GSM 7-bit default-alphabet septets.
 type GSM7 string
 
-func (text GSM7) String() string {
-	return string(text)
+func (t GSM7) String() string {
+	return string(t)
 }
 
 // MarshalBinary encodes text as unpacked GSM 7-bit default-alphabet septets.
-func (text GSM7) MarshalBinary() ([]byte, error) {
-	result := make([]byte, 0, len(text))
-	for _, r := range text {
+func (t GSM7) MarshalBinary() ([]byte, error) {
+	result := make([]byte, 0, len(t))
+	for _, r := range t {
 		encoded, ok := encodeGSM7Rune(r)
 		if !ok {
 			return nil, fmt.Errorf("encoding GSM7: character %q is not representable", r)
@@ -30,7 +30,7 @@ func (text GSM7) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes unpacked GSM 7-bit default-alphabet septets.
-func (text *GSM7) UnmarshalBinary(septets []byte) error {
+func (t *GSM7) UnmarshalBinary(septets []byte) error {
 	var result strings.Builder
 	for i := 0; i < len(septets); i++ {
 		value := septets[i]
@@ -51,20 +51,20 @@ func (text *GSM7) UnmarshalBinary(septets []byte) error {
 		}
 		result.WriteRune(gsm7DefaultDecode[value&0x7f])
 	}
-	*text = GSM7(result.String())
+	*t = GSM7(result.String())
 	return nil
 }
 
 // MarshalText returns the UTF-8 textual form after validating GSM7 support.
-func (text GSM7) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t GSM7) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
 // UnmarshalText decodes UTF-8 text and validates that GSM7 can represent it.
-func (text *GSM7) UnmarshalText(data []byte) error {
+func (t *GSM7) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding GSM7 text: value is not valid UTF-8")
 	}
@@ -72,42 +72,42 @@ func (text *GSM7) UnmarshalText(data []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }
 
 // UCS2 is text represented with big-endian UCS-2 code units.
 type UCS2 string
 
-func (text UCS2) String() string {
-	return string(text)
+func (t UCS2) String() string {
+	return string(t)
 }
 
 // MarshalBinary encodes text as big-endian UCS-2 code units.
-func (text UCS2) MarshalBinary() ([]byte, error) {
-	return marshalUCS2(string(text), binary.BigEndian)
+func (t UCS2) MarshalBinary() ([]byte, error) {
+	return marshalUCS2(string(t), binary.BigEndian)
 }
 
 // UnmarshalBinary decodes big-endian UCS-2 code units.
-func (text *UCS2) UnmarshalBinary(data []byte) error {
+func (t *UCS2) UnmarshalBinary(data []byte) error {
 	value, err := unmarshalUCS2(data, binary.BigEndian)
 	if err != nil {
 		return err
 	}
-	*text = UCS2(value)
+	*t = UCS2(value)
 	return nil
 }
 
 // MarshalText returns the UTF-8 textual form after validating UCS-2 support.
-func (text UCS2) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t UCS2) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
 // UnmarshalText decodes UTF-8 text and validates that UCS-2 can represent it.
-func (text *UCS2) UnmarshalText(data []byte) error {
+func (t *UCS2) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding UCS2 text: value is not valid UTF-8")
 	}
@@ -115,42 +115,42 @@ func (text *UCS2) UnmarshalText(data []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }
 
 // UCS2LE is text represented with little-endian UCS-2 code units.
 type UCS2LE string
 
-func (text UCS2LE) String() string {
-	return string(text)
+func (t UCS2LE) String() string {
+	return string(t)
 }
 
 // MarshalBinary encodes text as little-endian UCS-2 code units.
-func (text UCS2LE) MarshalBinary() ([]byte, error) {
-	return marshalUCS2(string(text), binary.LittleEndian)
+func (t UCS2LE) MarshalBinary() ([]byte, error) {
+	return marshalUCS2(string(t), binary.LittleEndian)
 }
 
 // UnmarshalBinary decodes little-endian UCS-2 code units.
-func (text *UCS2LE) UnmarshalBinary(data []byte) error {
+func (t *UCS2LE) UnmarshalBinary(data []byte) error {
 	value, err := unmarshalUCS2(data, binary.LittleEndian)
 	if err != nil {
 		return err
 	}
-	*text = UCS2LE(value)
+	*t = UCS2LE(value)
 	return nil
 }
 
 // MarshalText returns the UTF-8 textual form after validating UCS-2 support.
-func (text UCS2LE) MarshalText() ([]byte, error) {
-	if _, err := text.MarshalBinary(); err != nil {
+func (t UCS2LE) MarshalText() ([]byte, error) {
+	if _, err := t.MarshalBinary(); err != nil {
 		return nil, err
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
 // UnmarshalText decodes UTF-8 text and validates that UCS-2 can represent it.
-func (text *UCS2LE) UnmarshalText(data []byte) error {
+func (t *UCS2LE) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding UCS2LE text: value is not valid UTF-8")
 	}
@@ -158,85 +158,85 @@ func (text *UCS2LE) UnmarshalText(data []byte) error {
 	if _, err := decoded.MarshalBinary(); err != nil {
 		return err
 	}
-	*text = decoded
+	*t = decoded
 	return nil
 }
 
 // UTF16 is text represented with big-endian UTF-16 code units.
 type UTF16 string
 
-func (text UTF16) String() string {
-	return string(text)
+func (t UTF16) String() string {
+	return string(t)
 }
 
 // MarshalBinary encodes text as big-endian UTF-16 code units.
-func (text UTF16) MarshalBinary() ([]byte, error) {
-	return marshalUTF16(string(text), binary.BigEndian)
+func (t UTF16) MarshalBinary() ([]byte, error) {
+	return marshalUTF16(string(t), binary.BigEndian)
 }
 
 // UnmarshalBinary decodes big-endian UTF-16 code units.
-func (text *UTF16) UnmarshalBinary(data []byte) error {
+func (t *UTF16) UnmarshalBinary(data []byte) error {
 	value, err := unmarshalUTF16(data, binary.BigEndian)
 	if err != nil {
 		return err
 	}
-	*text = UTF16(value)
+	*t = UTF16(value)
 	return nil
 }
 
 // MarshalText returns the UTF-8 textual form after validating UTF-16 support.
-func (text UTF16) MarshalText() ([]byte, error) {
-	if !utf8.ValidString(string(text)) {
+func (t UTF16) MarshalText() ([]byte, error) {
+	if !utf8.ValidString(string(t)) {
 		return nil, errors.New("encoding UTF16 text: value is not valid UTF-8")
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
 // UnmarshalText decodes UTF-8 text and validates that UTF-16 can represent it.
-func (text *UTF16) UnmarshalText(data []byte) error {
+func (t *UTF16) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding UTF16 text: value is not valid UTF-8")
 	}
-	*text = UTF16(string(data))
+	*t = UTF16(string(data))
 	return nil
 }
 
 // UTF16LE is text represented with little-endian UTF-16 code units.
 type UTF16LE string
 
-func (text UTF16LE) String() string {
-	return string(text)
+func (t UTF16LE) String() string {
+	return string(t)
 }
 
 // MarshalBinary encodes text as little-endian UTF-16 code units.
-func (text UTF16LE) MarshalBinary() ([]byte, error) {
-	return marshalUTF16(string(text), binary.LittleEndian)
+func (t UTF16LE) MarshalBinary() ([]byte, error) {
+	return marshalUTF16(string(t), binary.LittleEndian)
 }
 
 // UnmarshalBinary decodes little-endian UTF-16 code units.
-func (text *UTF16LE) UnmarshalBinary(data []byte) error {
+func (t *UTF16LE) UnmarshalBinary(data []byte) error {
 	value, err := unmarshalUTF16(data, binary.LittleEndian)
 	if err != nil {
 		return err
 	}
-	*text = UTF16LE(value)
+	*t = UTF16LE(value)
 	return nil
 }
 
 // MarshalText returns the UTF-8 textual form after validating UTF-16 support.
-func (text UTF16LE) MarshalText() ([]byte, error) {
-	if !utf8.ValidString(string(text)) {
+func (t UTF16LE) MarshalText() ([]byte, error) {
+	if !utf8.ValidString(string(t)) {
 		return nil, errors.New("encoding UTF16LE text: value is not valid UTF-8")
 	}
-	return []byte(text), nil
+	return []byte(t), nil
 }
 
 // UnmarshalText decodes UTF-8 text and validates that UTF-16 can represent it.
-func (text *UTF16LE) UnmarshalText(data []byte) error {
+func (t *UTF16LE) UnmarshalText(data []byte) error {
 	if !utf8.Valid(data) {
 		return errors.New("decoding UTF16LE text: value is not valid UTF-8")
 	}
-	*text = UTF16LE(string(data))
+	*t = UTF16LE(string(data))
 	return nil
 }
 

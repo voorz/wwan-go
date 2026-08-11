@@ -146,7 +146,7 @@ func TestWatchSIMEnrichesInitialSnapshot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("WatchSIM() error = %v", err)
 			}
-			initial := receiveSIMInfo(t, ctx, stream)
+			initial := receiveSIMInfo(ctx, t, stream)
 			if initial.Err != nil {
 				t.Fatalf("initial result error = %v", initial.Err)
 			}
@@ -154,7 +154,7 @@ func TestWatchSIMEnrichesInitialSnapshot(t *testing.T) {
 				t.Fatalf("initial SIM info = %+v, want ICCID %q without IMSI", initial.Value, iccid)
 			}
 
-			enriched := receiveSIMInfo(t, ctx, stream)
+			enriched := receiveSIMInfo(ctx, t, stream)
 			if enriched.Err != nil {
 				t.Fatalf("enriched result error = %v", enriched.Err)
 			}
@@ -165,7 +165,7 @@ func TestWatchSIMEnrichesInitialSnapshot(t *testing.T) {
 	}
 }
 
-func receiveSIMInfo(t *testing.T, ctx context.Context, stream <-chan Result[SIMInfo]) Result[SIMInfo] {
+func receiveSIMInfo(ctx context.Context, t *testing.T, stream <-chan Result[SIMInfo]) Result[SIMInfo] {
 	t.Helper()
 	select {
 	case result, ok := <-stream:

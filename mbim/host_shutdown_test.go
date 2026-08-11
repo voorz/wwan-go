@@ -18,8 +18,8 @@ func TestHostShutdownRequest(t *testing.T) {
 		{
 			name:        "notification",
 			request:     (&HostShutdownRequest{TransactionID: 1}).Request(),
-			serviceID:   ServiceMsHostShutdown,
-			commandID:   CIDMsHostShutdownNotify,
+			serviceID:   ServiceMSHostShutdown,
+			commandID:   CIDMSHostShutdownNotify,
 			commandType: CommandTypeSet,
 		},
 	}
@@ -53,11 +53,11 @@ func TestClientNotifyHostShutdown(t *testing.T) {
 			go func() {
 				defer close(errCh)
 				defer serverConn.Close()
-				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMsHostShutdown, CIDMsHostShutdownNotify, CommandTypeSet, nil); err != nil {
+				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMSHostShutdown, CIDMSHostShutdownNotify, CommandTypeSet, nil); err != nil {
 					errCh <- err
 					return
 				}
-				_, err := serverConn.Write(mbimCommandDone(1, ServiceMsHostShutdown, CIDMsHostShutdownNotify, nil))
+				_, err := serverConn.Write(mbimCommandDone(1, ServiceMSHostShutdown, CIDMSHostShutdownNotify, nil))
 				errCh <- err
 			}()
 
@@ -68,7 +68,7 @@ func TestClientNotifyHostShutdown(t *testing.T) {
 				t.Fatalf("NotifyHostShutdown() error = %v", err)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

@@ -56,6 +56,7 @@ func (c *Client) IncrementalNetworkScan(
 		}
 		releaseCtx, cancel := context.WithTimeout(context.Background(), monitorCleanupTimeout)
 		defer cancel()
+		// Client-ID release is best effort after the scan has ended.
 		_ = c.releaseServiceClientID(releaseCtx, ServiceNAS, clientID)
 	}
 
@@ -139,19 +140,20 @@ func (c *Client) abortNASIncrementalNetworkScan(clientID uint8, targetTransactio
 		tlv.Uint(0x01, targetTransactionID),
 	}, monitorCleanupTimeout)
 	if err == nil {
+		// Abort is best effort; the scan is already being torn down locally.
 		_ = resultOK(resp)
 	}
 }
 
 // MarshalTLVs encodes incremental network-scan fields.
-func (config NASIncrementalNetworkScanConfig) MarshalTLVs() (tlv.TLVs, error) {
-	if config.ScanType == nil {
+func (c NASIncrementalNetworkScanConfig) MarshalTLVs() (tlv.TLVs, error) {
+	if c.ScanType == nil {
 		return nil, nil
 	}
-	if *config.ScanType > NASNetworkScanCellSearch {
-		return nil, fmt.Errorf("encoding QMI NAS incremental network scan: scan type %d is out of range", *config.ScanType)
+	if *c.ScanType > NASNetworkScanCellSearch {
+		return nil, fmt.Errorf("encoding QMI NAS incremental network scan: scan type %d is out of range", *c.ScanType)
 	}
-	return tlv.TLVs{tlv.Uint(0x10, uint8(*config.ScanType))}, nil
+	return tlv.TLVs{tlv.Uint(0x10, uint8(*c.ScanType))}, nil
 }
 
 // UnmarshalTLVs decodes one QMI NAS incremental network-scan update.

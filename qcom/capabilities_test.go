@@ -84,7 +84,7 @@ func TestServiceSupportedMessagesRejectsUndefinedServices(t *testing.T) {
 		service ServiceType
 	}{
 		{name: "control", service: ServiceControl},
-		{name: "QOS", service: ServiceQOS},
+		{name: "QoS", service: ServiceQoS},
 		{name: "PBM", service: ServicePBM},
 	}
 

@@ -34,14 +34,14 @@ func TestMBIMExCommandRequests(t *testing.T) {
 		{
 			name:        "modem configuration query",
 			request:     (&ModemConfigurationRequest{TransactionID: 1, MBIMExVersion: mbimExVersion40}).Request(),
-			cid:         CIDMsModemConfiguration,
+			cid:         CIDMSModemConfiguration,
 			commandType: CommandTypeQuery,
 			wantTimeout: mbimCIDResponseTimeout,
 		},
 		{
 			name:        "registration parameters query",
 			request:     (&RegistrationParametersRequest{TransactionID: 1, MBIMExVersion: mbimExVersion40}).Request(),
-			cid:         CIDMsRegistrationParameters,
+			cid:         CIDMSRegistrationParameters,
 			commandType: CommandTypeQuery,
 			wantTimeout: mbimCIDResponseTimeout,
 		},
@@ -52,7 +52,7 @@ func TestMBIMExCommandRequests(t *testing.T) {
 				MBIMExVersion: mbimExVersion40,
 				Parameters:    registration,
 			}).Request(),
-			cid:         CIDMsRegistrationParameters,
+			cid:         CIDMSRegistrationParameters,
 			commandType: CommandTypeSet,
 			wantData:    registration.marshalBinaryUnchecked(),
 			wantTimeout: mbimCIDResponseTimeout,
@@ -64,7 +64,7 @@ func TestMBIMExCommandRequests(t *testing.T) {
 				MBIMExVersion: mbimExVersion40,
 				Query:         NetworkParametersQuery{TLVs: queryTLVs},
 			}).Request(),
-			cid:         CIDMsNetworkParameters,
+			cid:         CIDMSNetworkParameters,
 			commandType: CommandTypeQuery,
 			wantData:    queryData,
 			wantTimeout: mbimCIDLongResponseTimeout,
@@ -72,7 +72,7 @@ func TestMBIMExCommandRequests(t *testing.T) {
 		{
 			name:        "wake reason query",
 			request:     (&WakeReasonRequest{TransactionID: 1}).Request(),
-			cid:         CIDMsWakeReason,
+			cid:         CIDMSWakeReason,
 			commandType: CommandTypeQuery,
 			wantTimeout: mbimWakeReasonResponseTimeout,
 		},
@@ -82,7 +82,7 @@ func TestMBIMExCommandRequests(t *testing.T) {
 				TransactionID: 1,
 				Query:         queryTLVs,
 			}).Request(),
-			cid:         CIDMsUEPolicy,
+			cid:         CIDMSUEPolicy,
 			commandType: CommandTypeQuery,
 			wantData:    queryData,
 			wantTimeout: mbimCIDLongResponseTimeout,
@@ -92,7 +92,7 @@ func TestMBIMExCommandRequests(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.request.Command.(*Command)
-			if command.ServiceID != ServiceMsBasicConnectExtensions || command.CommandID != tt.cid || command.CommandType != tt.commandType {
+			if command.ServiceID != ServiceMSBasicConnectExtensions || command.CommandID != tt.cid || command.CommandType != tt.commandType {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if !bytes.Equal(command.Data, tt.wantData) {
@@ -101,19 +101,19 @@ func TestMBIMExCommandRequests(t *testing.T) {
 			if tt.request.Timeout != tt.wantTimeout {
 				t.Fatalf("timeout = %v, want %v", tt.request.Timeout, tt.wantTimeout)
 			}
-			if tt.cid == CIDMsRegistrationParameters {
+			if tt.cid == CIDMSRegistrationParameters {
 				response := tt.request.Response.(*RegistrationParametersInfo)
 				if response.MBIMExVersion != mbimExVersion40 {
 					t.Fatalf("response version = %#x, want %#x", response.MBIMExVersion, mbimExVersion40)
 				}
 			}
-			if tt.cid == CIDMsModemConfiguration {
+			if tt.cid == CIDMSModemConfiguration {
 				response := tt.request.Response.(*ModemConfigurationInfo)
 				if response.MBIMExVersion != mbimExVersion40 {
 					t.Fatalf("response version = %#x, want %#x", response.MBIMExVersion, mbimExVersion40)
 				}
 			}
-			if tt.cid == CIDMsNetworkParameters {
+			if tt.cid == CIDMSNetworkParameters {
 				response := tt.request.Response.(*NetworkParametersInfo)
 				if response.MBIMExVersion != mbimExVersion40 {
 					t.Fatalf("response version = %#x, want %#x", response.MBIMExVersion, mbimExVersion40)

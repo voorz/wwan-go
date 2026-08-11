@@ -50,14 +50,14 @@ func TestContextTypeValues(t *testing.T) {
 	}
 }
 
-func TestPinTypeValues(t *testing.T) {
+func TestPINTypeValues(t *testing.T) {
 	tests := []struct {
 		name string
-		got  PinType
-		want PinType
+		got  PINType
+		want PINType
 	}{
-		{name: "none", got: PinTypeNone, want: 0},
-		{name: "unknown compatibility alias", got: PinTypeUnknown, want: PinTypeNone},
+		{name: "none", got: PINTypeNone, want: 0},
+		{name: "unknown compatibility alias", got: PINTypeUnknown, want: PINTypeNone},
 	}
 
 	for _, tt := range tests {
@@ -219,8 +219,8 @@ func TestVariableDataRequestsIncludeFinalPadding(t *testing.T) {
 			req: (&APDURequest{
 				TransactionID:   1,
 				Channel:         3,
-				SecureMessaging: UiccSecureMessagingNone,
-				ClassByteType:   UiccClassByteTypeInterIndustry,
+				SecureMessaging: UICCSecureMessagingNone,
+				ClassByteType:   UICCClassByteTypeInterIndustry,
 				Command:         []byte{0x00, 0x88, 0x00, 0x81, 0x00},
 			}).Request(),
 			want: mustDecodeHex(t, "03000000000000000000000005000000140000000088008100000000"),
@@ -299,7 +299,7 @@ func TestVersionRequestData(t *testing.T) {
 				MBIMVersion:   mbimVersion10,
 				MBIMExVersion: hostMBIMExVersion,
 			}).Request(),
-			serviceID:   ServiceMsBasicConnectExtensions,
+			serviceID:   ServiceMSBasicConnectExtensions,
 			commandID:   CIDVersion,
 			commandType: CommandTypeQuery,
 			want:        mustDecodeHex(t, "00010004"),
@@ -413,7 +413,7 @@ func TestCommandRequestTimeouts(t *testing.T) {
 		},
 		{
 			name: "UICC ATR",
-			req:  (&UiccATRQueryRequest{TransactionID: 1}).Request(),
+			req:  (&UICCATRQueryRequest{TransactionID: 1}).Request(),
 			want: mbimCIDLongResponseTimeout,
 		},
 		{
@@ -436,32 +436,32 @@ func TestCommandRequestTimeouts(t *testing.T) {
 			name: "APDU",
 			req: (&APDURequest{
 				TransactionID:   1,
-				SecureMessaging: UiccSecureMessagingNone,
-				ClassByteType:   UiccClassByteTypeInterIndustry,
+				SecureMessaging: UICCSecureMessagingNone,
+				ClassByteType:   UICCClassByteTypeInterIndustry,
 			}).Request(),
 			want: mbimCIDLongResponseTimeout,
 		},
 		{
 			name: "terminal capability set",
-			req:  (&UiccTerminalCapabilitySetRequest{TransactionID: 1}).Request(),
+			req:  (&UICCTerminalCapabilitySetRequest{TransactionID: 1}).Request(),
 			want: mbimCIDResponseTimeout,
 		},
 		{
 			name: "terminal capability query",
-			req:  (&UiccTerminalCapabilityQueryRequest{TransactionID: 1}).Request(),
+			req:  (&UICCTerminalCapabilityQueryRequest{TransactionID: 1}).Request(),
 			want: mbimCIDResponseTimeout,
 		},
 		{
 			name: "UICC reset set",
-			req: (&UiccResetSetRequest{
+			req: (&UICCResetSetRequest{
 				TransactionID: 1,
-				Action:        UiccPassThroughActionEnable,
+				Action:        UICCPassThroughActionEnable,
 			}).Request(),
 			want: mbimCIDLongResponseTimeout,
 		},
 		{
 			name: "UICC reset query",
-			req:  (&UiccResetQueryRequest{TransactionID: 1}).Request(),
+			req:  (&UICCResetQueryRequest{TransactionID: 1}).Request(),
 			want: mbimCIDLongResponseTimeout,
 		},
 	}
@@ -489,7 +489,7 @@ func TestClientNegotiatesMBIMExVersion(t *testing.T) {
 			return
 		}
 		services := deviceServicesPayload(DeviceService{
-			ServiceID: ServiceMsBasicConnectExtensions,
+			ServiceID: ServiceMSBasicConnectExtensions,
 			CIDs:      []uint32{CIDVersion},
 		})
 		if _, err := server.Write(mbimCommandDone(1, ServiceBasicConnect, CIDDeviceServices, services)); err != nil {
@@ -497,11 +497,11 @@ func TestClientNegotiatesMBIMExVersion(t *testing.T) {
 			return
 		}
 
-		if err := expectMBIMCommandWithService(server, 2, ServiceMsBasicConnectExtensions, CIDVersion, CommandTypeQuery, mustDecodeHex(t, "00010004")); err != nil {
+		if err := expectMBIMCommandWithService(server, 2, ServiceMSBasicConnectExtensions, CIDVersion, CommandTypeQuery, mustDecodeHex(t, "00010004")); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(2, ServiceMsBasicConnectExtensions, CIDVersion, mustDecodeHex(t, "00010004"))); err != nil {
+		if _, err := server.Write(mbimCommandDone(2, ServiceMSBasicConnectExtensions, CIDVersion, mustDecodeHex(t, "00010004"))); err != nil {
 			errc <- err
 			return
 		}
@@ -518,7 +518,7 @@ func TestClientNegotiatesMBIMExVersion(t *testing.T) {
 		t.Fatalf("mbimExVersion = %#x, want %#x", mbimClient.mbimExVersion, mbimExVersion40)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -531,7 +531,7 @@ func TestClientDeviceServices(t *testing.T) {
 			name: "basic and extension services",
 			services: []DeviceService{
 				{ServiceID: ServiceBasicConnect, CIDs: []uint32{CIDConnect, CIDIPConfiguration}},
-				{ServiceID: ServiceMsBasicConnectExtensions, CIDs: []uint32{CIDVersion}},
+				{ServiceID: ServiceMSBasicConnectExtensions, CIDs: []uint32{CIDVersion}},
 			},
 		},
 	}
@@ -565,11 +565,11 @@ func TestClientDeviceServices(t *testing.T) {
 			if got.MaxDSSSessions != 3 || len(got.Services) != len(tt.services) {
 				t.Fatalf("DeviceServices() = %+v", got)
 			}
-			if !got.SupportsCID(ServiceBasicConnect, CIDConnect) || !got.SupportsCID(ServiceMsBasicConnectExtensions, CIDVersion) {
+			if !got.SupportsCID(ServiceBasicConnect, CIDConnect) || !got.SupportsCID(ServiceMSBasicConnectExtensions, CIDVersion) {
 				t.Fatalf("DeviceServices() missing expected CIDs: %+v", got.Services)
 			}
 			if err := <-errC; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -598,7 +598,7 @@ func TestClientConnectSkipsSlotActivationWithMBIMEx4(t *testing.T) {
 			return
 		}
 		services := deviceServicesPayload(DeviceService{
-			ServiceID: ServiceMsBasicConnectExtensions,
+			ServiceID: ServiceMSBasicConnectExtensions,
 			CIDs:      []uint32{CIDVersion},
 		})
 		if _, err := server.Write(mbimCommandDone(2, ServiceBasicConnect, CIDDeviceServices, services)); err != nil {
@@ -606,11 +606,11 @@ func TestClientConnectSkipsSlotActivationWithMBIMEx4(t *testing.T) {
 			return
 		}
 
-		if err := expectMBIMCommandWithService(server, 3, ServiceMsBasicConnectExtensions, CIDVersion, CommandTypeQuery, mustDecodeHex(t, "00010004")); err != nil {
+		if err := expectMBIMCommandWithService(server, 3, ServiceMSBasicConnectExtensions, CIDVersion, CommandTypeQuery, mustDecodeHex(t, "00010004")); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(3, ServiceMsBasicConnectExtensions, CIDVersion, mustDecodeHex(t, "00010004"))); err != nil {
+		if _, err := server.Write(mbimCommandDone(3, ServiceMSBasicConnectExtensions, CIDVersion, mustDecodeHex(t, "00010004"))); err != nil {
 			errc <- err
 			return
 		}
@@ -628,7 +628,7 @@ func TestClientConnectSkipsSlotActivationWithMBIMEx4(t *testing.T) {
 		t.Fatalf("mbimExVersion = %#x, want %#x", mbimClient.mbimExVersion, mbimExVersion40)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -659,11 +659,11 @@ func TestClientConnectActivatesSlotBeforeMBIMEx4(t *testing.T) {
 			return
 		}
 
-		if err := expectMBIMCommandWithService(server, 3, ServiceMsBasicConnectExtensions, CIDDeviceSlotMappings, CommandTypeQuery, nil); err != nil {
+		if err := expectMBIMCommandWithService(server, 3, ServiceMSBasicConnectExtensions, CIDDeviceSlotMappings, CommandTypeQuery, nil); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(3, ServiceMsBasicConnectExtensions, CIDDeviceSlotMappings, slotMappingsPayload(1))); err != nil {
+		if _, err := server.Write(mbimCommandDone(3, ServiceMSBasicConnectExtensions, CIDDeviceSlotMappings, slotMappingsPayload(1))); err != nil {
 			errc <- err
 			return
 		}
@@ -681,7 +681,7 @@ func TestClientConnectActivatesSlotBeforeMBIMEx4(t *testing.T) {
 		t.Fatalf("mbimExVersion = %#x, want %#x", mbimClient.mbimExVersion, mbimExVersion10)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -904,7 +904,7 @@ func TestSTKResponseUnmarshalBinary(t *testing.T) {
 	}
 }
 
-func TestUiccATRRequestData(t *testing.T) {
+func TestUICCATRRequestData(t *testing.T) {
 	tests := []struct {
 		name string
 		req  *Request
@@ -912,12 +912,12 @@ func TestUiccATRRequestData(t *testing.T) {
 	}{
 		{
 			name: "query",
-			req:  (&UiccATRQueryRequest{TransactionID: 1}).Request(),
+			req:  (&UICCATRQueryRequest{TransactionID: 1}).Request(),
 			want: nil,
 		},
 		{
 			name: "query EX4",
-			req: (&UiccATRQueryRequest{
+			req: (&UICCATRQueryRequest{
 				TransactionID: 1,
 				MBIMExVersion: mbimExVersion40,
 				SlotID:        1,
@@ -929,11 +929,11 @@ func TestUiccATRRequestData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.req.Command.(*Command)
-			if command.ServiceID != ServiceMsUiccLowLevelAccess {
+			if command.ServiceID != ServiceMSUICCLowLevelAccess {
 				t.Fatalf("ServiceID = % X, want MS UICC low level access", command.ServiceID)
 			}
-			if command.CommandID != CIDUiccATR || command.CommandType != CommandTypeQuery {
-				t.Fatalf("command = cid %d type %d, want cid %d query", command.CommandID, command.CommandType, CIDUiccATR)
+			if command.CommandID != CIDUICCATR || command.CommandType != CommandTypeQuery {
+				t.Fatalf("command = cid %d type %d, want cid %d query", command.CommandID, command.CommandType, CIDUICCATR)
 			}
 			if !bytes.Equal(command.Data, tt.want) {
 				t.Fatalf("Data = %X, want %X", command.Data, tt.want)
@@ -956,7 +956,7 @@ func TestUICCChannelRequestData(t *testing.T) {
 				ApplicationID: []byte{0xA0, 0x00, 0x00, 0x00, 0x87, 0x10, 0x04},
 				ChannelGroup:  uiccChannelGroupDefault,
 			}).Request(),
-			commandID: CIDUiccOpenChannel,
+			commandID: CIDUICCOpenChannel,
 			want:      mustDecodeHex(t, "07000000100000000000000001000000A0000000871004"),
 		},
 		{
@@ -968,7 +968,7 @@ func TestUICCChannelRequestData(t *testing.T) {
 				ApplicationID: []byte{0xA0, 0x00, 0x00, 0x00, 0x87, 0x10, 0x04},
 				ChannelGroup:  uiccChannelGroupDefault,
 			}).Request(),
-			commandID: CIDUiccOpenChannel,
+			commandID: CIDUICCOpenChannel,
 			want:      mustDecodeHex(t, "0700000014000000000000000100000001000000A0000000871004"),
 		},
 		{
@@ -976,11 +976,11 @@ func TestUICCChannelRequestData(t *testing.T) {
 			req: (&APDURequest{
 				TransactionID:   1,
 				Channel:         3,
-				SecureMessaging: UiccSecureMessagingNone,
-				ClassByteType:   UiccClassByteTypeInterIndustry,
+				SecureMessaging: UICCSecureMessagingNone,
+				ClassByteType:   UICCClassByteTypeInterIndustry,
 				Command:         []byte{0x00, 0x88, 0x00, 0x81},
 			}).Request(),
-			commandID: CIDUiccAPDU,
+			commandID: CIDUICCAPDU,
 			want:      mustDecodeHex(t, "030000000000000000000000040000001400000000880081"),
 		},
 		{
@@ -990,11 +990,11 @@ func TestUICCChannelRequestData(t *testing.T) {
 				MBIMExVersion:   mbimExVersion40,
 				SlotID:          1,
 				Channel:         3,
-				SecureMessaging: UiccSecureMessagingNone,
-				ClassByteType:   UiccClassByteTypeInterIndustry,
+				SecureMessaging: UICCSecureMessagingNone,
+				ClassByteType:   UICCClassByteTypeInterIndustry,
 				Command:         []byte{0x00, 0x88, 0x00, 0x81},
 			}).Request(),
-			commandID: CIDUiccAPDU,
+			commandID: CIDUICCAPDU,
 			want:      mustDecodeHex(t, "03000000000000000000000004000000180000000100000000880081"),
 		},
 		{
@@ -1004,7 +1004,7 @@ func TestUICCChannelRequestData(t *testing.T) {
 				Channel:       3,
 				ChannelGroup:  uiccChannelGroupDefault,
 			}).Request(),
-			commandID: CIDUiccCloseChannel,
+			commandID: CIDUICCCloseChannel,
 			want:      mustDecodeHex(t, "0300000001000000"),
 		},
 		{
@@ -1016,7 +1016,7 @@ func TestUICCChannelRequestData(t *testing.T) {
 				Channel:       3,
 				ChannelGroup:  uiccChannelGroupDefault,
 			}).Request(),
-			commandID: CIDUiccCloseChannel,
+			commandID: CIDUICCCloseChannel,
 			want:      mustDecodeHex(t, "030000000100000001000000"),
 		},
 	}
@@ -1024,7 +1024,7 @@ func TestUICCChannelRequestData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.req.Command.(*Command)
-			if command.ServiceID != ServiceMsUiccLowLevelAccess {
+			if command.ServiceID != ServiceMSUICCLowLevelAccess {
 				t.Fatalf("ServiceID = % X, want MS UICC low level access", command.ServiceID)
 			}
 			if command.CommandID != tt.commandID || command.CommandType != CommandTypeSet {
@@ -1037,7 +1037,7 @@ func TestUICCChannelRequestData(t *testing.T) {
 	}
 }
 
-func TestUiccResetRequestData(t *testing.T) {
+func TestUICCResetRequestData(t *testing.T) {
 	tests := []struct {
 		name        string
 		req         *Request
@@ -1046,33 +1046,33 @@ func TestUiccResetRequestData(t *testing.T) {
 	}{
 		{
 			name: "set",
-			req: (&UiccResetSetRequest{
+			req: (&UICCResetSetRequest{
 				TransactionID: 1,
-				Action:        UiccPassThroughActionEnable,
+				Action:        UICCPassThroughActionEnable,
 			}).Request(),
 			commandType: CommandTypeSet,
 			want:        mustDecodeHex(t, "01000000"),
 		},
 		{
 			name: "set EX4",
-			req: (&UiccResetSetRequest{
+			req: (&UICCResetSetRequest{
 				TransactionID: 1,
 				MBIMExVersion: mbimExVersion40,
 				SlotID:        1,
-				Action:        UiccPassThroughActionEnable,
+				Action:        UICCPassThroughActionEnable,
 			}).Request(),
 			commandType: CommandTypeSet,
 			want:        mustDecodeHex(t, "0100000001000000"),
 		},
 		{
 			name:        "query",
-			req:         (&UiccResetQueryRequest{TransactionID: 1}).Request(),
+			req:         (&UICCResetQueryRequest{TransactionID: 1}).Request(),
 			commandType: CommandTypeQuery,
 			want:        nil,
 		},
 		{
 			name: "query EX4",
-			req: (&UiccResetQueryRequest{
+			req: (&UICCResetQueryRequest{
 				TransactionID: 1,
 				MBIMExVersion: mbimExVersion40,
 				SlotID:        1,
@@ -1085,11 +1085,11 @@ func TestUiccResetRequestData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.req.Command.(*Command)
-			if command.ServiceID != ServiceMsUiccLowLevelAccess {
+			if command.ServiceID != ServiceMSUICCLowLevelAccess {
 				t.Fatalf("ServiceID = % X, want MS UICC low level access", command.ServiceID)
 			}
-			if command.CommandID != CIDUiccReset || command.CommandType != tt.commandType {
-				t.Fatalf("command = cid %d type %d, want cid %d type %d", command.CommandID, command.CommandType, CIDUiccReset, tt.commandType)
+			if command.CommandID != CIDUICCReset || command.CommandType != tt.commandType {
+				t.Fatalf("command = cid %d type %d, want cid %d type %d", command.CommandID, command.CommandType, CIDUICCReset, tt.commandType)
 			}
 			if !bytes.Equal(command.Data, tt.want) {
 				t.Fatalf("Data = %X, want %X", command.Data, tt.want)
@@ -1098,7 +1098,7 @@ func TestUiccResetRequestData(t *testing.T) {
 	}
 }
 
-func TestUiccATRResponseUnmarshalBinary(t *testing.T) {
+func TestUICCATRResponseUnmarshalBinary(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    []byte
@@ -1129,7 +1129,7 @@ func TestUiccATRResponseUnmarshalBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got UiccATRResponse
+			var got UICCATRResponse
 			err := got.UnmarshalBinary(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalBinary() error = %v, wantErr %v", err, tt.wantErr)
@@ -1144,22 +1144,22 @@ func TestUiccATRResponseUnmarshalBinary(t *testing.T) {
 	}
 }
 
-func TestUiccResetResponseUnmarshalBinary(t *testing.T) {
+func TestUICCResetResponseUnmarshalBinary(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    []byte
-		want    UiccPassThroughStatus
+		want    UICCPassThroughStatus
 		wantErr bool
 	}{
 		{
 			name: "disabled",
 			data: mustDecodeHex(t, "00000000"),
-			want: UiccPassThroughStatusDisabled,
+			want: UICCPassThroughStatusDisabled,
 		},
 		{
 			name: "enabled",
 			data: mustDecodeHex(t, "01000000"),
-			want: UiccPassThroughStatusEnabled,
+			want: UICCPassThroughStatusEnabled,
 		},
 		{
 			name:    "truncated",
@@ -1170,7 +1170,7 @@ func TestUiccResetResponseUnmarshalBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got UiccResetResponse
+			var got UICCResetResponse
 			err := got.UnmarshalBinary(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalBinary() error = %v, wantErr %v", err, tt.wantErr)
@@ -1185,7 +1185,7 @@ func TestUiccResetResponseUnmarshalBinary(t *testing.T) {
 	}
 }
 
-func TestUiccTerminalCapabilityRequestData(t *testing.T) {
+func TestUICCTerminalCapabilityRequestData(t *testing.T) {
 	terminalCapabilities := [][]byte{
 		{0x0A, 0x0B, 0x0C, 0x0D, 0x0A},
 		{0xA0, 0xB0, 0xC0},
@@ -1200,7 +1200,7 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 	}{
 		{
 			name: "set",
-			req: (&UiccTerminalCapabilitySetRequest{
+			req: (&UICCTerminalCapabilitySetRequest{
 				TransactionID: 1,
 				Capabilities:  terminalCapabilities,
 			}).Request(),
@@ -1209,7 +1209,7 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 		},
 		{
 			name: "set EX4",
-			req: (&UiccTerminalCapabilitySetRequest{
+			req: (&UICCTerminalCapabilitySetRequest{
 				TransactionID: 1,
 				MBIMExVersion: mbimExVersion40,
 				SlotID:        1,
@@ -1220,7 +1220,7 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 		},
 		{
 			name: "set empty",
-			req: (&UiccTerminalCapabilitySetRequest{
+			req: (&UICCTerminalCapabilitySetRequest{
 				TransactionID: 1,
 			}).Request(),
 			commandType: CommandTypeSet,
@@ -1228,7 +1228,7 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 		},
 		{
 			name: "set empty EX4",
-			req: (&UiccTerminalCapabilitySetRequest{
+			req: (&UICCTerminalCapabilitySetRequest{
 				TransactionID: 1,
 				MBIMExVersion: mbimExVersion40,
 				SlotID:        1,
@@ -1238,13 +1238,13 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 		},
 		{
 			name:        "query",
-			req:         (&UiccTerminalCapabilityQueryRequest{TransactionID: 1}).Request(),
+			req:         (&UICCTerminalCapabilityQueryRequest{TransactionID: 1}).Request(),
 			commandType: CommandTypeQuery,
 			want:        nil,
 		},
 		{
 			name: "query EX4",
-			req: (&UiccTerminalCapabilityQueryRequest{
+			req: (&UICCTerminalCapabilityQueryRequest{
 				TransactionID: 1,
 				MBIMExVersion: mbimExVersion40,
 				SlotID:        1,
@@ -1257,11 +1257,11 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.req.Command.(*Command)
-			if command.ServiceID != ServiceMsUiccLowLevelAccess {
+			if command.ServiceID != ServiceMSUICCLowLevelAccess {
 				t.Fatalf("ServiceID = % X, want MS UICC low level access", command.ServiceID)
 			}
-			if command.CommandID != CIDUiccTerminalCapability || command.CommandType != tt.commandType {
-				t.Fatalf("command = cid %d type %d, want cid %d type %d", command.CommandID, command.CommandType, CIDUiccTerminalCapability, tt.commandType)
+			if command.CommandID != CIDUICCTerminalCapability || command.CommandType != tt.commandType {
+				t.Fatalf("command = cid %d type %d, want cid %d type %d", command.CommandID, command.CommandType, CIDUICCTerminalCapability, tt.commandType)
 			}
 			if !bytes.Equal(command.Data, tt.want) {
 				t.Fatalf("Data = %X, want %X", command.Data, tt.want)
@@ -1270,7 +1270,7 @@ func TestUiccTerminalCapabilityRequestData(t *testing.T) {
 	}
 }
 
-func TestUiccTerminalCapabilityResponseUnmarshalBinary(t *testing.T) {
+func TestUICCTerminalCapabilityResponseUnmarshalBinary(t *testing.T) {
 	tests := []struct {
 		name    string
 		data    []byte
@@ -1309,7 +1309,7 @@ func TestUiccTerminalCapabilityResponseUnmarshalBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got UiccTerminalCapabilityResponse
+			var got UICCTerminalCapabilityResponse
 			err := got.UnmarshalBinary(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalBinary() error = %v, wantErr %v", err, tt.wantErr)
@@ -1404,7 +1404,7 @@ func TestUICCChannelResponseUnmarshalBinary(t *testing.T) {
 	}
 }
 
-func TestClientQueryUiccATR(t *testing.T) {
+func TestClientQueryUICCATR(t *testing.T) {
 	tests := []struct {
 		name string
 		data []byte
@@ -1427,11 +1427,11 @@ func TestClientQueryUiccATR(t *testing.T) {
 				defer close(errc)
 				defer server.Close()
 
-				if err := expectMBIMCommandWithType(server, 1, CIDUiccATR, CommandTypeQuery, nil); err != nil {
+				if err := expectMBIMCommandWithType(server, 1, CIDUICCATR, CommandTypeQuery, nil); err != nil {
 					errc <- err
 					return
 				}
-				if _, err := server.Write(mbimCommandDone(1, ServiceMsUiccLowLevelAccess, CIDUiccATR, tt.data)); err != nil {
+				if _, err := server.Write(mbimCommandDone(1, ServiceMSUICCLowLevelAccess, CIDUICCATR, tt.data)); err != nil {
 					errc <- err
 					return
 				}
@@ -1441,15 +1441,15 @@ func TestClientQueryUiccATR(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			got, err := mbimClient.QueryUiccATR(ctx)
+			got, err := mbimClient.QueryUICCATR(ctx)
 			if err != nil {
-				t.Fatalf("QueryUiccATR() error = %v", err)
+				t.Fatalf("QueryUICCATR() error = %v", err)
 			}
 			if !bytes.Equal(got, tt.want) {
-				t.Fatalf("QueryUiccATR() = %X, want %X", got, tt.want)
+				t.Fatalf("QueryUICCATR() = %X, want %X", got, tt.want)
 			}
 			if err := <-errc; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1489,7 +1489,7 @@ func TestClientRadioState(t *testing.T) {
 		t.Fatalf("SwRadioState = %d, want %d", got.SwRadioState, RadioSwitchStateOff)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -1535,7 +1535,7 @@ func TestClientSetRadioState(t *testing.T) {
 				t.Fatalf("SwRadioState = %d, want %d", got.SwRadioState, tt.state)
 			}
 			if err := <-errc; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1593,12 +1593,12 @@ func TestUICCSlotIDValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &Client{mbimExVersion: tt.version, slot: tt.slot}
-			err := client.validateUiccSlotID()
+			err := client.validateUICCSlotID()
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("validateUiccSlotID() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("validateUICCSlotID() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr && !errors.Is(err, StatusInvalidSlot) {
-				t.Fatalf("validateUiccSlotID() error = %v, want %v", err, StatusInvalidSlot)
+				t.Fatalf("validateUICCSlotID() error = %v, want %v", err, StatusInvalidSlot)
 			}
 		})
 	}
@@ -1612,7 +1612,7 @@ func TestClientUICCOperationsRejectReservedSlot(t *testing.T) {
 		{
 			name: "ATR",
 			run: func(ctx context.Context, client *Client) error {
-				_, err := client.QueryUiccATR(ctx)
+				_, err := client.QueryUICCATR(ctx)
 				return err
 			},
 		},
@@ -1633,27 +1633,27 @@ func TestClientUICCOperationsRejectReservedSlot(t *testing.T) {
 		{
 			name: "set reset",
 			run: func(ctx context.Context, client *Client) error {
-				_, err := client.SetUiccReset(ctx, UiccPassThroughActionDisable)
+				_, err := client.SetUICCReset(ctx, UICCPassThroughActionDisable)
 				return err
 			},
 		},
 		{
 			name: "query reset",
 			run: func(ctx context.Context, client *Client) error {
-				_, err := client.QueryUiccReset(ctx)
+				_, err := client.QueryUICCReset(ctx)
 				return err
 			},
 		},
 		{
 			name: "set terminal capability",
 			run: func(ctx context.Context, client *Client) error {
-				return client.SetUiccTerminalCapability(ctx, nil)
+				return client.SetUICCTerminalCapability(ctx, nil)
 			},
 		},
 		{
 			name: "query terminal capability",
 			run: func(ctx context.Context, client *Client) error {
-				_, err := client.QueryUiccTerminalCapability(ctx)
+				_, err := client.QueryUICCTerminalCapability(ctx)
 				return err
 			},
 		},
@@ -1689,11 +1689,11 @@ func TestClientUICCChannelTransmitsAPDU(t *testing.T) {
 		defer close(errc)
 		defer server.Close()
 
-		if err := expectMBIMCommand(server, 1, CIDUiccOpenChannel, mustDecodeHex(t, "07000000100000000000000001000000A0000000871004")); err != nil {
+		if err := expectMBIMCommand(server, 1, CIDUICCOpenChannel, mustDecodeHex(t, "07000000100000000000000001000000A0000000871004")); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(1, ServiceMsUiccLowLevelAccess, CIDUiccOpenChannel, mbimUICCOpenChannelResponseData(0x90, 3, nil))); err != nil {
+		if _, err := server.Write(mbimCommandDone(1, ServiceMSUICCLowLevelAccess, CIDUICCOpenChannel, mbimUICCOpenChannelResponseData(0x90, 3, nil))); err != nil {
 			errc <- err
 			return
 		}
@@ -1704,25 +1704,25 @@ func TestClientUICCChannelTransmitsAPDU(t *testing.T) {
 		wantRequest := apdu.Request{CLA: 0x00, INS: 0x88, P1: 0x00, P2: 0x81, Data: data}
 		wantAPDU := wantRequest.APDU()
 		wantAPDUData := binary.LittleEndian.AppendUint32(nil, 3)
-		wantAPDUData = binary.LittleEndian.AppendUint32(wantAPDUData, uint32(UiccSecureMessagingNone))
-		wantAPDUData = binary.LittleEndian.AppendUint32(wantAPDUData, uint32(UiccClassByteTypeInterIndustry))
+		wantAPDUData = binary.LittleEndian.AppendUint32(wantAPDUData, uint32(UICCSecureMessagingNone))
+		wantAPDUData = binary.LittleEndian.AppendUint32(wantAPDUData, uint32(UICCClassByteTypeInterIndustry))
 		wantAPDUData = binary.LittleEndian.AppendUint32(wantAPDUData, uint32(len(wantAPDU)))
 		wantAPDUData = binary.LittleEndian.AppendUint32(wantAPDUData, 20)
 		wantAPDUData = append(wantAPDUData, wantAPDU...)
-		if err := expectMBIMCommand(server, 2, CIDUiccAPDU, wantAPDUData); err != nil {
+		if err := expectMBIMCommand(server, 2, CIDUICCAPDU, wantAPDUData); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(2, ServiceMsUiccLowLevelAccess, CIDUiccAPDU, mbimUICCResponseData(0x90, apduResponse))); err != nil {
+		if _, err := server.Write(mbimCommandDone(2, ServiceMSUICCLowLevelAccess, CIDUICCAPDU, mbimUICCResponseData(0x90, apduResponse))); err != nil {
 			errc <- err
 			return
 		}
 
-		if err := expectMBIMCommand(server, 3, CIDUiccCloseChannel, mustDecodeHex(t, "0300000001000000")); err != nil {
+		if err := expectMBIMCommand(server, 3, CIDUICCCloseChannel, mustDecodeHex(t, "0300000001000000")); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(3, ServiceMsUiccLowLevelAccess, CIDUiccCloseChannel, mustDecodeHex(t, "90000000"))); err != nil {
+		if _, err := server.Write(mbimCommandDone(3, ServiceMSUICCLowLevelAccess, CIDUICCCloseChannel, mustDecodeHex(t, "90000000"))); err != nil {
 			errc <- err
 			return
 		}
@@ -1754,11 +1754,11 @@ func TestClientUICCChannelTransmitsAPDU(t *testing.T) {
 		t.Fatalf("CloseChannel() error = %v", err)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
-func TestClientUiccResetAndTerminalCapability(t *testing.T) {
+func TestClientUICCResetAndTerminalCapability(t *testing.T) {
 	client, server := net.Pipe()
 	t.Cleanup(func() { _ = client.Close() })
 
@@ -1773,38 +1773,38 @@ func TestClientUiccResetAndTerminalCapability(t *testing.T) {
 		defer close(errc)
 		defer server.Close()
 
-		if err := expectMBIMCommandWithType(server, 1, CIDUiccReset, CommandTypeSet, mustDecodeHex(t, "01000000")); err != nil {
+		if err := expectMBIMCommandWithType(server, 1, CIDUICCReset, CommandTypeSet, mustDecodeHex(t, "01000000")); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(1, ServiceMsUiccLowLevelAccess, CIDUiccReset, mustDecodeHex(t, "01000000"))); err != nil {
-			errc <- err
-			return
-		}
-
-		if err := expectMBIMCommandWithType(server, 2, CIDUiccReset, CommandTypeQuery, nil); err != nil {
-			errc <- err
-			return
-		}
-		if _, err := server.Write(mbimCommandDone(2, ServiceMsUiccLowLevelAccess, CIDUiccReset, mustDecodeHex(t, "00000000"))); err != nil {
+		if _, err := server.Write(mbimCommandDone(1, ServiceMSUICCLowLevelAccess, CIDUICCReset, mustDecodeHex(t, "01000000"))); err != nil {
 			errc <- err
 			return
 		}
 
-		if err := expectMBIMCommandWithType(server, 3, CIDUiccTerminalCapability, CommandTypeSet, terminalCapabilityPayload); err != nil {
+		if err := expectMBIMCommandWithType(server, 2, CIDUICCReset, CommandTypeQuery, nil); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(3, ServiceMsUiccLowLevelAccess, CIDUiccTerminalCapability, nil)); err != nil {
+		if _, err := server.Write(mbimCommandDone(2, ServiceMSUICCLowLevelAccess, CIDUICCReset, mustDecodeHex(t, "00000000"))); err != nil {
 			errc <- err
 			return
 		}
 
-		if err := expectMBIMCommandWithType(server, 4, CIDUiccTerminalCapability, CommandTypeQuery, nil); err != nil {
+		if err := expectMBIMCommandWithType(server, 3, CIDUICCTerminalCapability, CommandTypeSet, terminalCapabilityPayload); err != nil {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(4, ServiceMsUiccLowLevelAccess, CIDUiccTerminalCapability, terminalCapabilityPayload)); err != nil {
+		if _, err := server.Write(mbimCommandDone(3, ServiceMSUICCLowLevelAccess, CIDUICCTerminalCapability, nil)); err != nil {
+			errc <- err
+			return
+		}
+
+		if err := expectMBIMCommandWithType(server, 4, CIDUICCTerminalCapability, CommandTypeQuery, nil); err != nil {
+			errc <- err
+			return
+		}
+		if _, err := server.Write(mbimCommandDone(4, ServiceMSUICCLowLevelAccess, CIDUICCTerminalCapability, terminalCapabilityPayload)); err != nil {
 			errc <- err
 			return
 		}
@@ -1814,41 +1814,41 @@ func TestClientUiccResetAndTerminalCapability(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	resetStatus, err := mbimClient.SetUiccReset(ctx, UiccPassThroughActionEnable)
+	resetStatus, err := mbimClient.SetUICCReset(ctx, UICCPassThroughActionEnable)
 	if err != nil {
-		t.Fatalf("SetUiccReset() error = %v", err)
+		t.Fatalf("SetUICCReset() error = %v", err)
 	}
-	if resetStatus != UiccPassThroughStatusEnabled {
-		t.Fatalf("SetUiccReset() status = %d, want %d", resetStatus, UiccPassThroughStatusEnabled)
+	if resetStatus != UICCPassThroughStatusEnabled {
+		t.Fatalf("SetUICCReset() status = %d, want %d", resetStatus, UICCPassThroughStatusEnabled)
 	}
 
-	resetStatus, err = mbimClient.QueryUiccReset(ctx)
+	resetStatus, err = mbimClient.QueryUICCReset(ctx)
 	if err != nil {
-		t.Fatalf("QueryUiccReset() error = %v", err)
+		t.Fatalf("QueryUICCReset() error = %v", err)
 	}
-	if resetStatus != UiccPassThroughStatusDisabled {
-		t.Fatalf("QueryUiccReset() status = %d, want %d", resetStatus, UiccPassThroughStatusDisabled)
+	if resetStatus != UICCPassThroughStatusDisabled {
+		t.Fatalf("QueryUICCReset() status = %d, want %d", resetStatus, UICCPassThroughStatusDisabled)
 	}
 
-	if err := mbimClient.SetUiccTerminalCapability(ctx, terminalCapabilities); err != nil {
-		t.Fatalf("SetUiccTerminalCapability() error = %v", err)
+	if err := mbimClient.SetUICCTerminalCapability(ctx, terminalCapabilities); err != nil {
+		t.Fatalf("SetUICCTerminalCapability() error = %v", err)
 	}
 
-	gotCapabilities, err := mbimClient.QueryUiccTerminalCapability(ctx)
+	gotCapabilities, err := mbimClient.QueryUICCTerminalCapability(ctx)
 	if err != nil {
-		t.Fatalf("QueryUiccTerminalCapability() error = %v", err)
+		t.Fatalf("QueryUICCTerminalCapability() error = %v", err)
 	}
 	if len(gotCapabilities) != len(terminalCapabilities) {
-		t.Fatalf("QueryUiccTerminalCapability() length = %d, want %d", len(gotCapabilities), len(terminalCapabilities))
+		t.Fatalf("QueryUICCTerminalCapability() length = %d, want %d", len(gotCapabilities), len(terminalCapabilities))
 	}
 	for i := range terminalCapabilities {
 		if !slices.Equal(gotCapabilities[i], terminalCapabilities[i]) {
-			t.Fatalf("QueryUiccTerminalCapability()[%d] = %X, want %X", i, gotCapabilities[i], terminalCapabilities[i])
+			t.Fatalf("QueryUICCTerminalCapability()[%d] = %X, want %X", i, gotCapabilities[i], terminalCapabilities[i])
 		}
 	}
 
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -1909,7 +1909,7 @@ func TestClientSTKEnvelopeChecksSupport(t *testing.T) {
 				t.Fatalf("STKEnvelope() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := <-errc; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -1958,7 +1958,7 @@ func TestClientSTKEnvelopeUsesCachedSupport(t *testing.T) {
 		t.Fatalf("STKEnvelope() error = %v", err)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -2038,7 +2038,7 @@ func TestClientSTKPACAndTerminalResponse(t *testing.T) {
 	}
 
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -2076,7 +2076,7 @@ func TestClientReadSTKPAC(t *testing.T) {
 		t.Fatalf("ReadSTKPAC().Command = %X, want %X", got.Command, command)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -2115,7 +2115,7 @@ func TestClientQueuesSTKPACDuringCommand(t *testing.T) {
 		defer close(errc)
 		defer server.Close()
 
-		if err := expectMBIMCommandWithType(server, 1, CIDUiccATR, CommandTypeQuery, nil); err != nil {
+		if err := expectMBIMCommandWithType(server, 1, CIDUICCATR, CommandTypeQuery, nil); err != nil {
 			errc <- err
 			return
 		}
@@ -2123,7 +2123,7 @@ func TestClientQueuesSTKPACDuringCommand(t *testing.T) {
 			errc <- err
 			return
 		}
-		if _, err := server.Write(mbimCommandDone(1, ServiceMsUiccLowLevelAccess, CIDUiccATR, atr)); err != nil {
+		if _, err := server.Write(mbimCommandDone(1, ServiceMSUICCLowLevelAccess, CIDUICCATR, atr)); err != nil {
 			errc <- err
 			return
 		}
@@ -2133,8 +2133,8 @@ func TestClientQueuesSTKPACDuringCommand(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	if _, err := mbimClient.QueryUiccATR(ctx); err != nil {
-		t.Fatalf("QueryUiccATR() error = %v", err)
+	if _, err := mbimClient.QueryUICCATR(ctx); err != nil {
+		t.Fatalf("QueryUICCATR() error = %v", err)
 	}
 	got, err := mbimClient.ReadSTKPAC(ctx)
 	if err != nil {
@@ -2144,7 +2144,7 @@ func TestClientQueuesSTKPACDuringCommand(t *testing.T) {
 		t.Fatalf("ReadSTKPAC().Command = %X, want %X", got.Command, command)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -2173,7 +2173,7 @@ func TestClientReadSTKPACPreservesQueuedIndications(t *testing.T) {
 				defer close(errc)
 				defer server.Close()
 
-				if err := expectMBIMCommandWithType(server, 1, CIDUiccATR, CommandTypeQuery, nil); err != nil {
+				if err := expectMBIMCommandWithType(server, 1, CIDUICCATR, CommandTypeQuery, nil); err != nil {
 					errc <- err
 					return
 				}
@@ -2185,7 +2185,7 @@ func TestClientReadSTKPACPreservesQueuedIndications(t *testing.T) {
 						return
 					}
 				}
-				if _, err := server.Write(mbimCommandDone(1, ServiceMsUiccLowLevelAccess, CIDUiccATR, atr)); err != nil {
+				if _, err := server.Write(mbimCommandDone(1, ServiceMSUICCLowLevelAccess, CIDUICCATR, atr)); err != nil {
 					errc <- err
 					return
 				}
@@ -2195,8 +2195,8 @@ func TestClientReadSTKPACPreservesQueuedIndications(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			if _, err := mbimClient.QueryUiccATR(ctx); err != nil {
-				t.Fatalf("QueryUiccATR() error = %v", err)
+			if _, err := mbimClient.QueryUICCATR(ctx); err != nil {
+				t.Fatalf("QueryUICCATR() error = %v", err)
 			}
 			for i, want := range tt.commands {
 				got, err := mbimClient.ReadSTKPAC(ctx)
@@ -2208,7 +2208,7 @@ func TestClientReadSTKPACPreservesQueuedIndications(t *testing.T) {
 				}
 			}
 			if err := <-errc; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -2250,10 +2250,10 @@ func TestClientWatchSTKPAC(t *testing.T) {
 			t.Fatalf("WatchSTKPAC().Command = %X, want %X", got.Command, command)
 		}
 	case <-ctx.Done():
-		t.Fatal(ctx.Err())
+		t.Fatalf("waiting for STK PAC notification: %v", ctx.Err())
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
@@ -2296,19 +2296,19 @@ func TestClientAuthenticateAKAReturnsAUTSOnSyncFailure(t *testing.T) {
 		t.Fatalf("AuthenticateAKA().AUTS = %X, want %X", got.AUTS, auts)
 	}
 	if err := <-errc; err != nil {
-		t.Fatal(err)
+		t.Fatalf("device peer exchange error = %v", err)
 	}
 }
 
 func TestRequestTransmitAcceptsResponseLargerThanControlTransfer(t *testing.T) {
 	payload := bytes.Repeat([]byte{0xDB}, defaultMaxControlTransfer+256)
-	response := mbimCommandDone(1, ServiceMsUiccLowLevelAccess, CIDUiccAPDU, mbimUICCResponseData(0x90, payload))
+	response := mbimCommandDone(1, ServiceMSUICCLowLevelAccess, CIDUICCAPDU, mbimUICCResponseData(0x90, payload))
 	conn := &scriptMBIMConn{read: bytes.NewReader(response)}
 	request := (&APDURequest{
 		TransactionID:   1,
 		Channel:         3,
-		SecureMessaging: UiccSecureMessagingNone,
-		ClassByteType:   UiccClassByteTypeInterIndustry,
+		SecureMessaging: UICCSecureMessagingNone,
+		ClassByteType:   UICCClassByteTypeInterIndustry,
 		Command:         []byte{0x00, 0x88, 0x00, 0x81},
 	}).Request()
 
@@ -2338,15 +2338,15 @@ func TestRequestTransmitContinuesAfterDeadlineExceeded(t *testing.T) {
 func TestRequestTransmitSkipsMismatchedCommandDone(t *testing.T) {
 	payload := subscriberReadyPayload(t, SubscriberReadyStateInitialized, "001010123456789", "89014103211118510720", ReadyInfoNone)
 	mismatchedFrames, err := fragmentedMessage{
-		data:         mbimCommandDone(1, ServiceBasicConnect, CIDUiccAPDU, bytes.Repeat([]byte{0xAA}, 80)),
+		data:         mbimCommandDone(1, ServiceBasicConnect, CIDUICCAPDU, bytes.Repeat([]byte{0xAA}, 80)),
 		maxFrameSize: 64,
 	}.Frames()
 	if err != nil {
 		t.Fatalf("Frames() error = %v", err)
 	}
 	frames := append([][]byte{
-		mbimCommandDoneStatus(1, ServiceMsUiccLowLevelAccess, CIDUiccAPDU, StatusFailure, nil),
-		mbimCommandDoneTruncatedResponse(1, ServiceMsUiccLowLevelAccess, CIDUiccAPDU),
+		mbimCommandDoneStatus(1, ServiceMSUICCLowLevelAccess, CIDUICCAPDU, StatusFailure, nil),
+		mbimCommandDoneTruncatedResponse(1, ServiceMSUICCLowLevelAccess, CIDUICCAPDU),
 	}, mismatchedFrames...)
 	frames = append(frames, mbimCommandDone(1, ServiceBasicConnect, CIDSubscriberReadyStatus, payload))
 	conn := &scriptMBIMConn{
@@ -2452,11 +2452,11 @@ func TestClientDeviceSlotMappings(t *testing.T) {
 			go func() {
 				defer close(errC)
 				defer serverConn.Close()
-				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMsBasicConnectExtensions, CIDDeviceSlotMappings, tt.commandType, tt.wantData); err != nil {
+				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMSBasicConnectExtensions, CIDDeviceSlotMappings, tt.commandType, tt.wantData); err != nil {
 					errC <- err
 					return
 				}
-				_, err := serverConn.Write(mbimCommandDone(1, ServiceMsBasicConnectExtensions, CIDDeviceSlotMappings, slotMappingsPayload(3)))
+				_, err := serverConn.Write(mbimCommandDone(1, ServiceMSBasicConnectExtensions, CIDDeviceSlotMappings, slotMappingsPayload(3)))
 				errC <- err
 			}()
 
@@ -2470,7 +2470,7 @@ func TestClientDeviceSlotMappings(t *testing.T) {
 				t.Fatalf("device slot mappings = %+v, want slot 3", got)
 			}
 			if err := <-errC; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}
@@ -2493,7 +2493,7 @@ func TestDeviceServicesResponseUnmarshalBinary(t *testing.T) {
 		{
 			name: "basic connect extensions",
 			data: deviceServicesPayload(DeviceService{
-				ServiceID:       ServiceMsBasicConnectExtensions,
+				ServiceID:       ServiceMSBasicConnectExtensions,
 				MaxDSSInstances: 1,
 				CIDs:            []uint32{CIDDeviceSlotMappings, CIDVersion},
 			}),
@@ -2544,8 +2544,8 @@ func TestDeviceServicesResponseUnmarshalBinary(t *testing.T) {
 			if len(got.Services) != tt.wantServices {
 				t.Fatalf("Services length = %d, want %d", len(got.Services), tt.wantServices)
 			}
-			if got.SupportsCID(ServiceMsBasicConnectExtensions, CIDVersion) != tt.wantVersionCID {
-				t.Fatalf("SupportsCID(version) = %v, want %v", got.SupportsCID(ServiceMsBasicConnectExtensions, CIDVersion), tt.wantVersionCID)
+			if got.SupportsCID(ServiceMSBasicConnectExtensions, CIDVersion) != tt.wantVersionCID {
+				t.Fatalf("SupportsCID(version) = %v, want %v", got.SupportsCID(ServiceMSBasicConnectExtensions, CIDVersion), tt.wantVersionCID)
 			}
 		})
 	}
@@ -2713,8 +2713,8 @@ func TestApplicationListResponseUnmarshalBinary(t *testing.T) {
 		t.Fatalf("response = %+v", got)
 	}
 	app := got.Applications[0]
-	if app.Type != UiccApplicationTypeUSIM {
-		t.Fatalf("Application Type = %d, want %d", app.Type, UiccApplicationTypeUSIM)
+	if app.Type != UICCApplicationTypeUSIM {
+		t.Fatalf("Application Type = %d, want %d", app.Type, UICCApplicationTypeUSIM)
 	}
 	if !bytes.Equal(app.AID, mustDecodeHex(t, "A0000000871002FF34FF0789312E30FF")) {
 		t.Fatalf("Application AID = %X", app.AID)
@@ -2722,11 +2722,11 @@ func TestApplicationListResponseUnmarshalBinary(t *testing.T) {
 	if app.Label != "Movistar" {
 		t.Fatalf("Application Label = %q, want Movistar", app.Label)
 	}
-	if app.PinKeyReferenceCount != 2 {
-		t.Fatalf("Application PinKeyReferenceCount = %d, want 2", app.PinKeyReferenceCount)
+	if app.PINKeyReferenceCount != 2 {
+		t.Fatalf("Application PINKeyReferenceCount = %d, want 2", app.PINKeyReferenceCount)
 	}
-	if !bytes.Equal(app.PinKeyReferences, []byte{0x01, 0x81}) {
-		t.Fatalf("Application PinKeyReferences = %X, want 0181", app.PinKeyReferences)
+	if !bytes.Equal(app.PINKeyReferences, []byte{0x01, 0x81}) {
+		t.Fatalf("Application PINKeyReferences = %X, want 0181", app.PINKeyReferences)
 	}
 }
 
@@ -2738,8 +2738,8 @@ func TestReadBinaryRequestData(t *testing.T) {
 		Size:          4,
 	}).Request()
 	command := req.Command.(*Command)
-	if command.CommandID != CIDUiccReadBinary {
-		t.Fatalf("CommandID = %#x, want %#x", command.CommandID, CIDUiccReadBinary)
+	if command.CommandID != CIDUICCReadBinary {
+		t.Fatalf("CommandID = %#x, want %#x", command.CommandID, CIDUICCReadBinary)
 	}
 	want := mustDecodeHex(t, "010000002C000000020000003000000002000000000000000400000000000000000000000000000000000000A00000006FAD0000")
 	if !bytes.Equal(command.Data, want) {
@@ -2754,8 +2754,8 @@ func TestFileStatusRequestData(t *testing.T) {
 		FilePath:      []byte{0x6F, 0xAD},
 	}).Request()
 	command := req.Command.(*Command)
-	if command.CommandID != CIDUiccFileStatus {
-		t.Fatalf("CommandID = %#x, want %#x", command.CommandID, CIDUiccFileStatus)
+	if command.CommandID != CIDUICCFileStatus {
+		t.Fatalf("CommandID = %#x, want %#x", command.CommandID, CIDUICCFileStatus)
 	}
 	want := mustDecodeHex(t, "0100000014000000020000001800000002000000A00000006FAD0000")
 	if !bytes.Equal(command.Data, want) {
@@ -2776,15 +2776,15 @@ func TestFileStatusResponseUnmarshalBinary(t *testing.T) {
 	if got.Version != 1 ||
 		got.StatusWord1 != 0x90 ||
 		got.StatusWord2 != 0x00 ||
-		got.FileAccessibility != UiccFileAccessibilityShareable ||
-		got.FileType != UiccFileTypeWorkingEF ||
-		got.FileStructure != UiccFileStructureLinear ||
+		got.FileAccessibility != UICCFileAccessibilityShareable ||
+		got.FileType != UICCFileTypeWorkingEF ||
+		got.FileStructure != UICCFileStructureLinear ||
 		got.FileItemCount != 4 ||
 		got.FileItemSize != 9 ||
-		got.AccessConditionRead != PinTypeCustom ||
-		got.AccessConditionUpdate != PinTypePIN1 ||
-		got.AccessConditionActivate != PinTypePIN2 ||
-		got.AccessConditionDeactivate != PinTypeDeviceSIM {
+		got.AccessConditionRead != PINTypeCustom ||
+		got.AccessConditionUpdate != PINTypePIN1 ||
+		got.AccessConditionActivate != PINTypePIN2 ||
+		got.AccessConditionDeactivate != PINTypeDeviceSIM {
 		t.Fatalf("UnmarshalBinary() = %+v", got)
 	}
 }
@@ -3012,7 +3012,7 @@ func expectMBIMCommand(conn net.Conn, transactionID, commandID uint32, wantData 
 }
 
 func expectMBIMCommandWithType(conn net.Conn, transactionID, commandID uint32, commandType CommandType, wantData []byte) error {
-	return expectMBIMCommandWithService(conn, transactionID, ServiceMsUiccLowLevelAccess, commandID, commandType, wantData)
+	return expectMBIMCommandWithService(conn, transactionID, ServiceMSUICCLowLevelAccess, commandID, commandType, wantData)
 }
 
 func expectMBIMCommandWithService(conn net.Conn, transactionID uint32, service [16]byte, commandID uint32, commandType CommandType, wantData []byte) error {

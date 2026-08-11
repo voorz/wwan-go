@@ -150,37 +150,37 @@ func (c *Client) VoiceConfig(ctx context.Context) (VoiceConfig, error) {
 }
 
 // UnmarshalTLVs parses the common QMI Voice configuration fields.
-func (config *VoiceConfig) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*config = VoiceConfig{}
+func (c *VoiceConfig) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*c = VoiceConfig{}
 	var autoAnswer uint8
-	if err := parseVoiceOptionalUint8(tlvs, 0x10, &autoAnswer, &config.AutoAnswerKnown); err != nil {
+	if err := parseVoiceOptionalUint8(tlvs, 0x10, &autoAnswer, &c.AutoAnswerKnown); err != nil {
 		return err
 	}
-	config.AutoAnswer = autoAnswer == 1
+	c.AutoAnswer = autoAnswer == 1
 
 	var ttyMode uint8
-	if err := parseVoiceOptionalUint8(tlvs, 0x13, &ttyMode, &config.TTYModeKnown); err != nil {
+	if err := parseVoiceOptionalUint8(tlvs, 0x13, &ttyMode, &c.TTYModeKnown); err != nil {
 		return err
 	}
-	config.TTYMode = VoiceTTYMode(ttyMode)
+	c.TTYMode = VoiceTTYMode(ttyMode)
 
 	var privacy uint8
-	if err := parseVoiceOptionalUint8(tlvs, 0x16, &privacy, &config.PrivacyKnown); err != nil {
+	if err := parseVoiceOptionalUint8(tlvs, 0x16, &privacy, &c.PrivacyKnown); err != nil {
 		return err
 	}
-	config.Privacy = VoicePrivacy(privacy)
+	c.Privacy = VoicePrivacy(privacy)
 
 	var domain uint8
-	if err := parseVoiceOptionalUint8(tlvs, 0x17, &domain, &config.VoiceDomainKnown); err != nil {
+	if err := parseVoiceOptionalUint8(tlvs, 0x17, &domain, &c.VoiceDomainKnown); err != nil {
 		return err
 	}
-	config.VoiceDomain = VoiceDomainPreference(domain)
+	c.VoiceDomain = VoiceDomainPreference(domain)
 
 	var uiTTYMode uint8
-	if err := parseVoiceOptionalUint8(tlvs, 0x18, &uiTTYMode, &config.UITTYModeKnown); err != nil {
+	if err := parseVoiceOptionalUint8(tlvs, 0x18, &uiTTYMode, &c.UITTYModeKnown); err != nil {
 		return err
 	}
-	config.UITTYMode = VoiceTTYMode(uiTTYMode)
+	c.UITTYMode = VoiceTTYMode(uiTTYMode)
 	return nil
 }
 

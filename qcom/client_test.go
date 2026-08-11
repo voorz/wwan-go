@@ -671,7 +671,7 @@ func TestReleaseServiceClientIDAcceptsAlreadyInvalid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{{
-				resp: errorResponse(MessageReleaseClientID, QMIErrorInvalidClientId),
+				resp: errorResponse(MessageReleaseClientID, QMIErrorInvalidClientID),
 			}}}
 			allocated := allocatedClientID{service: ServiceDMS, clientID: 5}
 			client := &Client{
@@ -701,7 +701,7 @@ func TestClientReallocatesInvalidServiceClient(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{
 				{resp: successResponse(MessageAllocateClientID, tlv.Bytes(0x01, []byte{byte(ServiceDMS), 5}))},
-				{resp: errorResponse(MessageDMSGetMSISDN, QMIErrorInvalidClientId)},
+				{resp: errorResponse(MessageDMSGetMSISDN, QMIErrorInvalidClientID)},
 				{resp: successResponse(MessageAllocateClientID, tlv.Bytes(0x01, []byte{byte(ServiceDMS), 6}))},
 				{resp: successResponse(MessageDMSGetMSISDN, tlv.Bytes(dmsTLVVoiceNumber, []byte("recovered")))},
 				{
@@ -1224,8 +1224,8 @@ func TestClientSMSPPDownloadDoesNotFallbackAfterCAT2EnvelopeError(t *testing.T) 
 		clientIDs: map[ServiceType]uint8{ServiceUIM: 7},
 	}
 
-	if _, err := reader.SendEnvelope(context.Background(), smsPPEnvelope()); err == nil || !strings.Contains(err.Error(), "Invalid operation") {
-		t.Fatalf("SendEnvelope() error = %v, want Invalid operation", err)
+	if _, err := reader.SendEnvelope(context.Background(), smsPPEnvelope()); err == nil || !strings.Contains(err.Error(), "invalid operation") {
+		t.Fatalf("SendEnvelope() error = %v, want invalid operation", err)
 	}
 }
 
@@ -1371,7 +1371,7 @@ func TestClientCloseAcceptsAlreadyInvalidClientID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{{
-				resp: errorResponse(MessageReleaseClientID, QMIErrorInvalidClientId),
+				resp: errorResponse(MessageReleaseClientID, QMIErrorInvalidClientID),
 			}}}
 			client := &Client{
 				transport: transport,

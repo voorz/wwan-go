@@ -644,7 +644,7 @@ func TestProvisionedContextsV2Request(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := tt.request.Command.(*Command)
-			if command.ServiceID != ServiceMsBasicConnectExtensions || command.CommandID != CIDMsProvisionedContexts || command.CommandType != tt.commandType {
+			if command.ServiceID != ServiceMSBasicConnectExtensions || command.CommandID != CIDMSProvisionedContexts || command.CommandType != tt.commandType {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if tt.commandType == CommandTypeQuery {

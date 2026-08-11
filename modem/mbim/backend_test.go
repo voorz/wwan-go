@@ -265,7 +265,7 @@ type fakeSIMATRReader struct {
 	calls int
 }
 
-func (r *fakeSIMATRReader) QueryUiccATR(context.Context) ([]byte, error) {
+func (r *fakeSIMATRReader) QueryUICCATR(context.Context) ([]byte, error) {
 	response := r.responses[r.calls]
 	r.calls++
 	return response.atr, response.err
@@ -368,7 +368,7 @@ func TestReadSIMATR(t *testing.T) {
 				}
 			}
 			if reader.calls != len(tt.responses) {
-				t.Fatalf("QueryUiccATR() call count = %d, want %d", reader.calls, len(tt.responses))
+				t.Fatalf("QueryUICCATR() call count = %d, want %d", reader.calls, len(tt.responses))
 			}
 		})
 	}
@@ -641,15 +641,15 @@ func TestCleanupStaleSessions(t *testing.T) {
 func TestFeaturesFromServices(t *testing.T) {
 	all := mbimproto.DeviceServicesResponse{Services: []mbimproto.DeviceService{
 		{ServiceID: mbimproto.ServiceBasicConnect, CIDs: []uint32{
-			mbimproto.CIDProvisionedContexts, mbimproto.CIDSignalState, mbimproto.CIDPin, mbimproto.CIDPinList,
+			mbimproto.CIDProvisionedContexts, mbimproto.CIDSignalState, mbimproto.CIDPIN, mbimproto.CIDPINList,
 		}},
 		{ServiceID: mbimproto.ServiceSMS, CIDs: []uint32{mbimproto.CIDSMSRead, mbimproto.CIDSMSSend, mbimproto.CIDSMSDelete}},
 		{ServiceID: mbimproto.ServiceUSSD, CIDs: []uint32{mbimproto.CIDUSSD}},
-		{ServiceID: mbimproto.ServiceMsSAR, CIDs: []uint32{mbimproto.CIDMsSARConfig}},
-		{ServiceID: mbimproto.ServiceMsFirmwareID, CIDs: []uint32{mbimproto.CIDMsFirmwareIDGet}},
-		{ServiceID: mbimproto.ServiceMsBasicConnectExtensions, CIDs: []uint32{
-			mbimproto.CIDMsBaseStationsInfo, mbimproto.CIDMsLteAttachConfiguration, mbimproto.CIDMsLteAttachInfo,
-			mbimproto.CIDMsSystemCapabilities, mbimproto.CIDDeviceSlotMappings, mbimproto.CIDMsSlotInfoStatus,
+		{ServiceID: mbimproto.ServiceMSSAR, CIDs: []uint32{mbimproto.CIDMSSARConfig}},
+		{ServiceID: mbimproto.ServiceMSFirmwareID, CIDs: []uint32{mbimproto.CIDMSFirmwareIDGet}},
+		{ServiceID: mbimproto.ServiceMSBasicConnectExtensions, CIDs: []uint32{
+			mbimproto.CIDMSBaseStationsInfo, mbimproto.CIDMSLTEAttachConfiguration, mbimproto.CIDMSLTEAttachInfo,
+			mbimproto.CIDMSSystemCapabilities, mbimproto.CIDDeviceSlotMappings, mbimproto.CIDMSSlotInfoStatus,
 		}},
 	}}
 	tests := []struct {

@@ -65,8 +65,8 @@ func (r *NetworkParametersRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
 		Command: commandWithError(
-			ServiceMsBasicConnectExtensions,
-			CIDMsNetworkParameters,
+			ServiceMSBasicConnectExtensions,
+			CIDMSNetworkParameters,
 			CommandTypeQuery,
 			data,
 			err,

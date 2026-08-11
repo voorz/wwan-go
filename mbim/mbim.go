@@ -139,7 +139,7 @@ func Open(ctx context.Context, opts ...Option) (*Client, error) {
 		clientState:        newClientState(),
 	}
 	if err := client.connect(ctx, device); err != nil {
-		_ = conn.Close()
+		_ = conn.Close() // Cleanup cannot change the connection error.
 		return nil, &OpenError{Proxy: proxy, Err: err}
 	}
 	return client, nil
@@ -179,7 +179,7 @@ func openAuto(ctx context.Context, cfg config) (*Client, error) {
 			clientState:        newClientState(),
 		}
 		if err := client.connect(ctx, device); err != nil {
-			_ = conn.Close()
+			_ = conn.Close() // Cleanup cannot change the connection error.
 			return nil, &OpenError{Proxy: true, Err: err}
 		}
 		return client, nil
@@ -260,10 +260,10 @@ func (c *Client) connect(ctx context.Context, device string) error {
 	if err := c.negotiateVersion(ctx); err != nil {
 		return err
 	}
-	if err := c.validateUiccSlotID(); err != nil {
+	if err := c.validateUICCSlotID(); err != nil {
 		return fmt.Errorf("connecting MBIM client: %w", err)
 	}
-	if !c.usesUiccSlotID() {
+	if !c.usesUICCSlotID() {
 		if err := c.ensureSlotActivated(ctx); err != nil {
 			return err
 		}

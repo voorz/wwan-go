@@ -22,8 +22,8 @@ var (
 	_ encoding.BinaryUnmarshaler = (*wdsAttachPDNList)(nil)
 	_ encoding.BinaryMarshaler   = wmsRouteList{}
 	_ encoding.BinaryUnmarshaler = (*wmsRouteList)(nil)
-	_ encoding.BinaryMarshaler   = wmsAckInfo{}
-	_ encoding.BinaryUnmarshaler = (*wmsAckInfo)(nil)
+	_ encoding.BinaryMarshaler   = wmsACKInfo{}
+	_ encoding.BinaryUnmarshaler = (*wmsACKInfo)(nil)
 	_ encoding.BinaryMarshaler   = DMSPINState{}
 	_ encoding.BinaryUnmarshaler = (*DMSPINState)(nil)
 	_ encoding.BinaryMarshaler   = DMSSubscriptionVoiceData{}
@@ -68,10 +68,10 @@ var (
 	_ encoding.BinaryUnmarshaler = (*WMSGSMCauseInfo)(nil)
 	_ encoding.BinaryMarshaler   = WMSCDMAForceOnDC{}
 	_ encoding.BinaryUnmarshaler = (*WMSCDMAForceOnDC)(nil)
-	_ encoding.BinaryMarshaler   = WMSAck3GPP2Failure{}
-	_ encoding.BinaryUnmarshaler = (*WMSAck3GPP2Failure)(nil)
-	_ encoding.BinaryMarshaler   = WMSAck3GPPFailure{}
-	_ encoding.BinaryUnmarshaler = (*WMSAck3GPPFailure)(nil)
+	_ encoding.BinaryMarshaler   = WMSACK3GPP2Failure{}
+	_ encoding.BinaryUnmarshaler = (*WMSACK3GPP2Failure)(nil)
+	_ encoding.BinaryMarshaler   = WMSACK3GPPFailure{}
+	_ encoding.BinaryUnmarshaler = (*WMSACK3GPPFailure)(nil)
 	_ encoding.BinaryMarshaler   = WMSMessageReference{}
 	_ encoding.BinaryUnmarshaler = (*WMSMessageReference)(nil)
 	_ encoding.BinaryMarshaler   = WMSRejectCause{}
@@ -138,7 +138,7 @@ func TestBinaryCodecRoundTrip(t *testing.T) {
 		{name: "NAS acquisition order", value: &nasAcquisitionOrder{1, 8}, decoded: func() binaryCodec { return new(nasAcquisitionOrder) }, want: []byte{2, 1, 8}},
 		{name: "WDS attach PDN list", value: &wdsAttachPDNList{0x1234, 0x5678}, decoded: func() binaryCodec { return new(wdsAttachPDNList) }, want: []byte{2, 0x34, 0x12, 0x78, 0x56}},
 		{name: "WMS route list", value: &wmsRouteList{{MessageType: 0, MessageClass: 2, Storage: 1, Action: 3}}, decoded: func() binaryCodec { return new(wmsRouteList) }, want: []byte{1, 0, 0, 2, 1, 3}},
-		{name: "WMS ACK info", value: &wmsAckInfo{TransactionID: 0x01020304, Protocol: WMSMessageProtocolWCDMA, Success: true}, decoded: func() binaryCodec { return new(wmsAckInfo) }, want: []byte{4, 3, 2, 1, 1, 1}},
+		{name: "WMS ACK info", value: &wmsACKInfo{TransactionID: 0x01020304, Protocol: WMSMessageProtocolWCDMA, Success: true}, decoded: func() binaryCodec { return new(wmsACKInfo) }, want: []byte{4, 3, 2, 1, 1, 1}},
 		{name: "DMS PIN state", value: &DMSPINState{Status: 2, VerifyRetries: 3, UnblockRetries: 4}, decoded: func() binaryCodec { return new(DMSPINState) }, want: []byte{2, 3, 4}},
 		{name: "DMS subscription voice/data", value: &DMSSubscriptionVoiceData{Capability: 0x01020304, Concurrent: true}, decoded: func() binaryCodec { return new(DMSSubscriptionVoiceData) }, want: []byte{4, 3, 2, 1, 1}},
 		{name: "DMS IMS capability", value: &DMSIMSCapability{Subscription: DMSSubscriptionSecondary, Enabled: true}, decoded: func() binaryCodec { return new(DMSIMSCapability) }, want: []byte{2, 0, 0, 0, 1}},
@@ -182,8 +182,8 @@ func TestBinaryCodecRoundTrip(t *testing.T) {
 		{name: "WDS extended bearer", value: &WDSBearerTechnology{Network: 1, RAT: 2, ServiceOptions: 3}, decoded: func() binaryCodec { return new(WDSBearerTechnology) }, want: []byte{1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0}},
 		{name: "WDS data systems", value: &WDSDataSystems{Preferred: 1, Networks: []WDSDataSystemNetwork{{Type: 2, RATMask: 0x03040506, ServiceOptionMask: 0x0708090A}}}, decoded: func() binaryCodec { return new(WDSDataSystems) }, want: []byte{1, 1, 2, 6, 5, 4, 3, 0x0A, 9, 8, 7}},
 		{name: "WMS CDMA force-on-DC", value: &WMSCDMAForceOnDC{Force: true, ServiceOption: WMSCDMAServiceOption14}, decoded: func() binaryCodec { return new(WMSCDMAForceOnDC) }, want: []byte{1, 0x0E}},
-		{name: "WMS 3GPP2 ACK failure", value: &WMSAck3GPP2Failure{ErrorClass: 2, CauseCode: 0x60}, decoded: func() binaryCodec { return new(WMSAck3GPP2Failure) }, want: []byte{2, 0x60}},
-		{name: "WMS 3GPP ACK failure", value: &WMSAck3GPPFailure{RPCause: 0x21, TPCause: 0xD3}, decoded: func() binaryCodec { return new(WMSAck3GPPFailure) }, want: []byte{0x21, 0xD3}},
+		{name: "WMS 3GPP2 ACK failure", value: &WMSACK3GPP2Failure{ErrorClass: 2, CauseCode: 0x60}, decoded: func() binaryCodec { return new(WMSACK3GPP2Failure) }, want: []byte{2, 0x60}},
+		{name: "WMS 3GPP ACK failure", value: &WMSACK3GPPFailure{RPCause: 0x21, TPCause: 0xD3}, decoded: func() binaryCodec { return new(WMSACK3GPPFailure) }, want: []byte{0x21, 0xD3}},
 		{name: "WMS message reference", value: &WMSMessageReference{Storage: WMSStorageNV, Index: 0x01020304}, decoded: func() binaryCodec { return new(WMSMessageReference) }, want: []byte{1, 4, 3, 2, 1}},
 		{name: "WMS GSM cause", value: &WMSGSMCauseInfo{RPCause: 0x1234, TPCause: 0x56}, decoded: func() binaryCodec { return new(WMSGSMCauseInfo) }, want: []byte{0x34, 0x12, 0x56}},
 		{name: "WMS reject cause", value: &WMSRejectCause{Type: 0x01020304, Value: 5}, decoded: func() binaryCodec { return new(WMSRejectCause) }, want: []byte{4, 3, 2, 1, 5}},

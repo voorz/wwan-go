@@ -37,24 +37,24 @@ type FCI struct {
 	FileSize      uint16
 }
 
-func (info FCI) MarshalBinary() ([]byte, error) {
-	if info.FileStructure == 0 || info.FileType == 0 {
+func (f FCI) MarshalBinary() ([]byte, error) {
+	if f.FileStructure == 0 || f.FileType == 0 {
 		return nil, errors.New("marshaling FCI: missing file descriptor")
 	}
 
-	descriptor := []byte{byte(info.FileStructure), byte(info.FileType)}
-	if info.RecordSize != 0 || info.RecordCount != 0 {
+	descriptor := []byte{byte(f.FileStructure), byte(f.FileType)}
+	if f.RecordSize != 0 || f.RecordCount != 0 {
 		descriptor = make([]byte, 5)
-		descriptor[0] = byte(info.FileStructure)
-		descriptor[1] = byte(info.FileType)
-		binary.BigEndian.PutUint16(descriptor[2:4], info.RecordSize)
-		descriptor[4] = info.RecordCount
+		descriptor[0] = byte(f.FileStructure)
+		descriptor[1] = byte(f.FileType)
+		binary.BigEndian.PutUint16(descriptor[2:4], f.RecordSize)
+		descriptor[4] = f.RecordCount
 	}
 
 	inner := tlv.Items{{Tag: tagFileDescriptor, Value: descriptor}}
-	if info.FileSize != 0 {
+	if f.FileSize != 0 {
 		size := make([]byte, 2)
-		binary.BigEndian.PutUint16(size, info.FileSize)
+		binary.BigEndian.PutUint16(size, f.FileSize)
 		inner = append(inner, tlv.Item{Tag: tagFileLength, Value: size})
 	}
 
@@ -65,7 +65,7 @@ func (info FCI) MarshalBinary() ([]byte, error) {
 	return tlv.Items{{Tag: tagFCI, Value: value}}.MarshalBinary()
 }
 
-func (info *FCI) UnmarshalBinary(data []byte) error {
+func (f *FCI) UnmarshalBinary(data []byte) error {
 	var top tlv.Items
 	if err := top.UnmarshalBinary(data); err != nil {
 		return malformedTLV(err)
@@ -108,6 +108,6 @@ func (info *FCI) UnmarshalBinary(data []byte) error {
 		return errors.New("missing file descriptor")
 	}
 
-	*info = parsed
+	*f = parsed
 	return nil
 }

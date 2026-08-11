@@ -163,21 +163,31 @@ func (c *Client) acquireWDSProfileEvents(ctx context.Context, clientID uint8, pr
 	if c.wdsProfileEventRefs == nil {
 		c.wdsProfileEventRefs = make(map[WDSProfileID]int)
 	}
-	oldList := wdsProfileEventList(c.wdsProfileEventRefs)
+	oldList, err := wdsProfileEventList(c.wdsProfileEventRefs)
+	if err != nil {
+		return err
+	}
 	for _, profile := range profiles {
 		c.wdsProfileEventRefs[profile]++
 	}
-	newList := wdsProfileEventList(c.wdsProfileEventRefs)
-	if slices.Equal(oldList, newList) {
-		return nil
-	}
-	if err := c.configureWDSProfileEvents(ctx, clientID, newList); err != nil {
+	rollback := func() {
 		for _, profile := range profiles {
 			c.wdsProfileEventRefs[profile]--
 			if c.wdsProfileEventRefs[profile] == 0 {
 				delete(c.wdsProfileEventRefs, profile)
 			}
 		}
+	}
+	newList, err := wdsProfileEventList(c.wdsProfileEventRefs)
+	if err != nil {
+		rollback()
+		return err
+	}
+	if slices.Equal(oldList, newList) {
+		return nil
+	}
+	if err := c.configureWDSProfileEvents(ctx, clientID, newList); err != nil {
+		rollback()
 		return err
 	}
 	if len(oldList) == 0 {
@@ -187,12 +197,7 @@ func (c *Client) acquireWDSProfileEvents(ctx context.Context, clientID uint8, pr
 			// registration error. The best-effort rollback keeps a failed
 			// acquire from leaving a stale filter active.
 			_ = c.configureWDSProfileEvents(ctx, clientID, oldList)
-			for _, profile := range profiles {
-				c.wdsProfileEventRefs[profile]--
-				if c.wdsProfileEventRefs[profile] == 0 {
-					delete(c.wdsProfileEventRefs, profile)
-				}
-			}
+			rollback()
 			return err
 		}
 	}
@@ -207,7 +212,11 @@ func (c *Client) releaseWDSProfileEvents(profiles []WDSProfileID) {
 	if c.wdsProfileEventRefs == nil {
 		return
 	}
-	oldList := wdsProfileEventList(c.wdsProfileEventRefs)
+	oldList, err := wdsProfileEventList(c.wdsProfileEventRefs)
+	if err != nil {
+		// Acquisition validates this state; cleanup has no caller for corruption.
+		return
+	}
 	for _, profile := range profiles {
 		if count := c.wdsProfileEventRefs[profile]; count > 1 {
 			c.wdsProfileEventRefs[profile] = count - 1
@@ -215,15 +224,21 @@ func (c *Client) releaseWDSProfileEvents(profiles []WDSProfileID) {
 			delete(c.wdsProfileEventRefs, profile)
 		}
 	}
-	newList := wdsProfileEventList(c.wdsProfileEventRefs)
+	newList, err := wdsProfileEventList(c.wdsProfileEventRefs)
+	if err != nil {
+		// Removing references cannot make a previously valid list invalid.
+		return
+	}
 	if slices.Equal(oldList, newList) {
 		return
 	}
 	clientID, err := c.serviceClientID(ctx, ServiceWDS)
 	if err == nil {
+		// Deregistration is best effort during watcher cleanup.
 		_ = c.configureWDSProfileEvents(ctx, clientID, newList)
 		if len(newList) == 0 {
 			disabled := false
+			// Deregistration is best effort during watcher cleanup.
 			_ = c.setWDSProfileChangeIndication(ctx, clientID, &disabled)
 		}
 	}
@@ -283,13 +298,12 @@ func normalizeWDSProfileEventList(profiles []WDSProfileID) ([]WDSProfileID, erro
 	return result, nil
 }
 
-func wdsProfileEventList(refs map[WDSProfileID]int) []WDSProfileID {
+func wdsProfileEventList(refs map[WDSProfileID]int) ([]WDSProfileID, error) {
 	profiles := make([]WDSProfileID, 0, len(refs))
 	for profile, count := range refs {
 		if count > 0 {
 			profiles = append(profiles, profile)
 		}
 	}
-	profiles, _ = normalizeWDSProfileEventList(profiles)
-	return profiles
+	return normalizeWDSProfileEventList(profiles)
 }

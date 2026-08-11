@@ -371,7 +371,7 @@ func (i *NASCellLocationInfo) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	return nil
 }
 
-func (location *NASGERANCellLocation) UnmarshalBinary(value []byte) error {
+func (l *NASGERANCellLocation) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	cellID, err := c.uint32()
 	if err != nil {
@@ -448,7 +448,7 @@ func (location *NASGERANCellLocation) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASGERANCellLocation{
+	*l = NASGERANCellLocation{
 		CellID: cellID, CellIDKnown: cellID != math.MaxUint32,
 		PLMN: plmn, PLMNKnown: plmnKnown && cellID != math.MaxUint32,
 		LAC: lac, ARFCN: arfcn, BSIC: bsic,
@@ -458,7 +458,7 @@ func (location *NASGERANCellLocation) UnmarshalBinary(value []byte) error {
 	return nil
 }
 
-func (location *NASUMTSCellLocation) UnmarshalBinary(value []byte) error {
+func (l *NASUMTSCellLocation) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	cellID, err := c.uint16()
 	if err != nil {
@@ -530,7 +530,7 @@ func (location *NASUMTSCellLocation) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASUMTSCellLocation{
+	*l = NASUMTSCellLocation{
 		CellID: cellID, PLMN: plmn, PLMNKnown: plmnKnown, LAC: lac, UARFCN: uarfcn,
 		PSC: psc, RSCP: rscp, ECIO: ecio, Neighbors: neighbors, GERANNeighbors: geranNeighbors,
 	}
@@ -557,11 +557,11 @@ func decodeNASUMTSNeighbor(c *nasLocationCursor) (NASUMTSNeighborCell, error) {
 	return NASUMTSNeighborCell{UARFCN: uarfcn, PSC: psc, RSCP: rscp, ECIO: ecio}, nil
 }
 
-func (location *NASCDMACellLocation) UnmarshalBinary(value []byte) error {
+func (l *NASCDMACellLocation) UnmarshalBinary(value []byte) error {
 	if len(value) != 16 {
 		return fmt.Errorf("parsing QMI NAS CDMA information: TLV length %d, want 16", len(value))
 	}
-	*location = NASCDMACellLocation{
+	*l = NASCDMACellLocation{
 		SystemID: binary.LittleEndian.Uint16(value[0:2]), NetworkID: binary.LittleEndian.Uint16(value[2:4]),
 		BaseStationID: binary.LittleEndian.Uint16(value[4:6]), ReferencePN: binary.LittleEndian.Uint16(value[6:8]),
 		Latitude: binary.LittleEndian.Uint32(value[8:12]), Longitude: binary.LittleEndian.Uint32(value[12:16]),
@@ -569,7 +569,7 @@ func (location *NASCDMACellLocation) UnmarshalBinary(value []byte) error {
 	return nil
 }
 
-func (location *NASLTEIntraFrequency) UnmarshalBinary(value []byte) error {
+func (l *NASLTEIntraFrequency) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	idle, err := c.uint8()
 	if err != nil {
@@ -622,7 +622,7 @@ func (location *NASLTEIntraFrequency) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASLTEIntraFrequency{
+	*l = NASLTEIntraFrequency{
 		UEInIdle: idle != 0, PLMN: plmn, PLMNKnown: plmnKnown, TrackingAreaCode: tac,
 		GlobalCellID: globalCellID, EARFCN: earfcn, ServingCellID: servingCellID,
 		CellReselectionPriority: priority, NonIntraSearchThreshold: nonIntra,
@@ -631,7 +631,7 @@ func (location *NASLTEIntraFrequency) UnmarshalBinary(value []byte) error {
 	return nil
 }
 
-func (location *NASLTEInterFrequency) UnmarshalBinary(value []byte) error {
+func (l *NASLTEInterFrequency) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	idle, err := c.uint8()
 	if err != nil {
@@ -671,7 +671,7 @@ func (location *NASLTEInterFrequency) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASLTEInterFrequency{UEInIdle: idle != 0, Frequencies: frequencies}
+	*l = NASLTEInterFrequency{UEInIdle: idle != 0, Frequencies: frequencies}
 	return nil
 }
 
@@ -709,7 +709,7 @@ func decodeNASLTECells(c *nasLocationCursor) ([]NASLTECellMeasurement, error) {
 	return cells, nil
 }
 
-func (location *NASLTEGERANNeighbors) UnmarshalBinary(value []byte) error {
+func (l *NASLTEGERANNeighbors) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	idle, err := c.uint8()
 	if err != nil {
@@ -780,11 +780,11 @@ func (location *NASLTEGERANNeighbors) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASLTEGERANNeighbors{UEInIdle: idle != 0, Frequencies: frequencies}
+	*l = NASLTEGERANNeighbors{UEInIdle: idle != 0, Frequencies: frequencies}
 	return nil
 }
 
-func (location *NASLTEWCDMANeighbors) UnmarshalBinary(value []byte) error {
+func (l *NASLTEWCDMANeighbors) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	idle, err := c.uint8()
 	if err != nil {
@@ -844,11 +844,11 @@ func (location *NASLTEWCDMANeighbors) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASLTEWCDMANeighbors{UEInIdle: idle != 0, Frequencies: frequencies}
+	*l = NASLTEWCDMANeighbors{UEInIdle: idle != 0, Frequencies: frequencies}
 	return nil
 }
 
-func (location *NASUMTSLTENeighbors) UnmarshalBinary(value []byte) error {
+func (l *NASUMTSLTENeighbors) UnmarshalBinary(value []byte) error {
 	c := nasLocationCursor{value: value}
 	rrc, err := c.uint32()
 	if err != nil {
@@ -892,11 +892,11 @@ func (location *NASUMTSLTENeighbors) UnmarshalBinary(value []byte) error {
 	if err := c.finish(); err != nil {
 		return err
 	}
-	*location = NASUMTSLTENeighbors{RRCState: NASWCDMARRCState(rrc), Cells: cells}
+	*l = NASUMTSLTENeighbors{RRCState: NASWCDMARRCState(rrc), Cells: cells}
 	return nil
 }
 
-func (location *NASNR5GCellLocation) UnmarshalBinary(value []byte) error {
+func (l *NASNR5GCellLocation) UnmarshalBinary(value []byte) error {
 	if len(value) != 22 {
 		return fmt.Errorf("parsing QMI NAS NR5G cell information: TLV length %d, want 22", len(value))
 	}
@@ -904,7 +904,7 @@ func (location *NASNR5GCellLocation) UnmarshalBinary(value []byte) error {
 	if err != nil {
 		return fmt.Errorf("parsing QMI NAS NR5G cell PLMN: %w", err)
 	}
-	*location = NASNR5GCellLocation{
+	*l = NASNR5GCellLocation{
 		PLMN: plmn, PLMNKnown: plmnKnown,
 		TrackingAreaCode: [3]byte(value[3:6]),
 		GlobalCellID:     binary.LittleEndian.Uint64(value[6:14]),

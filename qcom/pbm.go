@@ -636,15 +636,15 @@ func decodePBMPhonebookCapability(r *pbmValueReader) PBMPhonebookCapability {
 	}
 }
 
-func (capability PBMAlphaStringCapability) MarshalBinary() ([]byte, error) {
-	return []byte{capability.MaximumRecords, capability.UsedRecords, capability.MaximumStringLength}, nil
+func (c PBMAlphaStringCapability) MarshalBinary() ([]byte, error) {
+	return []byte{c.MaximumRecords, c.UsedRecords, c.MaximumStringLength}, nil
 }
 
-func (capability *PBMAlphaStringCapability) UnmarshalBinary(value []byte) error {
+func (c *PBMAlphaStringCapability) UnmarshalBinary(value []byte) error {
 	if len(value) != 3 {
 		return fmt.Errorf("alpha string capability length %d, want 3", len(value))
 	}
-	*capability = PBMAlphaStringCapability{
+	*c = PBMAlphaStringCapability{
 		MaximumRecords:      value[0],
 		UsedRecords:         value[1],
 		MaximumStringLength: value[2],

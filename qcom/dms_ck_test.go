@@ -227,7 +227,7 @@ func TestClientDMSCKAndUIMState(t *testing.T) {
 		},
 		{
 			name: "unblock error preserves retries", message: MessageDMSUIMUnblockCK,
-			resp: errorResponse(MessageDMSUIMUnblockCK, QMIErrorIncorrectPin, tlv.Uint(0x10, uint8(2))),
+			resp: errorResponse(MessageDMSUIMUnblockCK, QMIErrorIncorrectPIN, tlv.Uint(0x10, uint8(2))),
 			run: func(ctx context.Context, client *Client) error {
 				result, err := client.DMSUnblockCK(ctx, DMSCKUnblockRequest{
 					Facility: DMSUIMFacilityNetwork, Key: "1234",
@@ -235,7 +235,7 @@ func TestClientDMSCKAndUIMState(t *testing.T) {
 				if result != (DMSCKOperationResult{Retries: 2, RetriesKnown: true}) {
 					t.Fatalf("DMSUnblockCK() result = %+v", result)
 				}
-				if err == nil || !errors.Is(err, QMIErrorIncorrectPin) {
+				if err == nil || !errors.Is(err, QMIErrorIncorrectPIN) {
 					t.Fatalf("DMSUnblockCK() error = %v", err)
 				}
 				return err

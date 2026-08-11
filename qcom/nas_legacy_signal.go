@@ -258,15 +258,15 @@ func (c *Client) SignalStrength(ctx context.Context, mask NASSignalStrengthReque
 	return result, nil
 }
 
-func (strength NASSignalStrength) MarshalBinary() ([]byte, error) {
-	return []byte{byte(strength.Strength), byte(strength.RadioInterface)}, nil
+func (s NASSignalStrength) MarshalBinary() ([]byte, error) {
+	return []byte{byte(s.Strength), byte(s.RadioInterface)}, nil
 }
 
-func (strength *NASSignalStrength) UnmarshalBinary(value []byte) error {
+func (s *NASSignalStrength) UnmarshalBinary(value []byte) error {
 	if len(value) != 2 {
 		return fmt.Errorf("signal strength length %d, want 2", len(value))
 	}
-	*strength = NASSignalStrength{Strength: int8(value[0]), RadioInterface: NASRadioInterface(value[1])}
+	*s = NASSignalStrength{Strength: int8(value[0]), RadioInterface: NASRadioInterface(value[1])}
 	return nil
 }
 

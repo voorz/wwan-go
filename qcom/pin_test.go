@@ -90,7 +90,7 @@ func TestPINOperationFailureReturnsRetries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{{
-				resp: errorResponse(MessageVerifyPIN, QMIErrorIncorrectPin, tlv.Bytes(0x10, []byte{2, 9})),
+				resp: errorResponse(MessageVerifyPIN, QMIErrorIncorrectPIN, tlv.Bytes(0x10, []byte{2, 9})),
 			}}}
 			client := &Client{transport: transport, clientIDs: map[ServiceType]uint8{ServiceUIM: 7}}
 			result, err := client.VerifyPIN(context.Background(), PINVerifyRequest{Session: SessionPrimaryGWProvisioning, ID: PINIDPIN1, PIN: "0000"})

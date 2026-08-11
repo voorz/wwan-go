@@ -160,34 +160,34 @@ func unmarshalTAIListPrefix(data []byte) (TAIList, int, error) {
 	return list, totalLength, nil
 }
 
-func (list TAIList) validate() error {
-	switch list.Type {
+func (l TAIList) validate() error {
+	switch l.Type {
 	case TAIListTypeNonConsecutive, TAIListTypeConsecutive:
-		if len(list.TACs) < 1 || len(list.TACs) > 16 {
-			return fmt.Errorf("TAC count is %d, want 1 through 16", len(list.TACs))
+		if len(l.TACs) < 1 || len(l.TACs) > 16 {
+			return fmt.Errorf("TAC count is %d, want 1 through 16", len(l.TACs))
 		}
-		if len(list.TAIs) != 0 {
+		if len(l.TAIs) != 0 {
 			return errors.New("single-PLMN list contains multi-PLMN TAI values")
 		}
-		if err := list.PLMN.validate(); err != nil {
+		if err := l.PLMN.validate(); err != nil {
 			return err
 		}
-		for index, tac := range list.TACs {
+		for index, tac := range l.TACs {
 			if err := validateTAC(tac); err != nil {
 				return fmt.Errorf("TAC %d: %w", index, err)
 			}
-			if list.Type == TAIListTypeConsecutive && index > 0 && tac != list.TACs[index-1]+1 {
-				return fmt.Errorf("TAC %d is %#x, want %#x for a consecutive list", index, tac, list.TACs[index-1]+1)
+			if l.Type == TAIListTypeConsecutive && index > 0 && tac != l.TACs[index-1]+1 {
+				return fmt.Errorf("TAC %d is %#x, want %#x for a consecutive list", index, tac, l.TACs[index-1]+1)
 			}
 		}
 	case TAIListTypeMultiplePLMNs:
-		if len(list.TAIs) < 1 || len(list.TAIs) > 16 {
-			return fmt.Errorf("TAI count is %d, want 1 through 16", len(list.TAIs))
+		if len(l.TAIs) < 1 || len(l.TAIs) > 16 {
+			return fmt.Errorf("TAI count is %d, want 1 through 16", len(l.TAIs))
 		}
-		if list.PLMN != (PLMN{}) || len(list.TACs) != 0 {
+		if l.PLMN != (PLMN{}) || len(l.TACs) != 0 {
 			return errors.New("multi-PLMN list contains single-PLMN fields")
 		}
-		for index, tai := range list.TAIs {
+		for index, tai := range l.TAIs {
 			if err := tai.PLMN.validate(); err != nil {
 				return fmt.Errorf("TAI %d: %w", index, err)
 			}
@@ -196,32 +196,32 @@ func (list TAIList) validate() error {
 			}
 		}
 	default:
-		return fmt.Errorf("type %d is reserved", list.Type)
+		return fmt.Errorf("type %d is reserved", l.Type)
 	}
 	return nil
 }
 
-func (plmn PLMN) validate() error {
-	if plmn.MCC&0xF000 != 0 {
+func (p PLMN) validate() error {
+	if p.MCC&0xF000 != 0 {
 		return errors.New("PLMN MCC has nonzero unused bits")
 	}
-	if !validBCDNibbles(plmn.MCC, 3) {
+	if !validBCDNibbles(p.MCC, 3) {
 		return errors.New("PLMN MCC contains a non-decimal BCD digit")
 	}
 
-	if plmn.MNC&0x8000 != 0 {
-		if plmn.MNC&0x7F00 != 0 {
+	if p.MNC&0x8000 != 0 {
+		if p.MNC&0x7F00 != 0 {
 			return errors.New("two-digit PLMN MNC has nonzero unused bits")
 		}
-		if !validBCDNibbles(plmn.MNC, 2) {
+		if !validBCDNibbles(p.MNC, 2) {
 			return errors.New("PLMN MNC contains a non-decimal BCD digit")
 		}
 		return nil
 	}
-	if plmn.MNC&0xF000 != 0 {
+	if p.MNC&0xF000 != 0 {
 		return errors.New("three-digit PLMN MNC has nonzero unused bits")
 	}
-	if !validBCDNibbles(plmn.MNC, 3) {
+	if !validBCDNibbles(p.MNC, 3) {
 		return errors.New("PLMN MNC contains a non-decimal BCD digit")
 	}
 	return nil

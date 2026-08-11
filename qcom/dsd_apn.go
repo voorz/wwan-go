@@ -187,17 +187,17 @@ func (c *Client) DSDSetAPNType(ctx context.Context, config DSDAPNTypeConfig) err
 }
 
 // MarshalBinary encodes the QMI DSD APN type aggregate.
-func (config DSDAPNTypeConfig) MarshalBinary() ([]byte, error) {
-	if err := validateDSDAPNName(config.Name); err != nil {
+func (c DSDAPNTypeConfig) MarshalBinary() ([]byte, error) {
+	if err := validateDSDAPNName(c.Name); err != nil {
 		return nil, err
 	}
-	if err := validateDSDAPNTypePreference(config.Types); err != nil {
+	if err := validateDSDAPNTypePreference(c.Types); err != nil {
 		return nil, err
 	}
-	value := make([]byte, 1, 1+len(config.Name)+8)
-	value[0] = byte(len(config.Name))
-	value = append(value, config.Name...)
-	value = binary.LittleEndian.AppendUint64(value, uint64(config.Types))
+	value := make([]byte, 1, 1+len(c.Name)+8)
+	value[0] = byte(len(c.Name))
+	value = append(value, c.Name...)
+	value = binary.LittleEndian.AppendUint64(value, uint64(c.Types))
 	return value, nil
 }
 

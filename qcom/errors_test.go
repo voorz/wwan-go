@@ -22,17 +22,17 @@ func TestQMIErrorFallbackIncludesCode(t *testing.T) {
 }
 
 func TestQMIErrorInvalidArgumentHasText(t *testing.T) {
-	if got, want := QMIErrorInvalidArgument.Error(), "Invalid argument"; got != want {
+	if got, want := QMIErrorInvalidArgument.Error(), "invalid argument"; got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 }
 
 func TestQMIErrorLaterCodesHaveText(t *testing.T) {
 	tests := map[QMIError]string{
-		QMIErrorInvalidIndex:               "Invalid index",
-		QMIErrorOperationInProgress:        "Operation in progress",
-		QMIErrorCatEnvelopeCommandFailed:   "CAT envelope command failed",
-		QMIErrorFwUpdateDiscontinuousFrame: "Firmware update discontinuous frame",
+		QMIErrorInvalidIndex:               "invalid index",
+		QMIErrorOperationInProgress:        "operation in progress",
+		QMIErrorCATEnvelopeCommandFailed:   "CAT envelope command failed",
+		QMIErrorFWUpdateDiscontinuousFrame: "firmware update discontinuous frame",
 	}
 
 	for code, want := range tests {
@@ -128,7 +128,7 @@ func TestWDSStartNetworkErrorIncludesCallEndReason(t *testing.T) {
 		t.Fatal("WDSStartNetworkError should unwrap the QMI error")
 	}
 
-	want := "start WDS network: Call failed: call end reason generic-unspecified (1): verbose call end reason [internal] interface-in-use-config-match (2,241)"
+	want := "start WDS network: call failed: call end reason generic-unspecified (1): verbose call end reason [internal] interface-in-use-config-match (2,241)"
 	if got := err.Error(); got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}

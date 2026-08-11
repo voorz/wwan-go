@@ -17,78 +17,78 @@ const (
 	uiccATRMaximumSize                    = 33
 	uiccApplicationIDMaximumSize          = 32
 	uiccApplicationNameMaximumSize        = 256
-	uiccPinKeyReferenceMaximumCount       = 8
+	uiccPINKeyReferenceMaximumCount       = 8
 	uiccOpenChannelResponseMaximumSize    = 256
 	uiccAPDUCommandMaximumSize            = 261
 	uiccLogicalChannelMaximum             = 19
 	uiccActiveApplicationIndexUnavailable = uint32(0xFFFFFFFF)
 )
 
-type UiccApplicationType uint32
+type UICCApplicationType uint32
 
 const (
-	UiccApplicationTypeUnknown UiccApplicationType = iota
-	UiccApplicationTypeMF
-	UiccApplicationTypeMFSIM
-	UiccApplicationTypeMFRUIM
-	UiccApplicationTypeUSIM
-	UiccApplicationTypeCSIM
-	UiccApplicationTypeISIM
+	UICCApplicationTypeUnknown UICCApplicationType = iota
+	UICCApplicationTypeMF
+	UICCApplicationTypeMFSIM
+	UICCApplicationTypeMFRUIM
+	UICCApplicationTypeUSIM
+	UICCApplicationTypeCSIM
+	UICCApplicationTypeISIM
 )
 
-type UiccSecureMessaging uint32
+type UICCSecureMessaging uint32
 
 const (
-	UiccSecureMessagingNone UiccSecureMessaging = iota
-	UiccSecureMessagingNoHeaderAuth
+	UICCSecureMessagingNone UICCSecureMessaging = iota
+	UICCSecureMessagingNoHeaderAuth
 )
 
-type UiccClassByteType uint32
+type UICCClassByteType uint32
 
 const (
-	UiccClassByteTypeInterIndustry UiccClassByteType = iota
-	UiccClassByteTypeExtended
+	UICCClassByteTypeInterIndustry UICCClassByteType = iota
+	UICCClassByteTypeExtended
 )
 
-type UiccPassThroughAction uint32
+type UICCPassThroughAction uint32
 
 const (
-	UiccPassThroughActionDisable UiccPassThroughAction = iota
-	UiccPassThroughActionEnable
+	UICCPassThroughActionDisable UICCPassThroughAction = iota
+	UICCPassThroughActionEnable
 )
 
-type UiccPassThroughStatus uint32
+type UICCPassThroughStatus uint32
 
 const (
-	UiccPassThroughStatusDisabled UiccPassThroughStatus = iota
-	UiccPassThroughStatusEnabled
+	UICCPassThroughStatusDisabled UICCPassThroughStatus = iota
+	UICCPassThroughStatusEnabled
 )
 
-type UiccFileAccessibility uint32
+type UICCFileAccessibility uint32
 
 const (
-	UiccFileAccessibilityUnknown UiccFileAccessibility = iota
-	UiccFileAccessibilityNotShareable
-	UiccFileAccessibilityShareable
+	UICCFileAccessibilityUnknown UICCFileAccessibility = iota
+	UICCFileAccessibilityNotShareable
+	UICCFileAccessibilityShareable
 )
 
-type UiccFileType uint32
+type UICCFileType uint32
 
 const (
-	UiccFileTypeUnknown UiccFileType = iota
-	UiccFileTypeWorkingEF
-	UiccFileTypeInternalEF
-	UiccFileTypeDFOrADF
+	UICCFileTypeUnknown UICCFileType = iota
+	UICCFileTypeWorkingEF
+	UICCFileTypeInternalEF
+	UICCFileTypeDFOrADF
 )
 
-type UiccFileStructure uint32
+type UICCFileStructure uint32
 
 const (
-	UiccFileStructureUnknown UiccFileStructure = iota
-	UiccFileStructureTransparent
-	UiccFileStructureCyclic
-	UiccFileStructureLinear
-	UiccFileStructureBERTLV
+	UICCFileStructureUnknown UICCFileStructure = iota
+	UICCFileStructureTransparent
+	UICCFileStructureCyclic
+	UICCFileStructureLinear
+	UICCFileStructureBERTLV
 )
 
 func (c *Client) ListApplications(ctx context.Context) ([]Application, error) {
@@ -110,11 +110,11 @@ func (c *Client) ListApplications(ctx context.Context) ([]Application, error) {
 	return apps, nil
 }
 
-func (c *Client) QueryUiccATR(ctx context.Context) ([]byte, error) {
-	if err := c.validateUiccSlotID(); err != nil {
+func (c *Client) QueryUICCATR(ctx context.Context) ([]byte, error) {
+	if err := c.validateUICCSlotID(); err != nil {
 		return nil, fmt.Errorf("querying MBIM UICC ATR: %w", err)
 	}
-	request := UiccATRQueryRequest{
+	request := UICCATRQueryRequest{
 		TransactionID: c.nextTransactionID(),
 		MBIMExVersion: c.mbimExVersion,
 		SlotID:        c.slot,
@@ -126,7 +126,7 @@ func (c *Client) QueryUiccATR(ctx context.Context) ([]byte, error) {
 }
 
 func (c *Client) OpenChannel(ctx context.Context, aid []byte) (uint32, error) {
-	if err := c.validateUiccSlotID(); err != nil {
+	if err := c.validateUICCSlotID(); err != nil {
 		return 0, fmt.Errorf("opening MBIM UICC channel: %w", err)
 	}
 	if len(aid) > uiccApplicationIDMaximumSize {
@@ -162,7 +162,7 @@ func (c *Client) OpenChannel(ctx context.Context, aid []byte) (uint32, error) {
 }
 
 func (c *Client) TransmitAPDU(ctx context.Context, channel uint32, command []byte) ([]byte, uint32, error) {
-	if err := c.validateUiccSlotID(); err != nil {
+	if err := c.validateUICCSlotID(); err != nil {
 		return nil, 0, fmt.Errorf("transmitting MBIM UICC APDU: %w", err)
 	}
 	if channel == 0 || channel > uiccLogicalChannelMaximum {
@@ -186,8 +186,8 @@ func (c *Client) TransmitAPDU(ctx context.Context, channel uint32, command []byt
 		MBIMExVersion:   c.mbimExVersion,
 		SlotID:          c.slot,
 		Channel:         channel,
-		SecureMessaging: UiccSecureMessagingNone,
-		ClassByteType:   UiccClassByteTypeInterIndustry,
+		SecureMessaging: UICCSecureMessagingNone,
+		ClassByteType:   UICCClassByteTypeInterIndustry,
 		Command:         slices.Clone(command),
 	}
 	if err := c.transmit(ctx, request.Request()); err != nil {
@@ -196,14 +196,14 @@ func (c *Client) TransmitAPDU(ctx context.Context, channel uint32, command []byt
 	return slices.Clone(request.Response.Response), request.Response.Status, nil
 }
 
-func (c *Client) SetUiccReset(ctx context.Context, action UiccPassThroughAction) (UiccPassThroughStatus, error) {
-	if err := c.validateUiccSlotID(); err != nil {
+func (c *Client) SetUICCReset(ctx context.Context, action UICCPassThroughAction) (UICCPassThroughStatus, error) {
+	if err := c.validateUICCSlotID(); err != nil {
 		return 0, fmt.Errorf("setting MBIM UICC reset: %w", err)
 	}
-	if action > UiccPassThroughActionEnable {
+	if action > UICCPassThroughActionEnable {
 		return 0, fmt.Errorf("setting MBIM UICC reset: action %d is outside 0..1: %w", action, StatusInvalidParameters)
 	}
-	request := UiccResetSetRequest{
+	request := UICCResetSetRequest{
 		TransactionID: c.nextTransactionID(),
 		MBIMExVersion: c.mbimExVersion,
 		SlotID:        c.slot,
@@ -216,11 +216,11 @@ func (c *Client) SetUiccReset(ctx context.Context, action UiccPassThroughAction)
 	return request.Response.PassThroughStatus, nil
 }
 
-func (c *Client) QueryUiccReset(ctx context.Context) (UiccPassThroughStatus, error) {
-	if err := c.validateUiccSlotID(); err != nil {
+func (c *Client) QueryUICCReset(ctx context.Context) (UICCPassThroughStatus, error) {
+	if err := c.validateUICCSlotID(); err != nil {
 		return 0, fmt.Errorf("querying MBIM UICC reset: %w", err)
 	}
-	request := UiccResetQueryRequest{
+	request := UICCResetQueryRequest{
 		TransactionID: c.nextTransactionID(),
 		MBIMExVersion: c.mbimExVersion,
 		SlotID:        c.slot,
@@ -231,11 +231,11 @@ func (c *Client) QueryUiccReset(ctx context.Context) (UiccPassThroughStatus, err
 	return request.Response.PassThroughStatus, nil
 }
 
-func (c *Client) SetUiccTerminalCapability(ctx context.Context, capabilities [][]byte) error {
-	if err := c.validateUiccSlotID(); err != nil {
+func (c *Client) SetUICCTerminalCapability(ctx context.Context, capabilities [][]byte) error {
+	if err := c.validateUICCSlotID(); err != nil {
 		return fmt.Errorf("setting MBIM UICC terminal capability: %w", err)
 	}
-	request := UiccTerminalCapabilitySetRequest{
+	request := UICCTerminalCapabilitySetRequest{
 		TransactionID: c.nextTransactionID(),
 		MBIMExVersion: c.mbimExVersion,
 		SlotID:        c.slot,
@@ -247,11 +247,11 @@ func (c *Client) SetUiccTerminalCapability(ctx context.Context, capabilities [][
 	return nil
 }
 
-func (c *Client) QueryUiccTerminalCapability(ctx context.Context) ([][]byte, error) {
-	if err := c.validateUiccSlotID(); err != nil {
+func (c *Client) QueryUICCTerminalCapability(ctx context.Context) ([][]byte, error) {
+	if err := c.validateUICCSlotID(); err != nil {
 		return nil, fmt.Errorf("querying MBIM UICC terminal capability: %w", err)
 	}
-	request := UiccTerminalCapabilityQueryRequest{
+	request := UICCTerminalCapabilityQueryRequest{
 		TransactionID: c.nextTransactionID(),
 		MBIMExVersion: c.mbimExVersion,
 		SlotID:        c.slot,
@@ -263,7 +263,7 @@ func (c *Client) QueryUiccTerminalCapability(ctx context.Context) ([][]byte, err
 }
 
 func (c *Client) CloseChannel(ctx context.Context, channel uint32) error {
-	if err := c.validateUiccSlotID(); err != nil {
+	if err := c.validateUICCSlotID(); err != nil {
 		return fmt.Errorf("closing MBIM UICC channel: %w", err)
 	}
 	if channel > uiccLogicalChannelMaximum {
@@ -337,8 +337,8 @@ func (r *ApplicationListRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccApplicationList,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCApplicationList,
 			CommandTypeQuery,
 			nil,
 		),
@@ -347,11 +347,11 @@ func (r *ApplicationListRequest) Request() *Request {
 }
 
 type UICCApplication struct {
-	Type                 UiccApplicationType
+	Type                 UICCApplicationType
 	AID                  []byte
 	Label                string
-	PinKeyReferenceCount uint32
-	PinKeyReferences     []byte
+	PINKeyReferenceCount uint32
+	PINKeyReferences     []byte
 }
 
 var _ encoding.BinaryUnmarshaler = (*UICCApplication)(nil)
@@ -416,9 +416,9 @@ func (a *UICCApplication) UnmarshalBinary(data []byte) error {
 	if len(data) < 32 {
 		return errors.New("application entry is truncated")
 	}
-	applicationType := UiccApplicationType(binary.LittleEndian.Uint32(data[:4]))
-	if applicationType > UiccApplicationTypeISIM {
-		return fmt.Errorf("application type %d is outside 0..%d", applicationType, UiccApplicationTypeISIM)
+	applicationType := UICCApplicationType(binary.LittleEndian.Uint32(data[:4]))
+	if applicationType > UICCApplicationTypeISIM {
+		return fmt.Errorf("application type %d is outside 0..%d", applicationType, UICCApplicationTypeISIM)
 	}
 
 	aidRef, err := readOffsetSizeRef(data, 4)
@@ -440,7 +440,7 @@ func (a *UICCApplication) UnmarshalBinary(data []byte) error {
 	if aidRef.size > uiccApplicationIDMaximumSize {
 		return fmt.Errorf("application ID size %d exceeds %d bytes", aidRef.size, uiccApplicationIDMaximumSize)
 	}
-	if applicationType >= UiccApplicationTypeMF && applicationType <= UiccApplicationTypeMFRUIM && aidRef.size != 0 {
+	if applicationType >= UICCApplicationTypeMF && applicationType <= UICCApplicationTypeMFRUIM && aidRef.size != 0 {
 		return fmt.Errorf("application type %d must not include an application ID", applicationType)
 	}
 	if labelRef.size > uiccApplicationNameMaximumSize {
@@ -454,18 +454,18 @@ func (a *UICCApplication) UnmarshalBinary(data []byte) error {
 		return errors.New("application name is not valid UTF-8")
 	}
 	pinKeyReferenceCount := binary.LittleEndian.Uint32(data[20:24])
-	if pinKeyReferenceCount > uiccPinKeyReferenceMaximumCount {
+	if pinKeyReferenceCount > uiccPINKeyReferenceMaximumCount {
 		return fmt.Errorf(
 			"PIN key reference count %d exceeds %d",
 			pinKeyReferenceCount,
-			uiccPinKeyReferenceMaximumCount,
+			uiccPINKeyReferenceMaximumCount,
 		)
 	}
-	if pinKeyReferencesRef.size > uiccPinKeyReferenceMaximumCount {
+	if pinKeyReferencesRef.size > uiccPINKeyReferenceMaximumCount {
 		return fmt.Errorf(
 			"PIN key reference size %d exceeds %d bytes",
 			pinKeyReferencesRef.size,
-			uiccPinKeyReferenceMaximumCount,
+			uiccPINKeyReferenceMaximumCount,
 		)
 	}
 	if pinKeyReferenceCount > pinKeyReferencesRef.size {
@@ -480,33 +480,33 @@ func (a *UICCApplication) UnmarshalBinary(data []byte) error {
 		Type:                 applicationType,
 		AID:                  aidRef.bytes(data),
 		Label:                string(label),
-		PinKeyReferenceCount: pinKeyReferenceCount,
-		PinKeyReferences:     pinKeyReferencesRef.bytes(data),
+		PINKeyReferenceCount: pinKeyReferenceCount,
+		PINKeyReferences:     pinKeyReferencesRef.bytes(data),
 	}
 	return nil
 }
 
-type UiccATRQueryRequest struct {
+type UICCATRQueryRequest struct {
 	TransactionID uint32
 	MBIMExVersion uint16
 	SlotID        uint32
-	Response      *UiccATRResponse
+	Response      *UICCATRResponse
 }
 
-func (r *UiccATRQueryRequest) Request() *Request {
+func (r *UICCATRQueryRequest) Request() *Request {
 	var data []byte
 	if r.MBIMExVersion >= mbimExVersion40 {
 		data = binary.LittleEndian.AppendUint32(nil, r.SlotID)
 	}
 
-	r.Response = new(UiccATRResponse)
+	r.Response = new(UICCATRResponse)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccATR,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCATR,
 			CommandTypeQuery,
 			data,
 		),
@@ -514,11 +514,11 @@ func (r *UiccATRQueryRequest) Request() *Request {
 	}
 }
 
-type UiccATRResponse struct {
+type UICCATRResponse struct {
 	ATR []byte
 }
 
-func (r *UiccATRResponse) UnmarshalBinary(data []byte) error {
+func (r *UICCATRResponse) UnmarshalBinary(data []byte) error {
 	value, err := uiccByteArrayRef(data, 0, 8)
 	if err != nil {
 		return fmt.Errorf("parsing MBIM UICC ATR: %w", err)
@@ -559,8 +559,8 @@ func (r *OpenChannelRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccOpenChannel,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCOpenChannel,
 			CommandTypeSet,
 			data,
 		),
@@ -623,8 +623,8 @@ func (r *CloseChannelRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccCloseChannel,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCCloseChannel,
 			CommandTypeSet,
 			data,
 		),
@@ -653,8 +653,8 @@ type APDURequest struct {
 	MBIMExVersion   uint16
 	SlotID          uint32
 	Channel         uint32
-	SecureMessaging UiccSecureMessaging
-	ClassByteType   UiccClassByteType
+	SecureMessaging UICCSecureMessaging
+	ClassByteType   UICCClassByteType
 	Command         []byte
 	Response        *APDUResponse
 }
@@ -681,8 +681,8 @@ func (r *APDURequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccAPDU,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCAPDU,
 			CommandTypeSet,
 			data,
 		),
@@ -711,14 +711,14 @@ func (r *APDUResponse) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type UiccTerminalCapabilitySetRequest struct {
+type UICCTerminalCapabilitySetRequest struct {
 	TransactionID uint32
 	MBIMExVersion uint16
 	SlotID        uint32
 	Capabilities  [][]byte
 }
 
-func (r *UiccTerminalCapabilitySetRequest) Request() *Request {
+func (r *UICCTerminalCapabilitySetRequest) Request() *Request {
 	data := terminalCapabilityData(r.Capabilities)
 	if r.MBIMExVersion >= mbimExVersion40 {
 		data = terminalCapabilityDataEx4(r.SlotID, r.Capabilities)
@@ -729,35 +729,35 @@ func (r *UiccTerminalCapabilitySetRequest) Request() *Request {
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccTerminalCapability,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCTerminalCapability,
 			CommandTypeSet,
 			data,
 		),
 	}
 }
 
-type UiccTerminalCapabilityQueryRequest struct {
+type UICCTerminalCapabilityQueryRequest struct {
 	TransactionID uint32
 	MBIMExVersion uint16
 	SlotID        uint32
-	Response      *UiccTerminalCapabilityResponse
+	Response      *UICCTerminalCapabilityResponse
 }
 
-func (r *UiccTerminalCapabilityQueryRequest) Request() *Request {
+func (r *UICCTerminalCapabilityQueryRequest) Request() *Request {
 	var data []byte
 	if r.MBIMExVersion >= mbimExVersion40 {
 		data = binary.LittleEndian.AppendUint32(nil, r.SlotID)
 	}
 
-	r.Response = new(UiccTerminalCapabilityResponse)
+	r.Response = new(UICCTerminalCapabilityResponse)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccTerminalCapability,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCTerminalCapability,
 			CommandTypeQuery,
 			data,
 		),
@@ -765,11 +765,11 @@ func (r *UiccTerminalCapabilityQueryRequest) Request() *Request {
 	}
 }
 
-type UiccTerminalCapabilityResponse struct {
+type UICCTerminalCapabilityResponse struct {
 	Capabilities [][]byte
 }
 
-func (r *UiccTerminalCapabilityResponse) UnmarshalBinary(data []byte) error {
+func (r *UICCTerminalCapabilityResponse) UnmarshalBinary(data []byte) error {
 	if len(data) < 4 {
 		return errors.New("parsing MBIM terminal capability: payload is truncated")
 	}
@@ -790,28 +790,28 @@ func (r *UiccTerminalCapabilityResponse) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type UiccResetSetRequest struct {
+type UICCResetSetRequest struct {
 	TransactionID uint32
 	MBIMExVersion uint16
 	SlotID        uint32
-	Action        UiccPassThroughAction
-	Response      *UiccResetResponse
+	Action        UICCPassThroughAction
+	Response      *UICCResetResponse
 }
 
-func (r *UiccResetSetRequest) Request() *Request {
+func (r *UICCResetSetRequest) Request() *Request {
 	data := binary.LittleEndian.AppendUint32(nil, uint32(r.Action))
 	if r.MBIMExVersion >= mbimExVersion40 {
 		data = binary.LittleEndian.AppendUint32(data, r.SlotID)
 	}
 
-	r.Response = new(UiccResetResponse)
+	r.Response = new(UICCResetResponse)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccReset,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCReset,
 			CommandTypeSet,
 			data,
 		),
@@ -819,27 +819,27 @@ func (r *UiccResetSetRequest) Request() *Request {
 	}
 }
 
-type UiccResetQueryRequest struct {
+type UICCResetQueryRequest struct {
 	TransactionID uint32
 	MBIMExVersion uint16
 	SlotID        uint32
-	Response      *UiccResetResponse
+	Response      *UICCResetResponse
 }
 
-func (r *UiccResetQueryRequest) Request() *Request {
+func (r *UICCResetQueryRequest) Request() *Request {
 	var data []byte
 	if r.MBIMExVersion >= mbimExVersion40 {
 		data = binary.LittleEndian.AppendUint32(nil, r.SlotID)
 	}
 
-	r.Response = new(UiccResetResponse)
+	r.Response = new(UICCResetResponse)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
 		Command: command(
-			ServiceMsUiccLowLevelAccess,
-			CIDUiccReset,
+			ServiceMSUICCLowLevelAccess,
+			CIDUICCReset,
 			CommandTypeQuery,
 			data,
 		),
@@ -847,16 +847,16 @@ func (r *UiccResetQueryRequest) Request() *Request {
 	}
 }
 
-type UiccResetResponse struct {
-	PassThroughStatus UiccPassThroughStatus
+type UICCResetResponse struct {
+	PassThroughStatus UICCPassThroughStatus
 }
 
-func (r *UiccResetResponse) UnmarshalBinary(data []byte) error {
+func (r *UICCResetResponse) UnmarshalBinary(data []byte) error {
 	if len(data) != 4 {
 		return fmt.Errorf("parsing MBIM UICC reset: payload length is %d, want 4", len(data))
 	}
-	status := UiccPassThroughStatus(binary.LittleEndian.Uint32(data[:4]))
-	if status > UiccPassThroughStatusEnabled {
+	status := UICCPassThroughStatus(binary.LittleEndian.Uint32(data[:4]))
+	if status > UICCPassThroughStatusEnabled {
 		return fmt.Errorf("parsing MBIM UICC reset: pass-through status is %d, want 0 or 1", status)
 	}
 	r.PassThroughStatus = status

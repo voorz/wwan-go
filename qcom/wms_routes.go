@@ -35,7 +35,7 @@ const (
 	WMSReceiptDiscard WMSReceiptAction = iota
 	WMSReceiptStoreAndNotify
 	WMSReceiptTransferOnly
-	WMSReceiptTransferAndAck
+	WMSReceiptTransferAndACK
 )
 
 // WMSStatusReportTransfer selects where SMS status reports are delivered.
@@ -55,21 +55,21 @@ type WMSRoute struct {
 }
 
 // MarshalBinary encodes one incoming SMS routing rule.
-func (route WMSRoute) MarshalBinary() ([]byte, error) {
+func (r WMSRoute) MarshalBinary() ([]byte, error) {
 	return []byte{
-		byte(route.MessageType),
-		byte(route.MessageClass),
-		byte(route.Storage),
-		byte(route.Action),
+		byte(r.MessageType),
+		byte(r.MessageClass),
+		byte(r.Storage),
+		byte(r.Action),
 	}, nil
 }
 
 // UnmarshalBinary decodes one incoming SMS routing rule.
-func (route *WMSRoute) UnmarshalBinary(value []byte) error {
+func (r *WMSRoute) UnmarshalBinary(value []byte) error {
 	if len(value) != 4 {
 		return fmt.Errorf("WMS route length %d, want 4", len(value))
 	}
-	*route = WMSRoute{
+	*r = WMSRoute{
 		MessageType:  WMSMessageType(value[0]),
 		MessageClass: WMSMessageClass(value[1]),
 		Storage:      WMSStorage(value[2]),
@@ -80,12 +80,12 @@ func (route *WMSRoute) UnmarshalBinary(value []byte) error {
 
 type wmsRouteList []WMSRoute
 
-func (routes wmsRouteList) MarshalBinary() ([]byte, error) {
-	if len(routes) > wmsRouteMax {
-		return nil, fmt.Errorf("route count %d exceeds %d", len(routes), wmsRouteMax)
+func (r wmsRouteList) MarshalBinary() ([]byte, error) {
+	if len(r) > wmsRouteMax {
+		return nil, fmt.Errorf("route count %d exceeds %d", len(r), wmsRouteMax)
 	}
-	value := binary.LittleEndian.AppendUint16(nil, uint16(len(routes)))
-	for i, route := range routes {
+	value := binary.LittleEndian.AppendUint16(nil, uint16(len(r)))
+	for i, route := range r {
 		encoded, err := route.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("route %d: %w", i, err)
@@ -95,7 +95,7 @@ func (routes wmsRouteList) MarshalBinary() ([]byte, error) {
 	return value, nil
 }
 
-func (routes *wmsRouteList) UnmarshalBinary(value []byte) error {
+func (r *wmsRouteList) UnmarshalBinary(value []byte) error {
 	if len(value) < 2 {
 		return errors.New("route count is truncated")
 	}
@@ -113,7 +113,7 @@ func (routes *wmsRouteList) UnmarshalBinary(value []byte) error {
 			return fmt.Errorf("route %d: %w", i, err)
 		}
 	}
-	*routes = decoded
+	*r = decoded
 	return nil
 }
 

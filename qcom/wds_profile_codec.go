@@ -83,168 +83,168 @@ func wdsProfileUpdateFromConfig(cfg WDSProfileConfig) WDSProfileUpdate {
 }
 
 // MarshalTLVs encodes the selected WDS profile fields.
-func (update WDSProfileUpdate) MarshalTLVs() (tlv.TLVs, error) {
+func (u WDSProfileUpdate) MarshalTLVs() (tlv.TLVs, error) {
 	var tlvs tlv.TLVs
-	if update.Name != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileName, []byte(*update.Name)))
+	if u.Name != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileName, []byte(*u.Name)))
 	}
-	if update.PDPType != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPType, uint8(*update.PDPType)))
+	if u.PDPType != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPType, uint8(*u.PDPType)))
 	}
-	if update.HeaderCompression != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileHeaderCompression, uint8(*update.HeaderCompression)))
+	if u.HeaderCompression != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileHeaderCompression, uint8(*u.HeaderCompression)))
 	}
-	if update.DataCompression != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileDataCompression, uint8(*update.DataCompression)))
+	if u.DataCompression != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileDataCompression, uint8(*u.DataCompression)))
 	}
-	if update.APN != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileAPN, []byte(*update.APN)))
+	if u.APN != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileAPN, []byte(*u.APN)))
 	}
-	if update.PrimaryIPv4DNS != nil {
-		value, err := encodeWDSProfileIPv4(*update.PrimaryIPv4DNS)
+	if u.PrimaryIPv4DNS != nil {
+		value, err := encodeWDSProfileIPv4(*u.PrimaryIPv4DNS)
 		if err != nil {
 			return nil, fmt.Errorf("encoding WDS profile primary IPv4 DNS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfilePrimaryIPv4DNS, value))
 	}
-	if update.SecondaryIPv4DNS != nil {
-		value, err := encodeWDSProfileIPv4(*update.SecondaryIPv4DNS)
+	if u.SecondaryIPv4DNS != nil {
+		value, err := encodeWDSProfileIPv4(*u.SecondaryIPv4DNS)
 		if err != nil {
 			return nil, fmt.Errorf("encoding WDS profile secondary IPv4 DNS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileSecondaryIPv4DNS, value))
 	}
-	if update.UMTSRequestedQoS != nil {
-		value, err := update.UMTSRequestedQoS.MarshalBinary()
+	if u.UMTSRequestedQoS != nil {
+		value, err := u.UMTSRequestedQoS.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile UMTS requested QoS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileUMTSRequestedQoS, value))
 	}
-	if update.UMTSMinimumQoS != nil {
-		value, err := update.UMTSMinimumQoS.MarshalBinary()
+	if u.UMTSMinimumQoS != nil {
+		value, err := u.UMTSMinimumQoS.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile UMTS minimum QoS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileUMTSMinimumQoS, value))
 	}
-	if update.GPRSRequestedQoS != nil {
-		value, err := update.GPRSRequestedQoS.MarshalBinary()
+	if u.GPRSRequestedQoS != nil {
+		value, err := u.GPRSRequestedQoS.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile GPRS requested QoS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileGPRSRequestedQoS, value))
 	}
-	if update.GPRSMinimumQoS != nil {
-		value, err := update.GPRSMinimumQoS.MarshalBinary()
+	if u.GPRSMinimumQoS != nil {
+		value, err := u.GPRSMinimumQoS.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile GPRS minimum QoS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileGPRSMinimumQoS, value))
 	}
-	if update.Username != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileUsername, []byte(*update.Username)))
+	if u.Username != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileUsername, []byte(*u.Username)))
 	}
-	if update.Password != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfilePassword, []byte(*update.Password)))
+	if u.Password != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfilePassword, []byte(*u.Password)))
 	}
-	if update.Authentication != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileAuth, uint8(*update.Authentication)))
+	if u.Authentication != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileAuth, uint8(*u.Authentication)))
 	}
-	if update.IPv4AddressPreference != nil {
-		value, err := encodeWDSProfileIPv4(*update.IPv4AddressPreference)
+	if u.IPv4AddressPreference != nil {
+		value, err := encodeWDSProfileIPv4(*u.IPv4AddressPreference)
 		if err != nil {
 			return nil, fmt.Errorf("encoding WDS profile IPv4 address preference: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileIPv4Preference, value))
 	}
-	if update.PCSCFUsingPCO != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVPCSCFUsingPCO, []byte{boolByte(*update.PCSCFUsingPCO)}))
+	if u.PCSCFUsingPCO != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVPCSCFUsingPCO, []byte{boolByte(*u.PCSCFUsingPCO)}))
 	}
-	if update.PDPAccessControl != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPAccessControl, uint8(*update.PDPAccessControl)))
+	if u.PDPAccessControl != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPAccessControl, uint8(*u.PDPAccessControl)))
 	}
-	if update.PCSCFUsingDHCP != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVPCSCFUsingDHCP, []byte{boolByte(*update.PCSCFUsingDHCP)}))
+	if u.PCSCFUsingDHCP != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVPCSCFUsingDHCP, []byte{boolByte(*u.PCSCFUsingDHCP)}))
 	}
-	if update.IMCN != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVIMCNFlag, []byte{boolByte(*update.IMCN)}))
+	if u.IMCN != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVIMCNFlag, []byte{boolByte(*u.IMCN)}))
 	}
-	if update.PDPContextNumber != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPContextNumber, *update.PDPContextNumber))
+	if u.PDPContextNumber != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPContextNumber, *u.PDPContextNumber))
 	}
-	if update.PDPContextSecondary != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfilePDPContextSecondary, []byte{boolByte(*update.PDPContextSecondary)}))
+	if u.PDPContextSecondary != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfilePDPContextSecondary, []byte{boolByte(*u.PDPContextSecondary)}))
 	}
-	if update.PDPContextPrimaryID != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPContextPrimaryID, *update.PDPContextPrimaryID))
+	if u.PDPContextPrimaryID != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfilePDPContextPrimaryID, *u.PDPContextPrimaryID))
 	}
-	if update.IPv6AddressPreference != nil {
-		value, err := encodeWDSProfileIPv6(*update.IPv6AddressPreference)
+	if u.IPv6AddressPreference != nil {
+		value, err := encodeWDSProfileIPv6(*u.IPv6AddressPreference)
 		if err != nil {
 			return nil, fmt.Errorf("encoding WDS profile IPv6 address preference: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileIPv6Preference, value))
 	}
-	if update.UMTSRequestedQoSWithSignaling != nil {
-		value, err := update.UMTSRequestedQoSWithSignaling.MarshalBinary()
+	if u.UMTSRequestedQoSWithSignaling != nil {
+		value, err := u.UMTSRequestedQoSWithSignaling.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile UMTS requested QoS with signaling: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileUMTSRequestedQoSSig, value))
 	}
-	if update.UMTSMinimumQoSWithSignaling != nil {
-		value, err := update.UMTSMinimumQoSWithSignaling.MarshalBinary()
+	if u.UMTSMinimumQoSWithSignaling != nil {
+		value, err := u.UMTSMinimumQoSWithSignaling.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile UMTS minimum QoS with signaling: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileUMTSMinimumQoSSig, value))
 	}
-	if update.PrimaryIPv6DNS != nil {
-		value, err := encodeWDSProfileIPv6(*update.PrimaryIPv6DNS)
+	if u.PrimaryIPv6DNS != nil {
+		value, err := encodeWDSProfileIPv6(*u.PrimaryIPv6DNS)
 		if err != nil {
 			return nil, fmt.Errorf("encoding WDS profile primary IPv6 DNS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfilePrimaryIPv6DNS, value))
 	}
-	if update.SecondaryIPv6DNS != nil {
-		value, err := encodeWDSProfileIPv6(*update.SecondaryIPv6DNS)
+	if u.SecondaryIPv6DNS != nil {
+		value, err := encodeWDSProfileIPv6(*u.SecondaryIPv6DNS)
 		if err != nil {
 			return nil, fmt.Errorf("encoding WDS profile secondary IPv6 DNS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileSecondaryIPv6DNS, value))
 	}
-	if update.AddressAllocationPreference != nil {
-		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileAddressAllocation, uint8(*update.AddressAllocationPreference)))
+	if u.AddressAllocationPreference != nil {
+		tlvs = append(tlvs, tlv.Uint(wdsTLVProfileAddressAllocation, uint8(*u.AddressAllocationPreference)))
 	}
-	if update.LTEQoS != nil {
-		value, err := update.LTEQoS.MarshalBinary()
+	if u.LTEQoS != nil {
+		value, err := u.LTEQoS.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile LTE QoS: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileLTEQoS, value))
 	}
-	if update.APNDisabled != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileAPNDisabled, []byte{boolByte(*update.APNDisabled)}))
+	if u.APNDisabled != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileAPNDisabled, []byte{boolByte(*u.APNDisabled)}))
 	}
-	if update.RoamingDisallowed != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileRoamingDisallowed, []byte{boolByte(*update.RoamingDisallowed)}))
+	if u.RoamingDisallowed != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileRoamingDisallowed, []byte{boolByte(*u.RoamingDisallowed)}))
 	}
-	if update.VLAN != nil {
-		value, err := update.VLAN.MarshalBinary()
+	if u.VLAN != nil {
+		value, err := u.VLAN.MarshalBinary()
 		if err != nil {
 			return nil, fmt.Errorf("encoding profile VLAN range: %w", err)
 		}
 		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileVLAN, value))
 	}
-	if update.APNType != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileAPNType, binary.LittleEndian.AppendUint64(nil, uint64(*update.APNType))))
+	if u.APNType != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileAPNType, binary.LittleEndian.AppendUint64(nil, uint64(*u.APNType))))
 	}
-	if update.CLATEnabled != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileCLATEnabled, []byte{boolByte(*update.CLATEnabled)}))
+	if u.CLATEnabled != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileCLATEnabled, []byte{boolByte(*u.CLATEnabled)}))
 	}
-	if update.IPv6PrefixDelegation != nil {
-		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileIPv6PrefixDelegation, []byte{boolByte(*update.IPv6PrefixDelegation)}))
+	if u.IPv6PrefixDelegation != nil {
+		tlvs = append(tlvs, tlv.Bytes(wdsTLVProfileIPv6PrefixDelegation, []byte{boolByte(*u.IPv6PrefixDelegation)}))
 	}
 	return tlvs, nil
 }
@@ -309,9 +309,9 @@ func (qos WDSLTEQoS) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinary encodes an inclusive VLAN range.
-func (vlan WDSVLANRange) MarshalBinary() ([]byte, error) {
-	value := binary.LittleEndian.AppendUint16(nil, vlan.Start)
-	return binary.LittleEndian.AppendUint16(value, vlan.End), nil
+func (v WDSVLANRange) MarshalBinary() ([]byte, error) {
+	value := binary.LittleEndian.AppendUint16(nil, v.Start)
+	return binary.LittleEndian.AppendUint16(value, v.End), nil
 }
 
 func unmarshalWDSProfileSettings(tlvs tlv.TLVs, settings *WDSProfileSettings) error {
@@ -616,11 +616,11 @@ func (qos *WDSLTEQoS) UnmarshalBinary(value []byte) error {
 }
 
 // UnmarshalBinary decodes an inclusive VLAN range.
-func (vlan *WDSVLANRange) UnmarshalBinary(value []byte) error {
+func (v *WDSVLANRange) UnmarshalBinary(value []byte) error {
 	if len(value) != 4 {
 		return fmt.Errorf("VLAN range length %d, want 4", len(value))
 	}
-	*vlan = WDSVLANRange{
+	*v = WDSVLANRange{
 		Start: binary.LittleEndian.Uint16(value[0:2]),
 		End:   binary.LittleEndian.Uint16(value[2:4]),
 	}

@@ -127,17 +127,17 @@ func (r *CSIMResponse) unmarshalBody(body string, requireKnownStatusWord bool) e
 
 type csimData []byte
 
-func (data csimData) String() string {
-	text, _ := data.MarshalText()
+func (d csimData) String() string {
+	text, _ := d.MarshalText()
 	return string(text)
 }
 
-func (data csimData) MarshalText() ([]byte, error) {
-	hexData := strings.ToUpper(hex.EncodeToString(data))
+func (d csimData) MarshalText() ([]byte, error) {
+	hexData := strings.ToUpper(hex.EncodeToString(d))
 	return fmt.Appendf(nil, "%d,%q", len(hexData), hexData), nil
 }
 
-func (data *csimData) UnmarshalText(text []byte) error {
+func (d *csimData) UnmarshalText(text []byte) error {
 	body := string(text)
 	hexData := body
 	wantLen := -1
@@ -170,7 +170,7 @@ func (data *csimData) UnmarshalText(text []byte) error {
 	if err != nil {
 		return fmt.Errorf("invalid CSIM data: %w", err)
 	}
-	*data = csimData(decoded)
+	*d = csimData(decoded)
 	return nil
 }
 

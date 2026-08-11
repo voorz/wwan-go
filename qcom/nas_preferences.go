@@ -211,24 +211,24 @@ func (p *NASTechnologyPreferences) UnmarshalTLVs(tlvs tlv.TLVs) error {
 }
 
 // MarshalTLVs encodes preferred-network fields.
-func (config NASPreferredNetworksConfig) MarshalTLVs() (tlv.TLVs, error) {
+func (c NASPreferredNetworksConfig) MarshalTLVs() (tlv.TLVs, error) {
 	var tlvs tlv.TLVs
-	if config.Networks != nil {
-		if len(config.Networks) > nasPreferredNetworksMax {
-			return nil, fmt.Errorf("setting QMI NAS preferred networks: network count %d exceeds %d", len(config.Networks), nasPreferredNetworksMax)
+	if c.Networks != nil {
+		if len(c.Networks) > nasPreferredNetworksMax {
+			return nil, fmt.Errorf("setting QMI NAS preferred networks: network count %d exceeds %d", len(c.Networks), nasPreferredNetworksMax)
 		}
-		for i, network := range config.Networks {
+		for i, network := range c.Networks {
 			if network.PLMN.MCC > 999 || network.PLMN.MNC > 999 {
 				return nil, fmt.Errorf("setting QMI NAS preferred networks: network %d PLMN %d/%d is out of range", i, network.PLMN.MCC, network.PLMN.MNC)
 			}
 		}
-		tlvs = append(tlvs, tlv.Bytes(0x10, encodeNASPreferredNetworkList(config.Networks)))
-		if statuses := encodeNASMNCDigitStatus(config.Networks); statuses != nil {
+		tlvs = append(tlvs, tlv.Bytes(0x10, encodeNASPreferredNetworkList(c.Networks)))
+		if statuses := encodeNASMNCDigitStatus(c.Networks); statuses != nil {
 			tlvs = append(tlvs, tlv.Bytes(0x11, statuses))
 		}
 	}
-	if config.ClearPrevious != nil {
-		tlvs = append(tlvs, tlv.Uint(0x12, boolByte(*config.ClearPrevious)))
+	if c.ClearPrevious != nil {
+		tlvs = append(tlvs, tlv.Uint(0x12, boolByte(*c.ClearPrevious)))
 	}
 	return tlvs, nil
 }

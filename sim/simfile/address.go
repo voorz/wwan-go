@@ -8,21 +8,21 @@ import (
 
 type Address string
 
-func (address Address) String() string {
-	return string(address)
+func (a Address) String() string {
+	return string(a)
 }
 
-func (address Address) MarshalText() ([]byte, error) {
-	return []byte(string(address)), nil
+func (a Address) MarshalText() ([]byte, error) {
+	return []byte(string(a)), nil
 }
 
-func (address *Address) UnmarshalText(text []byte) error {
-	*address = Address(string(text))
+func (a *Address) UnmarshalText(text []byte) error {
+	*a = Address(string(text))
 	return nil
 }
 
-func (address Address) MarshalBinary() ([]byte, error) {
-	value := strings.TrimSpace(string(address))
+func (a Address) MarshalBinary() ([]byte, error) {
+	value := strings.TrimSpace(string(a))
 	if value == "" {
 		return nil, nil
 	}
@@ -47,9 +47,9 @@ func (address Address) MarshalBinary() ([]byte, error) {
 	return append([]byte{tonNPI}, body...), nil
 }
 
-func (address *Address) UnmarshalBinary(data []byte) error {
+func (a *Address) UnmarshalBinary(data []byte) error {
 	if len(data) == 0 {
-		*address = ""
+		*a = ""
 		return nil
 	}
 
@@ -58,13 +58,13 @@ func (address *Address) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("parsing address: %w", err)
 	}
 	if digits == "" {
-		*address = ""
+		*a = ""
 		return nil
 	}
 
 	if data[0] == 0x91 {
 		digits = "+" + digits
 	}
-	*address = Address(digits)
+	*a = Address(digits)
 	return nil
 }

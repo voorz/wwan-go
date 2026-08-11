@@ -278,15 +278,15 @@ func dmsEventReportTLVs(config DMSEventReportConfig) tlv.TLVs {
 	return tlvs
 }
 
-func (state DMSPINState) MarshalBinary() ([]byte, error) {
-	return []byte{byte(state.Status), state.VerifyRetries, state.UnblockRetries}, nil
+func (s DMSPINState) MarshalBinary() ([]byte, error) {
+	return []byte{byte(s.Status), s.VerifyRetries, s.UnblockRetries}, nil
 }
 
-func (state *DMSPINState) UnmarshalBinary(value []byte) error {
+func (s *DMSPINState) UnmarshalBinary(value []byte) error {
 	if err := requireDMSEventLength(value, 3); err != nil {
 		return err
 	}
-	*state = DMSPINState{
+	*s = DMSPINState{
 		Status:         DMSPINStatus(value[0]),
 		VerifyRetries:  value[1],
 		UnblockRetries: value[2],
@@ -329,6 +329,7 @@ func (c *Client) releaseDMSEvents() {
 		return
 	}
 	c.dmsEventRefs = 0
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setDMSEvents(ctx, false)
 }
 

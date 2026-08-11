@@ -8,145 +8,145 @@ import (
 )
 
 const (
-	basicPinTypeMaximum = PinTypeCorporatePUK
+	basicPINTypeMaximum = PINTypeCorporatePUK
 	pinLengthUnknown    = 0x00ffffff
 )
 
-type PinType uint32
+type PINType uint32
 
 const (
-	PinTypeNone PinType = iota
-	PinTypeCustom
-	PinTypePIN1
-	PinTypePIN2
-	PinTypeDeviceSIM
-	PinTypeDeviceFirstSIM
-	PinTypeNetwork
-	PinTypeNetworkSubset
-	PinTypeServiceProvider
-	PinTypeCorporate
-	PinTypeSubsidy
-	PinTypePUK1
-	PinTypePUK2
-	PinTypeDeviceFirstSIMPUK
-	PinTypeNetworkPUK
-	PinTypeNetworkSubsetPUK
-	PinTypeServiceProviderPUK
-	PinTypeCorporatePUK
-	PinTypeNEV
-	PinTypeADM
+	PINTypeNone PINType = iota
+	PINTypeCustom
+	PINTypePIN1
+	PINTypePIN2
+	PINTypeDeviceSIM
+	PINTypeDeviceFirstSIM
+	PINTypeNetwork
+	PINTypeNetworkSubset
+	PINTypeServiceProvider
+	PINTypeCorporate
+	PINTypeSubsidy
+	PINTypePUK1
+	PINTypePUK2
+	PINTypeDeviceFirstSIMPUK
+	PINTypeNetworkPUK
+	PINTypeNetworkSubsetPUK
+	PINTypeServiceProviderPUK
+	PINTypeCorporatePUK
+	PINTypeNEV
+	PINTypeADM
 )
 
-const PinTypeUnknown = PinTypeNone
+const PINTypeUnknown = PINTypeNone
 
-type PinMode uint32
+type PINMode uint32
 
 const (
-	PinModeNotSupported PinMode = 0
-	PinModeEnabled      PinMode = 1
-	PinModeDisabled     PinMode = 2
+	PINModeNotSupported PINMode = 0
+	PINModeEnabled      PINMode = 1
+	PINModeDisabled     PINMode = 2
 )
 
-type PinFormat uint32
+type PINFormat uint32
 
 const (
-	PinFormatUnknown      PinFormat = 0
-	PinFormatNumeric      PinFormat = 1
-	PinFormatAlphanumeric PinFormat = 2
+	PINFormatUnknown      PINFormat = 0
+	PINFormatNumeric      PINFormat = 1
+	PINFormatAlphanumeric PINFormat = 2
 )
 
-type PinState uint32
+type PINState uint32
 
 const (
-	PinStateUnlocked PinState = 0
-	PinStateLocked   PinState = 1
+	PINStateUnlocked PINState = 0
+	PINStateLocked   PINState = 1
 )
 
-type PinOperation uint32
+type PINOperation uint32
 
 const (
-	PinOperationEnter   PinOperation = 0
-	PinOperationEnable  PinOperation = 1
-	PinOperationDisable PinOperation = 2
-	PinOperationChange  PinOperation = 3
+	PINOperationEnter   PINOperation = 0
+	PINOperationEnable  PINOperation = 1
+	PINOperationDisable PINOperation = 2
+	PINOperationChange  PINOperation = 3
 )
 
-type PinDesc struct {
-	Mode      PinMode
-	Format    PinFormat
+type PINDesc struct {
+	Mode      PINMode
+	Format    PINFormat
 	LengthMin uint32
 	LengthMax uint32
 }
 
-type PinInfo struct {
-	Type              PinType
-	State             PinState
+type PINInfo struct {
+	Type              PINType
+	State             PINState
 	RemainingAttempts uint32
 }
 
-type PinListInfo struct {
-	PIN1            PinDesc
-	PIN2            PinDesc
-	DeviceSIM       PinDesc
-	DeviceFirstSIM  PinDesc
-	Network         PinDesc
-	NetworkSubset   PinDesc
-	ServiceProvider PinDesc
-	Corporate       PinDesc
-	Subsidy         PinDesc
-	Custom          PinDesc
+type PINListInfo struct {
+	PIN1            PINDesc
+	PIN2            PINDesc
+	DeviceSIM       PINDesc
+	DeviceFirstSIM  PINDesc
+	Network         PINDesc
+	NetworkSubset   PINDesc
+	ServiceProvider PINDesc
+	Corporate       PINDesc
+	Subsidy         PINDesc
+	Custom          PINDesc
 }
 
-func validBasicPinType(pinType PinType) bool {
-	return pinType <= basicPinTypeMaximum
+func validBasicPINType(pinType PINType) bool {
+	return pinType <= basicPINTypeMaximum
 }
 
-func validPinLength(length uint32) bool {
+func validPINLength(length uint32) bool {
 	return length <= 16 || length == pinLengthUnknown
 }
 
-func (desc PinDesc) validate() error {
-	if desc.Mode > PinModeDisabled {
-		return fmt.Errorf("mode %d is outside 0..%d", desc.Mode, PinModeDisabled)
+func (d PINDesc) validate() error {
+	if d.Mode > PINModeDisabled {
+		return fmt.Errorf("mode %d is outside 0..%d", d.Mode, PINModeDisabled)
 	}
-	if desc.Format > PinFormatAlphanumeric {
-		return fmt.Errorf("format %d is outside 0..%d", desc.Format, PinFormatAlphanumeric)
+	if d.Format > PINFormatAlphanumeric {
+		return fmt.Errorf("format %d is outside 0..%d", d.Format, PINFormatAlphanumeric)
 	}
-	if !validPinLength(desc.LengthMin) {
-		return fmt.Errorf("minimum length %d exceeds 16 and is not the unknown value %#x", desc.LengthMin, pinLengthUnknown)
+	if !validPINLength(d.LengthMin) {
+		return fmt.Errorf("minimum length %d exceeds 16 and is not the unknown value %#x", d.LengthMin, pinLengthUnknown)
 	}
-	if !validPinLength(desc.LengthMax) {
-		return fmt.Errorf("maximum length %d exceeds 16 and is not the unknown value %#x", desc.LengthMax, pinLengthUnknown)
+	if !validPINLength(d.LengthMax) {
+		return fmt.Errorf("maximum length %d exceeds 16 and is not the unknown value %#x", d.LengthMax, pinLengthUnknown)
 	}
-	if desc.LengthMin != pinLengthUnknown && desc.LengthMax != pinLengthUnknown && desc.LengthMin > desc.LengthMax {
-		return fmt.Errorf("minimum length %d exceeds maximum length %d", desc.LengthMin, desc.LengthMax)
+	if d.LengthMin != pinLengthUnknown && d.LengthMax != pinLengthUnknown && d.LengthMin > d.LengthMax {
+		return fmt.Errorf("minimum length %d exceeds maximum length %d", d.LengthMin, d.LengthMax)
 	}
 	return nil
 }
 
 type PINRequest struct {
 	TransactionID uint32
-	Response      *PinInfo
+	Response      *PINInfo
 }
 
 func (r *PINRequest) Request() *Request {
-	r.Response = new(PinInfo)
+	r.Response = new(PINInfo)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceBasicConnect, CIDPin, CommandTypeQuery, nil),
+		Command:       command(ServiceBasicConnect, CIDPIN, CommandTypeQuery, nil),
 		Response:      r.Response,
 	}
 }
 
 type PINSetRequest struct {
 	TransactionID uint32
-	Type          PinType
-	Operation     PinOperation
+	Type          PINType
+	Operation     PINOperation
 	PIN           string
 	NewPIN        string
-	Response      *PinInfo
+	Response      *PINInfo
 }
 
 func (r *PINSetRequest) Request() *Request {
@@ -158,29 +158,29 @@ func (r *PINSetRequest) Request() *Request {
 	data = appendRefValue(data, 8, pin)
 	data = appendRefValue(data, 16, newPIN)
 
-	r.Response = new(PinInfo)
+	r.Response = new(PINInfo)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDLongResponseTimeout,
-		Command:       command(ServiceBasicConnect, CIDPin, CommandTypeSet, data),
+		Command:       command(ServiceBasicConnect, CIDPIN, CommandTypeSet, data),
 		Response:      r.Response,
 	}
 }
 
-func (r *PinInfo) UnmarshalBinary(data []byte) error {
+func (r *PINInfo) UnmarshalBinary(data []byte) error {
 	if len(data) != 12 {
 		return fmt.Errorf("parsing MBIM PIN info: payload length is %d, want 12", len(data))
 	}
-	pinType := PinType(binary.LittleEndian.Uint32(data[0:4]))
-	if !validBasicPinType(pinType) {
-		return fmt.Errorf("parsing MBIM PIN info: type %d is outside 0..%d", pinType, basicPinTypeMaximum)
+	pinType := PINType(binary.LittleEndian.Uint32(data[0:4]))
+	if !validBasicPINType(pinType) {
+		return fmt.Errorf("parsing MBIM PIN info: type %d is outside 0..%d", pinType, basicPINTypeMaximum)
 	}
-	state := PinState(binary.LittleEndian.Uint32(data[4:8]))
-	if state > PinStateLocked {
-		return fmt.Errorf("parsing MBIM PIN info: state %d is outside 0..%d", state, PinStateLocked)
+	state := PINState(binary.LittleEndian.Uint32(data[4:8]))
+	if state > PINStateLocked {
+		return fmt.Errorf("parsing MBIM PIN info: state %d is outside 0..%d", state, PINStateLocked)
 	}
-	*r = PinInfo{
+	*r = PINInfo{
 		Type:              pinType,
 		State:             state,
 		RemainingAttempts: binary.LittleEndian.Uint32(data[8:12]),
@@ -190,21 +190,21 @@ func (r *PinInfo) UnmarshalBinary(data []byte) error {
 
 type PINListRequest struct {
 	TransactionID uint32
-	Response      *PinListInfo
+	Response      *PINListInfo
 }
 
 func (r *PINListRequest) Request() *Request {
-	r.Response = new(PinListInfo)
+	r.Response = new(PINListInfo)
 	return &Request{
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceBasicConnect, CIDPinList, CommandTypeQuery, nil),
+		Command:       command(ServiceBasicConnect, CIDPINList, CommandTypeQuery, nil),
 		Response:      r.Response,
 	}
 }
 
-func (r *PinListInfo) UnmarshalBinary(data []byte) error {
+func (r *PINListInfo) UnmarshalBinary(data []byte) error {
 	if len(data) != 160 {
 		return fmt.Errorf("parsing MBIM PIN list: payload length is %d, want 160", len(data))
 	}
@@ -212,12 +212,12 @@ func (r *PinListInfo) UnmarshalBinary(data []byte) error {
 		"PIN1", "PIN2", "device SIM", "device first SIM", "network",
 		"network subset", "service provider", "corporate", "subsidy", "custom",
 	}
-	descs := make([]PinDesc, 10)
+	descs := make([]PINDesc, 10)
 	for i := range descs {
 		offset := i * 16
-		descs[i] = PinDesc{
-			Mode:      PinMode(binary.LittleEndian.Uint32(data[offset : offset+4])),
-			Format:    PinFormat(binary.LittleEndian.Uint32(data[offset+4 : offset+8])),
+		descs[i] = PINDesc{
+			Mode:      PINMode(binary.LittleEndian.Uint32(data[offset : offset+4])),
+			Format:    PINFormat(binary.LittleEndian.Uint32(data[offset+4 : offset+8])),
 			LengthMin: binary.LittleEndian.Uint32(data[offset+8 : offset+12]),
 			LengthMax: binary.LittleEndian.Uint32(data[offset+12 : offset+16]),
 		}
@@ -225,7 +225,7 @@ func (r *PinListInfo) UnmarshalBinary(data []byte) error {
 			return fmt.Errorf("parsing MBIM PIN list %s descriptor: %w", names[i], err)
 		}
 	}
-	*r = PinListInfo{
+	*r = PINListInfo{
 		PIN1:            descs[0],
 		PIN2:            descs[1],
 		DeviceSIM:       descs[2],
@@ -240,7 +240,7 @@ func (r *PinListInfo) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (c *Client) PIN(ctx context.Context) (PinInfo, error) {
+func (c *Client) PIN(ctx context.Context) (PINInfo, error) {
 	request := PINRequest{TransactionID: c.nextTransactionID()}
 	if err := c.transmit(ctx, request.Request()); err != nil {
 		return *request.Response, fmt.Errorf("reading MBIM PIN state: %w", err)
@@ -248,23 +248,23 @@ func (c *Client) PIN(ctx context.Context) (PinInfo, error) {
 	return *request.Response, nil
 }
 
-func (c *Client) SetPIN(ctx context.Context, pinType PinType, operation PinOperation, pin, newPIN string) (PinInfo, error) {
-	if !validBasicPinType(pinType) {
-		return PinInfo{}, fmt.Errorf("setting MBIM PIN: type %d is outside 0..%d", pinType, basicPinTypeMaximum)
+func (c *Client) SetPIN(ctx context.Context, pinType PINType, operation PINOperation, pin, newPIN string) (PINInfo, error) {
+	if !validBasicPINType(pinType) {
+		return PINInfo{}, fmt.Errorf("setting MBIM PIN: type %d is outside 0..%d", pinType, basicPINTypeMaximum)
 	}
-	if operation > PinOperationChange {
-		return PinInfo{}, fmt.Errorf("setting MBIM PIN: operation %d is outside 0..%d", operation, PinOperationChange)
+	if operation > PINOperationChange {
+		return PINInfo{}, fmt.Errorf("setting MBIM PIN: operation %d is outside 0..%d", operation, PINOperationChange)
 	}
 	if size := len(utf16Bytes(pin)); size > 32 {
-		return PinInfo{}, fmt.Errorf("setting MBIM PIN: PIN length %d exceeds 32 bytes", size)
+		return PINInfo{}, fmt.Errorf("setting MBIM PIN: PIN length %d exceeds 32 bytes", size)
 	}
 	if size := len(utf16Bytes(newPIN)); size > 32 {
-		return PinInfo{}, fmt.Errorf("setting MBIM PIN: new PIN length %d exceeds 32 bytes", size)
+		return PINInfo{}, fmt.Errorf("setting MBIM PIN: new PIN length %d exceeds 32 bytes", size)
 	}
-	newPINApplicable := operation == PinOperationChange ||
-		(operation == PinOperationEnter && (pinType == PinTypePUK1 || pinType == PinTypePUK2))
+	newPINApplicable := operation == PINOperationChange ||
+		(operation == PINOperationEnter && (pinType == PINTypePUK1 || pinType == PINTypePUK2))
 	if newPIN != "" && !newPINApplicable {
-		return PinInfo{}, errors.New("setting MBIM PIN: new PIN is only valid for change or PUK1/PUK2 enter operations")
+		return PINInfo{}, errors.New("setting MBIM PIN: new PIN is only valid for change or PUK1/PUK2 enter operations")
 	}
 	request := PINSetRequest{
 		TransactionID: c.nextTransactionID(),
@@ -279,10 +279,10 @@ func (c *Client) SetPIN(ctx context.Context, pinType PinType, operation PinOpera
 	return *request.Response, nil
 }
 
-func (c *Client) PINList(ctx context.Context) (PinListInfo, error) {
+func (c *Client) PINList(ctx context.Context) (PINListInfo, error) {
 	request := PINListRequest{TransactionID: c.nextTransactionID()}
 	if err := c.transmit(ctx, request.Request()); err != nil {
-		return PinListInfo{}, fmt.Errorf("reading MBIM PIN list: %w", err)
+		return PINListInfo{}, fmt.Errorf("reading MBIM PIN list: %w", err)
 	}
 	return *request.Response, nil
 }

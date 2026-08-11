@@ -34,10 +34,7 @@ func ListReaders(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_, _ = pcscCtx.Release()
-		releasePCSC()
-	}()
+	defer releasePCSCContext(pcscCtx)
 
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("listing readers: %w", err)
@@ -64,38 +61,32 @@ func Open(ctx context.Context, readerName string) (*Reader, error) {
 	}
 
 	if err := ctx.Err(); err != nil {
-		_, _ = pcscCtx.Release()
-		releasePCSC()
+		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("opening reader: %w", err)
 	}
 	readers, _, err := pcscCtx.ListReaders(nil)
 	if err != nil {
-		_, _ = pcscCtx.Release()
-		releasePCSC()
+		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("listing readers: %w", err)
 	}
 	if !slices.Contains(readers, readerName) {
-		_, _ = pcscCtx.Release()
-		releasePCSC()
+		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("selecting %q: %w", readerName, ErrReaderNotFound)
 	}
 
 	if err := ctx.Err(); err != nil {
-		_, _ = pcscCtx.Release()
-		releasePCSC()
+		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("opening reader: %w", err)
 	}
 	card, _, err := pcscCtx.Connect(readerName, goscard.SCardShareShared, goscard.SCardProtocolAny)
 	if err != nil {
-		_, _ = pcscCtx.Release()
-		releasePCSC()
+		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("connecting to %s: %w", readerName, err)
 	}
 	ioSend, err := ioRequestForProtocol(card.ActiveProtocol())
 	if err != nil {
-		_, _ = card.Disconnect(goscard.SCardLeaveCard)
-		_, _ = pcscCtx.Release()
-		releasePCSC()
+		_, _ = card.Disconnect(goscard.SCardLeaveCard) // Cleanup cannot change the protocol error.
+		releasePCSCContext(pcscCtx)
 		return nil, err
 	}
 
@@ -117,6 +108,11 @@ func newContext() (goscard.Context, error) {
 		return goscard.Context{}, fmt.Errorf("creating pcsc context: %w", err)
 	}
 	return ctx, nil
+}
+
+func releasePCSCContext(pcscCtx goscard.Context) {
+	_, _ = pcscCtx.Release() // PC/SC cleanup is best effort; no useful recovery remains.
+	releasePCSC()
 }
 
 func (r *Reader) Close() error {

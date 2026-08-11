@@ -10,67 +10,67 @@ import (
 	"github.com/damonto/wwan-go/qcom/tlv"
 )
 
-// QOSSubscription identifies a modem subscription for the QoS service.
-type QOSSubscription uint32
+// QoSSubscription identifies a modem subscription for the QoS service.
+type QoSSubscription uint32
 
 const (
-	QOSSubscriptionPrimary QOSSubscription = 1 + iota
-	QOSSubscriptionSecondary
-	QOSSubscriptionTertiary
+	QoSSubscriptionPrimary QoSSubscription = 1 + iota
+	QoSSubscriptionSecondary
+	QoSSubscriptionTertiary
 )
 
-// QOSFlowStatus is the current state of a negotiated QoS flow.
-type QOSFlowStatus uint8
+// QoSFlowStatus is the current state of a negotiated QoS flow.
+type QoSFlowStatus uint8
 
 const (
-	QOSFlowStatusDefault QOSFlowStatus = iota
-	QOSFlowStatusActivated
-	QOSFlowStatusSuspended
-	QOSFlowStatusGone
+	QoSFlowStatusDefault QoSFlowStatus = iota
+	QoSFlowStatusActivated
+	QoSFlowStatusSuspended
+	QoSFlowStatusGone
 )
 
-// QOSFlowEvent describes why a flow-status indication was emitted.
-type QOSFlowEvent uint8
+// QoSFlowEvent describes why a flow-status indication was emitted.
+type QoSFlowEvent uint8
 
 const (
-	QOSFlowEventActivated QOSFlowEvent = 1 + iota
-	QOSFlowEventSuspended
-	QOSFlowEventGone
-	QOSFlowEventModifyAccepted
-	QOSFlowEventModifyRejected
-	QOSFlowEventInfoCodeUpdated
+	QoSFlowEventActivated QoSFlowEvent = 1 + iota
+	QoSFlowEventSuspended
+	QoSFlowEventGone
+	QoSFlowEventModifyAccepted
+	QoSFlowEventModifyRejected
+	QoSFlowEventInfoCodeUpdated
 )
 
-// QOSFlowStatusUpdate is emitted for a flow owned by this QoS control point.
-type QOSFlowStatusUpdate struct {
+// QoSFlowStatusUpdate is emitted for a flow owned by this QoS control point.
+type QoSFlowStatusUpdate struct {
 	ID          uint32
-	Status      QOSFlowStatus
-	Event       QOSFlowEvent
+	Status      QoSFlowStatus
+	Event       QoSFlowEvent
 	Reason      uint8
 	ReasonKnown bool
 }
 
-// QOSDataPortConfig selects a modern endpoint/mux or one legacy SIO port.
-type QOSDataPortConfig struct {
+// QoSDataPortConfig selects a modern endpoint/mux or one legacy SIO port.
+type QoSDataPortConfig struct {
 	Endpoint   *DataEndpoint
 	MuxID      *uint8
 	LegacyPort *WDSSIOPort
 }
 
-// QOSResetRequest encodes QMI QOS Reset.
-type QOSResetRequest struct {
+// QoSResetRequest encodes QMI QoS Reset.
+type QoSResetRequest struct {
 	ClientID      uint8
 	TransactionID uint16
 	Timeout       time.Duration
 }
 
 // Request converts the reset into a QMI request.
-func (r QOSResetRequest) Request() Request {
-	return qosEmptyRequest(r.ClientID, r.TransactionID, r.Timeout, MessageQOSReset)
+func (r QoSResetRequest) Request() Request {
+	return qosEmptyRequest(r.ClientID, r.TransactionID, r.Timeout, MessageQoSReset)
 }
 
-// QOSGetFlowStatusRequest encodes Get QoS Status.
-type QOSGetFlowStatusRequest struct {
+// QoSGetFlowStatusRequest encodes Get QoS Status.
+type QoSGetFlowStatusRequest struct {
 	ClientID      uint8
 	TransactionID uint16
 	Timeout       time.Duration
@@ -78,57 +78,57 @@ type QOSGetFlowStatusRequest struct {
 }
 
 // Request converts the flow query into a QMI request.
-func (r QOSGetFlowStatusRequest) Request() Request {
+func (r QoSGetFlowStatusRequest) Request() Request {
 	return Request{
-		Service:       ServiceQOS,
+		Service:       ServiceQoS,
 		ClientID:      r.ClientID,
 		TransactionID: r.TransactionID,
-		MessageID:     MessageQOSGetStatus,
+		MessageID:     MessageQoSGetStatus,
 		Timeout:       r.Timeout,
 		TLVs:          tlv.TLVs{tlv.Uint(0x01, r.FlowID)},
 	}
 }
 
-// QOSGetFlowStatusResponse is the parsed flow status response.
-type QOSGetFlowStatusResponse struct {
-	Status QOSFlowStatus
+// QoSGetFlowStatusResponse is the parsed flow status response.
+type QoSGetFlowStatusResponse struct {
+	Status QoSFlowStatus
 }
 
 // UnmarshalTLVs parses the mandatory flow status.
-func (r *QOSGetFlowStatusResponse) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*r = QOSGetFlowStatusResponse{}
+func (r *QoSGetFlowStatusResponse) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*r = QoSGetFlowStatusResponse{}
 	value, ok := tlv.Value(tlvs, 0x01)
 	if !ok {
-		return errors.New("parsing QMI QOS flow status: status TLV is missing")
+		return errors.New("parsing QMI QoS flow status: status TLV is missing")
 	}
 	if len(value) != 1 {
-		return fmt.Errorf("parsing QMI QOS flow status: status TLV length %d, want 1", len(value))
+		return fmt.Errorf("parsing QMI QoS flow status: status TLV length %d, want 1", len(value))
 	}
-	r.Status = QOSFlowStatus(value[0])
+	r.Status = QoSFlowStatus(value[0])
 	return nil
 }
 
-// QOSFlowStatusIndication is the parsed per-flow status indication.
-type QOSFlowStatusIndication struct {
-	Update QOSFlowStatusUpdate
+// QoSFlowStatusIndication is the parsed per-flow status indication.
+type QoSFlowStatusIndication struct {
+	Update QoSFlowStatusUpdate
 }
 
 // UnmarshalTLVs parses the mandatory status aggregate and optional reason.
-func (r *QOSFlowStatusIndication) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*r = QOSFlowStatusIndication{}
+func (r *QoSFlowStatusIndication) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*r = QoSFlowStatusIndication{}
 	value, ok := tlv.Value(tlvs, 0x01)
 	if !ok {
-		return errors.New("parsing QMI QOS flow status indication: status TLV is missing")
+		return errors.New("parsing QMI QoS flow status indication: status TLV is missing")
 	}
 	if len(value) != 6 {
-		return fmt.Errorf("parsing QMI QOS flow status indication: status TLV length %d, want 6", len(value))
+		return fmt.Errorf("parsing QMI QoS flow status indication: status TLV length %d, want 6", len(value))
 	}
 	r.Update.ID = binary.LittleEndian.Uint32(value[:4])
-	r.Update.Status = QOSFlowStatus(value[4])
-	r.Update.Event = QOSFlowEvent(value[5])
+	r.Update.Status = QoSFlowStatus(value[4])
+	r.Update.Event = QoSFlowEvent(value[5])
 	if value, ok := tlv.Value(tlvs, 0x10); ok {
 		if len(value) != 1 {
-			return fmt.Errorf("parsing QMI QOS flow status indication: reason TLV length %d, want 1", len(value))
+			return fmt.Errorf("parsing QMI QoS flow status indication: reason TLV length %d, want 1", len(value))
 		}
 		r.Update.Reason = value[0]
 		r.Update.ReasonKnown = true
@@ -136,53 +136,53 @@ func (r *QOSFlowStatusIndication) UnmarshalTLVs(tlvs tlv.TLVs) error {
 	return nil
 }
 
-// QOSGetNetworkStatusRequest encodes Get QoS Network Status.
-type QOSGetNetworkStatusRequest struct {
+// QoSGetNetworkStatusRequest encodes Get QoS Network Status.
+type QoSGetNetworkStatusRequest struct {
 	ClientID      uint8
 	TransactionID uint16
 	Timeout       time.Duration
 }
 
 // Request converts the query into a QMI request.
-func (r QOSGetNetworkStatusRequest) Request() Request {
-	return qosEmptyRequest(r.ClientID, r.TransactionID, r.Timeout, MessageQOSGetNetworkStatus)
+func (r QoSGetNetworkStatusRequest) Request() Request {
+	return qosEmptyRequest(r.ClientID, r.TransactionID, r.Timeout, MessageQoSGetNetworkStatus)
 }
 
-// QOSGetNetworkStatusResponse is the parsed network QoS support status.
-type QOSGetNetworkStatusResponse struct {
+// QoSGetNetworkStatusResponse is the parsed network QoS support status.
+type QoSGetNetworkStatusResponse struct {
 	Supported bool
 }
 
 // UnmarshalTLVs parses the mandatory support flag.
-func (r *QOSGetNetworkStatusResponse) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*r = QOSGetNetworkStatusResponse{}
+func (r *QoSGetNetworkStatusResponse) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*r = QoSGetNetworkStatusResponse{}
 	value, ok := tlv.Value(tlvs, 0x01)
 	if !ok {
-		return errors.New("parsing QMI QOS network status: support TLV is missing")
+		return errors.New("parsing QMI QoS network status: support TLV is missing")
 	}
 	if len(value) != 1 {
-		return fmt.Errorf("parsing QMI QOS network status: support TLV length %d, want 1", len(value))
+		return fmt.Errorf("parsing QMI QoS network status: support TLV length %d, want 1", len(value))
 	}
 	r.Supported = value[0] != 0
 	return nil
 }
 
-// QOSBindDataPortRequest encodes Bind Data Port.
-type QOSBindDataPortRequest struct {
+// QoSBindDataPortRequest encodes Bind Data Port.
+type QoSBindDataPortRequest struct {
 	ClientID      uint8
 	TransactionID uint16
 	Timeout       time.Duration
-	Config        QOSDataPortConfig
+	Config        QoSDataPortConfig
 }
 
 // Request validates and converts a modern or legacy data-port binding.
-func (r QOSBindDataPortRequest) Request() (Request, error) {
+func (r QoSBindDataPortRequest) Request() (Request, error) {
 	modern := r.Config.Endpoint != nil || r.Config.MuxID != nil
 	if !modern && r.Config.LegacyPort == nil {
-		return Request{}, errors.New("encoding QMI QOS data port: no port selected")
+		return Request{}, errors.New("encoding QMI QoS data port: no port selected")
 	}
 	if modern && r.Config.LegacyPort != nil {
-		return Request{}, errors.New("encoding QMI QOS data port: modern and legacy ports are mutually exclusive")
+		return Request{}, errors.New("encoding QMI QoS data port: modern and legacy ports are mutually exclusive")
 	}
 	var tlvs tlv.TLVs
 	if r.Config.Endpoint != nil {
@@ -196,85 +196,85 @@ func (r QOSBindDataPortRequest) Request() (Request, error) {
 		tlvs = append(tlvs, tlv.Uint(0x12, uint16(*r.Config.LegacyPort)))
 	}
 	return Request{
-		Service:       ServiceQOS,
+		Service:       ServiceQoS,
 		ClientID:      r.ClientID,
 		TransactionID: r.TransactionID,
-		MessageID:     MessageQOSBindDataPort,
+		MessageID:     MessageQoSBindDataPort,
 		Timeout:       r.Timeout,
 		TLVs:          tlvs,
 	}, nil
 }
 
-// QOSBindSubscriptionRequest encodes Bind Subscription.
-type QOSBindSubscriptionRequest struct {
+// QoSBindSubscriptionRequest encodes Bind Subscription.
+type QoSBindSubscriptionRequest struct {
 	ClientID      uint8
 	TransactionID uint16
 	Timeout       time.Duration
-	Subscription  QOSSubscription
+	Subscription  QoSSubscription
 }
 
 // Request validates and converts the subscription binding.
-func (r QOSBindSubscriptionRequest) Request() (Request, error) {
-	if err := validateQOSSubscription(r.Subscription); err != nil {
+func (r QoSBindSubscriptionRequest) Request() (Request, error) {
+	if err := validateQoSSubscription(r.Subscription); err != nil {
 		return Request{}, err
 	}
 	return Request{
-		Service:       ServiceQOS,
+		Service:       ServiceQoS,
 		ClientID:      r.ClientID,
 		TransactionID: r.TransactionID,
-		MessageID:     MessageQOSBindSubscription,
+		MessageID:     MessageQoSBindSubscription,
 		Timeout:       r.Timeout,
 		TLVs:          tlv.TLVs{tlv.Uint(0x01, uint32(r.Subscription))},
 	}, nil
 }
 
-// QOSGetBindSubscriptionRequest encodes Get Bind Subscription.
-type QOSGetBindSubscriptionRequest struct {
+// QoSGetBindSubscriptionRequest encodes Get Bind Subscription.
+type QoSGetBindSubscriptionRequest struct {
 	ClientID      uint8
 	TransactionID uint16
 	Timeout       time.Duration
 }
 
 // Request converts the query into a QMI request.
-func (r QOSGetBindSubscriptionRequest) Request() Request {
-	return qosEmptyRequest(r.ClientID, r.TransactionID, r.Timeout, MessageQOSGetBindSubscription)
+func (r QoSGetBindSubscriptionRequest) Request() Request {
+	return qosEmptyRequest(r.ClientID, r.TransactionID, r.Timeout, MessageQoSGetBindSubscription)
 }
 
-// QOSGetBindSubscriptionResponse is the parsed bound subscription.
-type QOSGetBindSubscriptionResponse struct {
-	Subscription      QOSSubscription
+// QoSGetBindSubscriptionResponse is the parsed bound subscription.
+type QoSGetBindSubscriptionResponse struct {
+	Subscription      QoSSubscription
 	SubscriptionKnown bool
 }
 
 // UnmarshalTLVs parses the optional bound subscription.
-func (r *QOSGetBindSubscriptionResponse) UnmarshalTLVs(tlvs tlv.TLVs) error {
-	*r = QOSGetBindSubscriptionResponse{}
+func (r *QoSGetBindSubscriptionResponse) UnmarshalTLVs(tlvs tlv.TLVs) error {
+	*r = QoSGetBindSubscriptionResponse{}
 	value, ok := tlv.Value(tlvs, 0x10)
 	if !ok {
 		return nil
 	}
 	if len(value) != 4 {
-		return fmt.Errorf("parsing QMI QOS bound subscription: subscription TLV length %d, want 4", len(value))
+		return fmt.Errorf("parsing QMI QoS bound subscription: subscription TLV length %d, want 4", len(value))
 	}
-	r.Subscription = QOSSubscription(binary.LittleEndian.Uint32(value))
+	r.Subscription = QoSSubscription(binary.LittleEndian.Uint32(value))
 	r.SubscriptionKnown = true
 	return nil
 }
 
-// QOSReset resets this control point's QOS service state.
-func (c *Client) QOSReset(ctx context.Context) error {
-	req := QOSResetRequest{Timeout: DefaultRequestTimeout}.Request()
+// QoSReset resets this control point's QoS service state.
+func (c *Client) QoSReset(ctx context.Context) error {
+	req := QoSResetRequest{Timeout: DefaultRequestTimeout}.Request()
 	if err := c.qosResultRequest(ctx, req); err != nil {
-		return fmt.Errorf("resetting QMI QOS control point: %w", err)
+		return fmt.Errorf("resetting QMI QoS control point: %w", err)
 	}
 	return nil
 }
 
-// QOSFlowStatus reads the current status of one negotiated flow.
-func (c *Client) QOSFlowStatus(ctx context.Context, flowID uint32) (QOSFlowStatus, error) {
-	var status QOSFlowStatus
-	err := c.withServiceClient(ctx, ServiceQOS, func(clientID uint8) error {
-		req := QOSGetFlowStatusRequest{ClientID: clientID, Timeout: DefaultRequestTimeout, FlowID: flowID}.Request()
+// QoSFlowStatus reads the current status of one negotiated flow.
+func (c *Client) QoSFlowStatus(ctx context.Context, flowID uint32) (QoSFlowStatus, error) {
+	var status QoSFlowStatus
+	err := c.withServiceClient(ctx, ServiceQoS, func(clientID uint8) error {
+		req := QoSGetFlowStatusRequest{ClientID: clientID, Timeout: DefaultRequestTimeout, FlowID: flowID}.Request()
 		resp, err := c.requestServiceWithTimeout(ctx, req.Service, req.ClientID, req.MessageID, req.TLVs, req.Timeout)
 		if err != nil {
 			return err
@@ -282,7 +282,7 @@ func (c *Client) QOSFlowStatus(ctx context.Context, flowID uint32) (QOSFlowStatu
 		if err := resultOK(resp); err != nil {
 			return err
 		}
-		var parsed QOSGetFlowStatusResponse
+		var parsed QoSGetFlowStatusResponse
 		if err := parsed.UnmarshalTLVs(resp.TLVs); err != nil {
 			return err
 		}
@@ -290,16 +290,16 @@ func (c *Client) QOSFlowStatus(ctx context.Context, flowID uint32) (QOSFlowStatu
 		return nil
 	})
 	if err != nil {
-		return 0, fmt.Errorf("reading QMI QOS flow %d status: %w", flowID, err)
+		return 0, fmt.Errorf("reading QMI QoS flow %d status: %w", flowID, err)
 	}
 	return status, nil
 }
 
-// QOSNetworkSupported reports whether the active network supports QoS.
-func (c *Client) QOSNetworkSupported(ctx context.Context) (bool, error) {
+// QoSNetworkSupported reports whether the active network supports QoS.
+func (c *Client) QoSNetworkSupported(ctx context.Context) (bool, error) {
 	var supported bool
-	err := c.withServiceClient(ctx, ServiceQOS, func(clientID uint8) error {
-		req := QOSGetNetworkStatusRequest{ClientID: clientID, Timeout: DefaultRequestTimeout}.Request()
+	err := c.withServiceClient(ctx, ServiceQoS, func(clientID uint8) error {
+		req := QoSGetNetworkStatusRequest{ClientID: clientID, Timeout: DefaultRequestTimeout}.Request()
 		resp, err := c.requestServiceWithTimeout(ctx, req.Service, req.ClientID, req.MessageID, req.TLVs, req.Timeout)
 		if err != nil {
 			return err
@@ -307,7 +307,7 @@ func (c *Client) QOSNetworkSupported(ctx context.Context) (bool, error) {
 		if err := resultOK(resp); err != nil {
 			return err
 		}
-		var parsed QOSGetNetworkStatusResponse
+		var parsed QoSGetNetworkStatusResponse
 		if err := parsed.UnmarshalTLVs(resp.TLVs); err != nil {
 			return err
 		}
@@ -315,40 +315,40 @@ func (c *Client) QOSNetworkSupported(ctx context.Context) (bool, error) {
 		return nil
 	})
 	if err != nil {
-		return false, fmt.Errorf("reading QMI QOS network status: %w", err)
+		return false, fmt.Errorf("reading QMI QoS network status: %w", err)
 	}
 	return supported, nil
 }
 
-// QOSBindDataPort binds this QoS control point to a data channel.
-func (c *Client) QOSBindDataPort(ctx context.Context, config QOSDataPortConfig) error {
-	req, err := (QOSBindDataPortRequest{Timeout: DefaultRequestTimeout, Config: config}).Request()
+// QoSBindDataPort binds this QoS control point to a data channel.
+func (c *Client) QoSBindDataPort(ctx context.Context, config QoSDataPortConfig) error {
+	req, err := (QoSBindDataPortRequest{Timeout: DefaultRequestTimeout, Config: config}).Request()
 	if err != nil {
 		return err
 	}
 	if err := c.qosResultRequest(ctx, req); err != nil {
-		return fmt.Errorf("binding QMI QOS data port: %w", err)
+		return fmt.Errorf("binding QMI QoS data port: %w", err)
 	}
 	return nil
 }
 
-// QOSBindSubscription binds this QoS control point to a subscription.
-func (c *Client) QOSBindSubscription(ctx context.Context, subscription QOSSubscription) error {
-	req, err := (QOSBindSubscriptionRequest{Timeout: DefaultRequestTimeout, Subscription: subscription}).Request()
+// QoSBindSubscription binds this QoS control point to a subscription.
+func (c *Client) QoSBindSubscription(ctx context.Context, subscription QoSSubscription) error {
+	req, err := (QoSBindSubscriptionRequest{Timeout: DefaultRequestTimeout, Subscription: subscription}).Request()
 	if err != nil {
 		return err
 	}
 	if err := c.qosResultRequest(ctx, req); err != nil {
-		return fmt.Errorf("binding QMI QOS subscription: %w", err)
+		return fmt.Errorf("binding QMI QoS subscription: %w", err)
 	}
 	return nil
 }
 
-// QOSBoundSubscription reads the subscription bound to this QoS control point.
-func (c *Client) QOSBoundSubscription(ctx context.Context) (QOSSubscription, error) {
-	var subscription QOSSubscription
-	err := c.withServiceClient(ctx, ServiceQOS, func(clientID uint8) error {
-		req := QOSGetBindSubscriptionRequest{ClientID: clientID, Timeout: DefaultRequestTimeout}.Request()
+// QoSBoundSubscription reads the subscription bound to this QoS control point.
+func (c *Client) QoSBoundSubscription(ctx context.Context) (QoSSubscription, error) {
+	var subscription QoSSubscription
+	err := c.withServiceClient(ctx, ServiceQoS, func(clientID uint8) error {
+		req := QoSGetBindSubscriptionRequest{ClientID: clientID, Timeout: DefaultRequestTimeout}.Request()
 		resp, err := c.requestServiceWithTimeout(ctx, req.Service, req.ClientID, req.MessageID, req.TLVs, req.Timeout)
 		if err != nil {
 			return err
@@ -356,44 +356,44 @@ func (c *Client) QOSBoundSubscription(ctx context.Context) (QOSSubscription, err
 		if err := resultOK(resp); err != nil {
 			return err
 		}
-		var parsed QOSGetBindSubscriptionResponse
+		var parsed QoSGetBindSubscriptionResponse
 		if err := parsed.UnmarshalTLVs(resp.TLVs); err != nil {
 			return err
 		}
 		if !parsed.SubscriptionKnown {
-			return errors.New("parsing QMI QOS bound subscription: subscription TLV is missing")
+			return errors.New("parsing QMI QoS bound subscription: subscription TLV is missing")
 		}
 		subscription = parsed.Subscription
 		return nil
 	})
 	if err != nil {
-		return 0, fmt.Errorf("reading QMI QOS bound subscription: %w", err)
+		return 0, fmt.Errorf("reading QMI QoS bound subscription: %w", err)
 	}
 	return subscription, nil
 }
 
-// QOSWatchFlowStatus subscribes to status changes for flows owned by this control point.
-func (c *Client) QOSWatchFlowStatus(ctx context.Context) (<-chan QOSFlowStatusUpdate, error) {
+// QoSWatchFlowStatus subscribes to status changes for flows owned by this control point.
+func (c *Client) QoSWatchFlowStatus(ctx context.Context) (<-chan QoSFlowStatusUpdate, error) {
 	transport, err := c.indicationTransport()
 	if err != nil {
 		return nil, err
 	}
-	clientID, err := c.serviceClientID(ctx, ServiceQOS)
+	clientID, err := c.serviceClientID(ctx, ServiceQoS)
 	if err != nil {
-		return nil, fmt.Errorf("watching QMI QOS flow status: %w", err)
+		return nil, fmt.Errorf("watching QMI QoS flow status: %w", err)
 	}
 	watchCtx, cancel := context.WithCancel(ctx)
-	indications, err := transport.Indications(watchCtx, ServiceQOS, clientID, MessageQOSStatus)
+	indications, err := transport.Indications(watchCtx, ServiceQoS, clientID, MessageQoSStatus)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("watching QMI QOS flow status: %w", err)
+		return nil, fmt.Errorf("watching QMI QoS flow status: %w", err)
 	}
-	out := make(chan QOSFlowStatusUpdate, 8)
+	out := make(chan QoSFlowStatusUpdate, 8)
 	go func() {
 		defer close(out)
 		defer cancel()
 		for indication := range indications {
-			var parsed QOSFlowStatusIndication
+			var parsed QoSFlowStatusIndication
 			if err := parsed.UnmarshalTLVs(indication.TLVs); err != nil {
 				return
 			}
@@ -407,28 +407,28 @@ func (c *Client) QOSWatchFlowStatus(ctx context.Context) (<-chan QOSFlowStatusUp
 	return out, nil
 }
 
-// QOSWatchNetworkStatus subscribes to changes in network QoS support.
-func (c *Client) QOSWatchNetworkStatus(ctx context.Context) (<-chan bool, error) {
+// QoSWatchNetworkStatus subscribes to changes in network QoS support.
+func (c *Client) QoSWatchNetworkStatus(ctx context.Context) (<-chan bool, error) {
 	transport, err := c.indicationTransport()
 	if err != nil {
 		return nil, err
 	}
-	clientID, err := c.serviceClientID(ctx, ServiceQOS)
+	clientID, err := c.serviceClientID(ctx, ServiceQoS)
 	if err != nil {
-		return nil, fmt.Errorf("watching QMI QOS network status: %w", err)
+		return nil, fmt.Errorf("watching QMI QoS network status: %w", err)
 	}
 	watchCtx, cancel := context.WithCancel(ctx)
-	indications, err := transport.Indications(watchCtx, ServiceQOS, clientID, MessageQOSNetworkStatus)
+	indications, err := transport.Indications(watchCtx, ServiceQoS, clientID, MessageQoSNetworkStatus)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("watching QMI QOS network status: %w", err)
+		return nil, fmt.Errorf("watching QMI QoS network status: %w", err)
 	}
 	out := make(chan bool, 8)
 	go func() {
 		defer close(out)
 		defer cancel()
 		for indication := range indications {
-			var parsed QOSGetNetworkStatusResponse
+			var parsed QoSGetNetworkStatusResponse
 			if err := parsed.UnmarshalTLVs(indication.TLVs); err != nil {
 				return
 			}
@@ -444,7 +444,7 @@ func (c *Client) QOSWatchNetworkStatus(ctx context.Context) (<-chan bool, error)
 
 func qosEmptyRequest(clientID uint8, transactionID uint16, timeout time.Duration, message MessageID) Request {
 	return Request{
-		Service:       ServiceQOS,
+		Service:       ServiceQoS,
 		ClientID:      clientID,
 		TransactionID: transactionID,
 		MessageID:     message,
@@ -453,7 +453,7 @@ func qosEmptyRequest(clientID uint8, transactionID uint16, timeout time.Duration
 }
 
 func (c *Client) qosResultRequest(ctx context.Context, req Request) error {
-	return c.withServiceClient(ctx, ServiceQOS, func(clientID uint8) error {
+	return c.withServiceClient(ctx, ServiceQoS, func(clientID uint8) error {
 		req.ClientID = clientID
 		resp, err := c.requestServiceWithTimeout(ctx, req.Service, req.ClientID, req.MessageID, req.TLVs, req.Timeout)
 		if err != nil {
@@ -463,9 +463,9 @@ func (c *Client) qosResultRequest(ctx context.Context, req Request) error {
 	})
 }
 
-func validateQOSSubscription(subscription QOSSubscription) error {
-	if subscription < QOSSubscriptionPrimary || subscription > QOSSubscriptionTertiary {
-		return fmt.Errorf("QMI QOS subscription %d is out of range", subscription)
+func validateQoSSubscription(subscription QoSSubscription) error {
+	if subscription < QoSSubscriptionPrimary || subscription > QoSSubscriptionTertiary {
+		return fmt.Errorf("QMI QoS subscription %d is out of range", subscription)
 	}
 	return nil
 }

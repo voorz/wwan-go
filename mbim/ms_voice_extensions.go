@@ -55,7 +55,7 @@ func (r *NITZRequest) Request() *Request {
 		MessageType:   MessageTypeCommand,
 		TransactionID: r.TransactionID,
 		Timeout:       mbimCIDResponseTimeout,
-		Command:       command(ServiceMsVoiceExtensions, CIDMsVoiceExtensionsNITZ, CommandTypeQuery, nil),
+		Command:       command(ServiceMSVoiceExtensions, CIDMSVoiceExtensionsNITZ, CommandTypeQuery, nil),
 		Response:      r.Response,
 	}
 }
@@ -73,7 +73,7 @@ func (c *Client) NITZ(ctx context.Context) (NITZInfo, error) {
 
 // ReadNITZ waits for the next Network Identity and Time Zone notification.
 func (c *Client) ReadNITZ(ctx context.Context) (NITZInfo, error) {
-	indication, err := c.NextIndication(ctx, ServiceMsVoiceExtensions, CIDMsVoiceExtensionsNITZ)
+	indication, err := c.NextIndication(ctx, ServiceMSVoiceExtensions, CIDMSVoiceExtensionsNITZ)
 	if err != nil {
 		return NITZInfo{}, fmt.Errorf("reading MBIM NITZ notification: %w", err)
 	}
@@ -96,7 +96,7 @@ func (c *Client) WatchNITZ(ctx context.Context) (<-chan NITZInfo, error) {
 // WatchNITZResults streams Network Identity and Time Zone notifications and
 // reports receiver or payload errors through the terminal result.
 func (c *Client) WatchNITZResults(ctx context.Context) (<-chan WatchResult[NITZInfo], error) {
-	indications, err := c.WatchIndicationResults(ctx, ServiceMsVoiceExtensions, CIDMsVoiceExtensionsNITZ)
+	indications, err := c.WatchIndicationResults(ctx, ServiceMSVoiceExtensions, CIDMSVoiceExtensionsNITZ)
 	if err != nil {
 		return nil, fmt.Errorf("watching MBIM NITZ notifications: %w", err)
 	}

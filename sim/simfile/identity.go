@@ -62,17 +62,17 @@ type IMSI struct {
 	MCC    string
 }
 
-func (imsi IMSI) String() string {
-	return imsi.Digits
+func (i IMSI) String() string {
+	return i.Digits
 }
 
-func (imsi IMSI) MarshalBinary() ([]byte, error) {
-	if err := validateDigits(imsi.Digits, 6); err != nil {
+func (i IMSI) MarshalBinary() ([]byte, error) {
+	if err := validateDigits(i.Digits, 6); err != nil {
 		return nil, fmt.Errorf("marshaling IMSI: %w", err)
 	}
 
 	var body BCD
-	if err := body.UnmarshalText([]byte("9" + imsi.Digits)); err != nil {
+	if err := body.UnmarshalText([]byte("9" + i.Digits)); err != nil {
 		return nil, fmt.Errorf("marshaling IMSI: %w", err)
 	}
 	if len(body) > 0xFF {
@@ -85,7 +85,7 @@ func (imsi IMSI) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (imsi *IMSI) UnmarshalBinary(data []byte) error {
+func (i *IMSI) UnmarshalBinary(data []byte) error {
 	if len(data) == 0 {
 		return errors.New("reading EF_IMSI: empty payload")
 	}
@@ -95,32 +95,32 @@ func (imsi *IMSI) UnmarshalBinary(data []byte) error {
 	}
 
 	digits := strings.TrimPrefix(BCD(data[1:1+length]).String(), "9")
-	if err := imsi.setDigits(digits); err != nil {
+	if err := i.setDigits(digits); err != nil {
 		return fmt.Errorf("reading EF_IMSI: %w", err)
 	}
 	return nil
 }
 
-func (imsi IMSI) MarshalText() ([]byte, error) {
-	if err := validateDigits(imsi.Digits, 6); err != nil {
+func (i IMSI) MarshalText() ([]byte, error) {
+	if err := validateDigits(i.Digits, 6); err != nil {
 		return nil, fmt.Errorf("marshaling IMSI: %w", err)
 	}
-	return []byte(imsi.Digits), nil
+	return []byte(i.Digits), nil
 }
 
-func (imsi *IMSI) UnmarshalText(text []byte) error {
-	if err := imsi.setDigits(string(text)); err != nil {
+func (i *IMSI) UnmarshalText(text []byte) error {
+	if err := i.setDigits(string(text)); err != nil {
 		return fmt.Errorf("parsing IMSI: %w", err)
 	}
 	return nil
 }
 
-func (imsi *IMSI) setDigits(digits string) error {
+func (i *IMSI) setDigits(digits string) error {
 	if err := validateDigits(digits, 6); err != nil {
 		return err
 	}
 
-	*imsi = IMSI{
+	*i = IMSI{
 		Digits: digits,
 		MCC:    digits[:3],
 	}

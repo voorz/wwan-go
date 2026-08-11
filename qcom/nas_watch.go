@@ -465,6 +465,7 @@ func (c *Client) releaseNASIndication(registration nasIndicationRegistration) {
 		return
 	}
 	delete(c.nasIndicationRefs, registration)
+	// Deregistration is best effort during watcher cleanup.
 	_ = c.setNASIndication(ctx, registration, false)
 }
 

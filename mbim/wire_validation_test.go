@@ -236,7 +236,7 @@ func TestUICCAndSTKDataBufferReferenceValidation(t *testing.T) {
 			run: func() error {
 				data := sizeOffsetPayloadForValidation(8, 0, []byte{0x3b})
 				binary.LittleEndian.PutUint32(data[4:8], 4)
-				return new(UiccATRResponse).UnmarshalBinary(data)
+				return new(UICCATRResponse).UnmarshalBinary(data)
 			},
 		},
 		{
@@ -261,7 +261,7 @@ func TestUICCAndSTKDataBufferReferenceValidation(t *testing.T) {
 				data := mutateBytes(terminalCapabilities, func(data []byte) {
 					binary.LittleEndian.PutUint32(data[4:8], 4)
 				})
-				return new(UiccTerminalCapabilityResponse).UnmarshalBinary(data)
+				return new(UICCTerminalCapabilityResponse).UnmarshalBinary(data)
 			},
 		},
 		{
@@ -329,7 +329,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			run: func() error {
 				data := applicationListPayloadForValidation()
 				applicationOffset := binary.LittleEndian.Uint32(data[16:20])
-				binary.LittleEndian.PutUint32(data[applicationOffset:applicationOffset+4], uint32(UiccApplicationTypeISIM)+1)
+				binary.LittleEndian.PutUint32(data[applicationOffset:applicationOffset+4], uint32(UICCApplicationTypeISIM)+1)
 				return new(ApplicationListResponse).UnmarshalBinary(data)
 			},
 		},
@@ -338,7 +338,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			run: func() error {
 				data := applicationListPayloadForValidation()
 				applicationOffset := binary.LittleEndian.Uint32(data[16:20])
-				binary.LittleEndian.PutUint32(data[applicationOffset:applicationOffset+4], uint32(UiccApplicationTypeMF))
+				binary.LittleEndian.PutUint32(data[applicationOffset:applicationOffset+4], uint32(UICCApplicationTypeMF))
 				return new(ApplicationListResponse).UnmarshalBinary(data)
 			},
 		},
@@ -367,8 +367,8 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 				data := applicationListPayloadWithValues(
 					[]byte{0xa0},
 					[]byte("app"),
-					make([]byte, uiccPinKeyReferenceMaximumCount+1),
-					uiccPinKeyReferenceMaximumCount+1,
+					make([]byte, uiccPINKeyReferenceMaximumCount+1),
+					uiccPINKeyReferenceMaximumCount+1,
 				)
 				return new(ApplicationListResponse).UnmarshalBinary(data)
 			},
@@ -384,7 +384,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "ATR too long",
 			run: func() error {
 				data := sizeOffsetPayloadForValidation(8, 0, make([]byte, uiccATRMaximumSize+1))
-				return new(UiccATRResponse).UnmarshalBinary(data)
+				return new(UICCATRResponse).UnmarshalBinary(data)
 			},
 		},
 		{
@@ -436,7 +436,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "file accessibility",
 			run: func() error {
 				data := uiccFileStatusPayloadForValidation()
-				binary.LittleEndian.PutUint32(data[12:16], uint32(UiccFileAccessibilityShareable)+1)
+				binary.LittleEndian.PutUint32(data[12:16], uint32(UICCFileAccessibilityShareable)+1)
 				return new(FileStatusResponse).UnmarshalBinary(data)
 			},
 		},
@@ -444,7 +444,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "file type",
 			run: func() error {
 				data := uiccFileStatusPayloadForValidation()
-				binary.LittleEndian.PutUint32(data[16:20], uint32(UiccFileTypeDFOrADF)+1)
+				binary.LittleEndian.PutUint32(data[16:20], uint32(UICCFileTypeDFOrADF)+1)
 				return new(FileStatusResponse).UnmarshalBinary(data)
 			},
 		},
@@ -452,7 +452,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "file structure",
 			run: func() error {
 				data := uiccFileStatusPayloadForValidation()
-				binary.LittleEndian.PutUint32(data[20:24], uint32(UiccFileStructureBERTLV)+1)
+				binary.LittleEndian.PutUint32(data[20:24], uint32(UICCFileStructureBERTLV)+1)
 				return new(FileStatusResponse).UnmarshalBinary(data)
 			},
 		},
@@ -460,7 +460,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "transparent file item count",
 			run: func() error {
 				data := uiccFileStatusPayloadForValidation()
-				binary.LittleEndian.PutUint32(data[20:24], uint32(UiccFileStructureTransparent))
+				binary.LittleEndian.PutUint32(data[20:24], uint32(UICCFileStructureTransparent))
 				binary.LittleEndian.PutUint32(data[24:28], 2)
 				return new(FileStatusResponse).UnmarshalBinary(data)
 			},
@@ -469,7 +469,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "BER-TLV file item count",
 			run: func() error {
 				data := uiccFileStatusPayloadForValidation()
-				binary.LittleEndian.PutUint32(data[20:24], uint32(UiccFileStructureBERTLV))
+				binary.LittleEndian.PutUint32(data[20:24], uint32(UICCFileStructureBERTLV))
 				binary.LittleEndian.PutUint32(data[24:28], 0)
 				return new(FileStatusResponse).UnmarshalBinary(data)
 			},
@@ -478,7 +478,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "file access condition",
 			run: func() error {
 				data := uiccFileStatusPayloadForValidation()
-				binary.LittleEndian.PutUint32(data[32:36], uint32(PinTypeADM)+1)
+				binary.LittleEndian.PutUint32(data[32:36], uint32(PINTypeADM)+1)
 				return new(FileStatusResponse).UnmarshalBinary(data)
 			},
 		},
@@ -518,7 +518,7 @@ func TestUICCResponseSemanticValidation(t *testing.T) {
 			name: "reset status",
 			run: func() error {
 				data := binary.LittleEndian.AppendUint32(nil, 2)
-				return new(UiccResetResponse).UnmarshalBinary(data)
+				return new(UICCResetResponse).UnmarshalBinary(data)
 			},
 		},
 	}
@@ -719,8 +719,8 @@ func TestFixedSizeResponseLengthValidation(t *testing.T) {
 	}{
 		{name: "version", size: 4, run: func(data []byte) error { return new(VersionInfo).UnmarshalBinary(data) }},
 		{name: "radio state", size: 8, run: func(data []byte) error { return new(RadioStateInfo).UnmarshalBinary(data) }},
-		{name: "PIN info", size: 12, run: func(data []byte) error { return new(PinInfo).UnmarshalBinary(data) }},
-		{name: "PIN list", size: 160, run: func(data []byte) error { return new(PinListInfo).UnmarshalBinary(data) }},
+		{name: "PIN info", size: 12, run: func(data []byte) error { return new(PINInfo).UnmarshalBinary(data) }},
+		{name: "PIN list", size: 160, run: func(data []byte) error { return new(PINListInfo).UnmarshalBinary(data) }},
 		{name: "packet statistics", size: 48, run: func(data []byte) error { return new(PacketStatisticsInfo).UnmarshalBinary(data) }},
 		{name: "network idle hint", size: 4, run: func(data []byte) error { return new(NetworkIdleHint).UnmarshalBinary(data) }},
 		{name: "emergency mode", size: 4, run: func(data []byte) error { return new(EmergencyMode).UnmarshalBinary(data) }},
@@ -739,7 +739,7 @@ func TestFixedSizeResponseLengthValidation(t *testing.T) {
 			},
 		},
 		{name: "UICC close channel", size: 4, run: func(data []byte) error { return new(CloseChannelResponse).UnmarshalBinary(data) }},
-		{name: "UICC reset", size: 4, run: func(data []byte) error { return new(UiccResetResponse).UnmarshalBinary(data) }},
+		{name: "UICC reset", size: 4, run: func(data []byte) error { return new(UICCResetResponse).UnmarshalBinary(data) }},
 		{name: "STK PAC info", size: stkPACSupportLength, run: func(data []byte) error { return new(STKPACInfo).UnmarshalBinary(data) }},
 		{name: "STK envelope info", size: stkEnvelopeSupportLength, run: func(data []byte) error { return new(STKEnvelopeInfo).UnmarshalBinary(data) }},
 	}
@@ -815,7 +815,7 @@ func TestUICCClientInputLimits(t *testing.T) {
 		{
 			name: "reset action",
 			run: func(ctx context.Context) error {
-				_, err := new(Client).SetUiccReset(ctx, UiccPassThroughActionEnable+1)
+				_, err := new(Client).SetUICCReset(ctx, UICCPassThroughActionEnable+1)
 				return err
 			},
 			wantErr: StatusInvalidParameters,
@@ -1834,7 +1834,7 @@ func uiccFileResponsePayloadForValidation(value []byte) []byte {
 
 func applicationListPayloadWithValues(aid, label, pinKeyReferences []byte, pinKeyReferenceCount uint32) []byte {
 	application := make([]byte, 32)
-	binary.LittleEndian.PutUint32(application[:4], uint32(UiccApplicationTypeUSIM))
+	binary.LittleEndian.PutUint32(application[:4], uint32(UICCApplicationTypeUSIM))
 	binary.LittleEndian.PutUint32(application[20:24], pinKeyReferenceCount)
 	application = appendRefValue(application, 4, aid)
 	application = appendRefValue(application, 12, label)

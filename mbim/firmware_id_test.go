@@ -18,8 +18,8 @@ func TestFirmwareIDRequest(t *testing.T) {
 		{
 			name:        "query",
 			request:     (&FirmwareIDRequest{TransactionID: 1}).Request(),
-			serviceID:   ServiceMsFirmwareID,
-			commandID:   CIDMsFirmwareIDGet,
+			serviceID:   ServiceMSFirmwareID,
+			commandID:   CIDMSFirmwareIDGet,
 			commandType: CommandTypeQuery,
 		},
 	}
@@ -81,11 +81,11 @@ func TestClientFirmwareID(t *testing.T) {
 			go func() {
 				defer close(errCh)
 				defer serverConn.Close()
-				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMsFirmwareID, CIDMsFirmwareIDGet, CommandTypeQuery, nil); err != nil {
+				if err := expectMBIMCommandWithService(serverConn, 1, ServiceMSFirmwareID, CIDMSFirmwareIDGet, CommandTypeQuery, nil); err != nil {
 					errCh <- err
 					return
 				}
-				_, err := serverConn.Write(mbimCommandDone(1, ServiceMsFirmwareID, CIDMsFirmwareIDGet, tt.response[:]))
+				_, err := serverConn.Write(mbimCommandDone(1, ServiceMSFirmwareID, CIDMSFirmwareIDGet, tt.response[:]))
 				errCh <- err
 			}()
 
@@ -100,7 +100,7 @@ func TestClientFirmwareID(t *testing.T) {
 				t.Fatalf("FirmwareID() = %x, want %x", got, tt.response)
 			}
 			if err := <-errCh; err != nil {
-				t.Fatal(err)
+				t.Fatalf("device peer exchange error = %v", err)
 			}
 		})
 	}

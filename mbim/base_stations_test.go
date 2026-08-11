@@ -34,7 +34,7 @@ func TestBaseStationsRequest(t *testing.T) {
 				Maximum:       maximum,
 			}).Request()
 			command := request.Command.(*Command)
-			if command.ServiceID != ServiceMsBasicConnectExtensions || command.CommandID != CIDMsBaseStationsInfo || command.CommandType != CommandTypeQuery {
+			if command.ServiceID != ServiceMSBasicConnectExtensions || command.CommandID != CIDMSBaseStationsInfo || command.CommandType != CommandTypeQuery {
 				t.Fatalf("command = service %x CID %d type %d", command.ServiceID, command.CommandID, command.CommandType)
 			}
 			if !bytes.Equal(command.Data, tt.want) {

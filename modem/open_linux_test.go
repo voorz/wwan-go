@@ -100,34 +100,37 @@ func TestOpenUsesDeclaredPortProtocol(t *testing.T) {
 func TestOpenInputValidation(t *testing.T) {
 	regular, err := os.CreateTemp(t.TempDir(), "regular")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.CreateTemp() error = %v", err)
 	}
 	if err := regular.Close(); err != nil {
-		t.Fatal(err)
+		t.Fatalf("closing temporary file: %v", err)
 	}
-	canceled, cancel := context.WithCancel(context.Background())
-	cancel()
-
 	tests := []struct {
-		name   string
-		ctx    context.Context
-		port   Port
-		access Access
-		wantIs error
+		name     string
+		canceled bool
+		port     Port
+		access   Access
+		wantIs   error
 	}{
-		{name: "canceled", ctx: canceled, port: Port{Type: PortQMI, Path: "/dev/null"}, access: AccessDirect, wantIs: context.Canceled},
-		{name: "empty path", ctx: context.Background(), port: Port{Type: PortQMI}, access: AccessDirect},
-		{name: "unknown protocol", ctx: context.Background(), port: Port{Type: PortUnknown, Path: "/dev/null"}, access: AccessDirect, wantIs: ErrProtocolUnknown},
-		{name: "AT port", ctx: context.Background(), port: Port{Type: PortAT, Path: "/dev/null"}, access: AccessDirect, wantIs: ErrProtocolUnknown},
-		{name: "network port", ctx: context.Background(), port: Port{Type: PortNetwork, Path: "/dev/null"}, access: AccessDirect, wantIs: ErrProtocolUnknown},
-		{name: "invalid access", ctx: context.Background(), port: Port{Type: PortQMI, Path: "/dev/null"}, access: Access(99)},
-		{name: "regular file", ctx: context.Background(), port: Port{Type: PortQMI, Path: regular.Name()}, access: AccessDirect},
-		{name: "missing file", ctx: context.Background(), port: Port{Type: PortQMI, Path: regular.Name() + "-missing"}, access: AccessDirect},
+		{name: "canceled", canceled: true, port: Port{Type: PortQMI, Path: "/dev/null"}, access: AccessDirect, wantIs: context.Canceled},
+		{name: "empty path", port: Port{Type: PortQMI}, access: AccessDirect},
+		{name: "unknown protocol", port: Port{Type: PortUnknown, Path: "/dev/null"}, access: AccessDirect, wantIs: ErrProtocolUnknown},
+		{name: "AT port", port: Port{Type: PortAT, Path: "/dev/null"}, access: AccessDirect, wantIs: ErrProtocolUnknown},
+		{name: "network port", port: Port{Type: PortNetwork, Path: "/dev/null"}, access: AccessDirect, wantIs: ErrProtocolUnknown},
+		{name: "invalid access", port: Port{Type: PortQMI, Path: "/dev/null"}, access: Access(99)},
+		{name: "regular file", port: Port{Type: PortQMI, Path: regular.Name()}, access: AccessDirect},
+		{name: "missing file", port: Port{Type: PortQMI, Path: regular.Name() + "-missing"}, access: AccessDirect},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Open(tt.ctx, tt.port, tt.access)
+			ctx := context.Background()
+			if tt.canceled {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+			_, err := Open(ctx, tt.port, tt.access)
 			if err == nil {
 				t.Fatal("Open() error = nil, want non-nil")
 			}
@@ -234,12 +237,14 @@ func TestOpenValidatesPortMetadata(t *testing.T) {
 
 func writePortMetadata(t *testing.T, entryPath, protocol, driver string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(entryPath, "device"), 0o755); err != nil {
-		t.Fatal(err)
+	devicePath := filepath.Join(entryPath, "device")
+	if err := os.MkdirAll(devicePath, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) error = %v", devicePath, err)
 	}
 	if protocol != "" {
-		if err := os.WriteFile(filepath.Join(entryPath, "type"), []byte(protocol+"\n"), 0o644); err != nil {
-			t.Fatal(err)
+		typePath := filepath.Join(entryPath, "type")
+		if err := os.WriteFile(typePath, []byte(protocol+"\n"), 0o644); err != nil {
+			t.Fatalf("os.WriteFile(%q) error = %v", typePath, err)
 		}
 	}
 	if driver == "" {
@@ -247,9 +252,9 @@ func writePortMetadata(t *testing.T, entryPath, protocol, driver string) {
 	}
 	driverPath := filepath.Join(t.TempDir(), driver)
 	if err := os.MkdirAll(driverPath, 0o755); err != nil {
-		t.Fatal(err)
+		t.Fatalf("os.MkdirAll(%q) error = %v", driverPath, err)
 	}
 	if err := os.Symlink(driverPath, filepath.Join(entryPath, "device", "driver")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("linking driver %q to %q: %v", driverPath, entryPath, err)
 	}
 }
