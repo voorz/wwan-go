@@ -36,7 +36,7 @@ func TestClientLogicalChannelPrimitives(t *testing.T) {
 						t.Fatalf("request = service %#x client %d message 0x%04X, want open logical channel", req.Service, req.ClientID, req.MessageID)
 					}
 					assertTLV(t, req.TLVs, 0x10, append([]byte{byte(len(aid))}, aid...))
-					assertTLV(t, req.TLVs, 0x01, []byte{0x02})
+					assertTLV(t, req.TLVs, 0x01, []byte{0x01})
 				},
 				resp: successResponse(MessageOpenLogicalChannel, tlv.Bytes(0x10, []byte{0x03})),
 			},
@@ -47,7 +47,7 @@ func TestClientLogicalChannelPrimitives(t *testing.T) {
 					}
 					assertTLV(t, req.TLVs, 0x10, []byte{0x03})
 					assertTLV(t, req.TLVs, 0x02, encodeLengthPrefixed(command))
-					assertTLV(t, req.TLVs, 0x01, []byte{0x02})
+					assertTLV(t, req.TLVs, 0x01, []byte{0x01})
 				},
 				resp: successResponse(MessageSendAPDU, tlv.Bytes(0x10, encodeLengthPrefixed([]byte{0x90, 0x00}))),
 			},
@@ -56,7 +56,7 @@ func TestClientLogicalChannelPrimitives(t *testing.T) {
 					if req.Service != ServiceUIM || req.ClientID != 7 || req.MessageID != MessageCloseLogicalChannel {
 						t.Fatalf("request = service %#x client %d message 0x%04X, want close logical channel", req.Service, req.ClientID, req.MessageID)
 					}
-					assertTLV(t, req.TLVs, 0x01, []byte{0x02})
+					assertTLV(t, req.TLVs, 0x01, []byte{0x01})
 					assertTLV(t, req.TLVs, 0x11, []byte{0x03})
 				},
 				resp: successResponse(MessageCloseLogicalChannel),
@@ -91,6 +91,139 @@ func TestClientLogicalChannelPrimitives(t *testing.T) {
 	if transport.idx != len(transport.calls) {
 		t.Fatalf("Do() calls = %d, want %d", transport.idx, len(transport.calls))
 	}
+}
+
+func TestSlotActivationMapsLogicalChannelOperations(t *testing.T) {
+	tests := []struct {
+		name           string
+		slotCount      uint8
+		physicalSlot   uint8
+		activeSlot     uint8
+		logicalSlot    uint8
+		switchNoEffect bool
+		dualActive     bool
+	}{
+		{name: "single SIM", slotCount: 1, physicalSlot: 1, activeSlot: 1, logicalSlot: 1},
+		{name: "dual SIM single standby", slotCount: 2, physicalSlot: 2, activeSlot: 2, logicalSlot: 1},
+		{name: "switch physical slot", slotCount: 2, physicalSlot: 2, activeSlot: 1, logicalSlot: 1},
+		{name: "switch logical slot 2", slotCount: 2, physicalSlot: 2, activeSlot: 1, logicalSlot: 2},
+		{name: "switch already completed", slotCount: 2, physicalSlot: 2, activeSlot: 1, logicalSlot: 1, switchNoEffect: true},
+		{name: "logical slot mapping", slotCount: 2, physicalSlot: 2, activeSlot: 2, logicalSlot: 2},
+		{name: "dual active target mapping", slotCount: 2, physicalSlot: 2, activeSlot: 2, logicalSlot: 2, dualActive: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initialStatus := encodeSlotStatusWithLogicalSlot(tt.slotCount, tt.activeSlot, tt.logicalSlot)
+			if tt.dualActive {
+				initialStatus = encodeDualActiveSlotStatus()
+			}
+			calls := []transportCall{{
+				resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, initialStatus)),
+			}}
+			if tt.activeSlot != tt.physicalSlot {
+				switchResponse := successResponse(MessageSwitchSlot)
+				if tt.switchNoEffect {
+					switchResponse = errorResponse(MessageSwitchSlot, QMIErrorNoEffect)
+				}
+				calls = append(calls,
+					transportCall{
+						check: func(req Request) {
+							assertTLV(t, req.TLVs, 0x01, []byte{tt.logicalSlot})
+							assertTLV(t, req.TLVs, 0x02, []byte{tt.physicalSlot, 0, 0, 0})
+						},
+						resp: switchResponse,
+					},
+					transportCall{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeSlotStatusWithLogicalSlot(tt.slotCount, tt.physicalSlot, tt.logicalSlot)))},
+					transportCall{resp: successResponse(MessageGetCardStatus, tlv.Bytes(0x10, encodeCardStatusForLogicalSlot(tt.logicalSlot, true)))},
+				)
+			}
+			calls = append(calls,
+				transportCall{
+					check: func(req Request) {
+						assertTLV(t, req.TLVs, 0x01, []byte{tt.logicalSlot})
+					},
+					resp: successResponse(MessageOpenLogicalChannel, tlv.Bytes(0x10, []byte{3})),
+				},
+				transportCall{
+					check: func(req Request) {
+						assertTLV(t, req.TLVs, 0x01, []byte{tt.logicalSlot})
+					},
+					resp: successResponse(MessageSendAPDU, tlv.Bytes(0x10, encodeLengthPrefixed([]byte{0x90, 0x00}))),
+				},
+				transportCall{
+					check: func(req Request) {
+						assertTLV(t, req.TLVs, 0x01, []byte{tt.logicalSlot})
+					},
+					resp: successResponse(MessageCloseLogicalChannel),
+				},
+			)
+			transport := &fakeTransport{t: t, calls: calls}
+			client := &Client{
+				transport: transport,
+				slot:      tt.physicalSlot,
+				clientIDs: map[ServiceType]uint8{ServiceUIM: 7},
+			}
+
+			if err := client.ActivateSlot(context.Background()); err != nil {
+				t.Fatalf("ActivateSlot() error = %v", err)
+			}
+			channel, err := client.OpenLogicalChannel(context.Background(), []byte{0xA0, 0x00})
+			if err != nil {
+				t.Fatalf("OpenLogicalChannel() error = %v", err)
+			}
+			if _, err := client.SendAPDU(context.Background(), channel, []byte{0x80, 0xE2}); err != nil {
+				t.Fatalf("SendAPDU() error = %v", err)
+			}
+			if err := client.CloseLogicalChannel(context.Background(), channel); err != nil {
+				t.Fatalf("CloseLogicalChannel() error = %v", err)
+			}
+			if transport.idx != len(transport.calls) {
+				t.Fatalf("transport calls = %d, want %d", transport.idx, len(transport.calls))
+			}
+		})
+	}
+}
+
+func encodeSlotStatusWithLogicalSlot(slotCount, activeSlot, logicalSlot uint8) []byte {
+	status := encodeSlotStatus(activeSlot)
+	const slotStatusSize = 10
+	status[0] = slotCount
+	status = status[:1+int(slotCount)*slotStatusSize]
+	status[1+int(activeSlot-1)*slotStatusSize+8] = logicalSlot
+	return status
+}
+
+func encodeInactiveSlotStatus(slotCount uint8) []byte {
+	status := encodeSlotStatus(0)
+	const slotStatusSize = 10
+	status[0] = slotCount
+	return status[:1+int(slotCount)*slotStatusSize]
+}
+
+func encodeDualActiveSlotStatus() []byte {
+	status := encodeSlotStatusWithLogicalSlot(2, 1, 1)
+	const slotStatusSize = 10
+	secondSlot := 1 + slotStatusSize
+	status[secondSlot+4] = byte(SlotStateActive)
+	status[secondSlot+8] = 2
+	return status
+}
+
+func encodeCardStatusForLogicalSlot(logicalSlot uint8, ready bool) []byte {
+	value := make([]byte, 8, 64)
+	value = append(value, logicalSlot)
+	for slot := uint8(1); slot < logicalSlot; slot++ {
+		value = append(value, make([]byte, 6)...)
+	}
+	value = append(value, byte(CardStatePresent), 0, 0, 0, 0, 1)
+	state := ApplicationStateDetected
+	if ready {
+		state = ApplicationStateReady
+	}
+	value = append(value, byte(ApplicationTypeUSIM), byte(state))
+	value = append(value, make([]byte, 12)...)
+	return value
 }
 
 func TestOpenLogicalChannelOmitsEmptyAID(t *testing.T) {

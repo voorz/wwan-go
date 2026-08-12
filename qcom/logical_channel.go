@@ -66,7 +66,7 @@ func (c *Client) OpenLogicalChannelWithConfig(ctx context.Context, config UIMOpe
 		}
 		tlvs = append(tlvs, tlv.Bytes(0x10, value))
 	}
-	tlvs = append(tlvs, tlv.Uint(0x01, c.slot))
+	tlvs = append(tlvs, tlv.Uint(0x01, c.activeLogicalSlot()))
 	if config.FileControlInformation != nil {
 		if *config.FileControlInformation > UIMFileControlFMD {
 			return OpenLogicalChannelResponse{}, fmt.Errorf("opening QMI UIM logical channel: file-control information %d is out of range", *config.FileControlInformation)
@@ -120,7 +120,7 @@ func (c *Client) CloseLogicalChannel(ctx context.Context, channel uint8) error {
 	}
 
 	resp, err := c.request(ctx, MessageCloseLogicalChannel, tlv.TLVs{
-		tlv.Uint(0x01, c.slot),
+		tlv.Uint(0x01, c.activeLogicalSlot()),
 		tlv.Bytes(0x11, value),
 	})
 	if err != nil {
@@ -147,7 +147,7 @@ func (c *Client) SendAPDUWithOptions(ctx context.Context, req UIMAPDURequest) ([
 	tlvs := tlv.TLVs{
 		tlv.Uint(0x10, req.Channel),
 		tlv.Bytes(0x02, value),
-		tlv.Uint(0x01, c.slot),
+		tlv.Uint(0x01, c.activeLogicalSlot()),
 	}
 	if req.ProcedureBytes != nil {
 		if *req.ProcedureBytes > UIMAPDUSkipProcedureBytes {

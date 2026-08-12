@@ -1258,6 +1258,7 @@ func TestEnsureSlotActivated(t *testing.T) {
 					},
 					resp: successResponse(MessageSwitchSlot),
 				},
+				{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeSlotStatus(2)))},
 				{resp: successResponse(MessageGetCardStatus, tlv.Bytes(0x10, encodeCardStatus(false)))},
 				{resp: successResponse(MessageGetCardStatus, tlv.Bytes(0x10, encodeCardStatus(true)))},
 			},
@@ -1281,9 +1282,34 @@ func TestEnsureSlotActivated(t *testing.T) {
 			calls: []transportCall{
 				{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeSlotStatus(1)))},
 				{resp: successResponse(MessageSwitchSlot)},
+				{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeSlotStatus(2)))},
 				{resp: successResponse(MessageGetCardStatus, tlv.Bytes(0x10, encodeCardStatus(false)))},
 			},
 			wantErr: "waiting for card readiness",
+		},
+		{
+			name: "timeout waiting for slot mapping",
+			slot: 2,
+			ctx: func() context.Context {
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+				t.Cleanup(cancel)
+				return ctx
+			},
+			calls: []transportCall{
+				{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeSlotStatus(1)))},
+				{resp: successResponse(MessageSwitchSlot)},
+				{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeSlotStatus(1)))},
+			},
+			wantErr: "waiting for slot mapping",
+		},
+		{
+			name: "no active logical slot",
+			slot: 2,
+			ctx:  context.Background,
+			calls: []transportCall{
+				{resp: successResponse(MessageGetSlotStatus, tlv.Bytes(0x10, encodeInactiveSlotStatus(2)))},
+			},
+			wantErr: "no active logical slot",
 		},
 	}
 

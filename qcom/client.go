@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -27,6 +28,7 @@ type Client struct {
 	wmsMu              sync.Mutex
 	transport          Transport
 	slot               uint8
+	logicalSlot        atomic.Uint32
 	catService         ServiceType
 	clientIDs          map[ServiceType]uint8
 	allocatedClientIDs map[allocatedClientID]struct{}

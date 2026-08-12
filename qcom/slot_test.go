@@ -122,6 +122,37 @@ func TestUIMStatusEnumValues(t *testing.T) {
 	}
 }
 
+func TestCardStatusLogicalSlotReady(t *testing.T) {
+	readyCard := Card{
+		State: CardStatePresent,
+		Applications: []CardApplication{{
+			Type:  ApplicationTypeUSIM,
+			State: ApplicationStateReady,
+		}},
+	}
+	notReadyCard := Card{State: CardStatePresent}
+	tests := []struct {
+		name        string
+		status      CardStatus
+		logicalSlot uint8
+		want        bool
+	}{
+		{name: "logical slot 1 ready", status: CardStatus{Cards: []Card{readyCard, notReadyCard}}, logicalSlot: 1, want: true},
+		{name: "logical slot 2 not ready", status: CardStatus{Cards: []Card{readyCard, notReadyCard}}, logicalSlot: 2},
+		{name: "logical slot 2 ready", status: CardStatus{Cards: []Card{notReadyCard, readyCard}}, logicalSlot: 2, want: true},
+		{name: "logical slot missing", status: CardStatus{Cards: []Card{readyCard}}, logicalSlot: 2},
+		{name: "logical slot zero", status: CardStatus{Cards: []Card{readyCard}}, logicalSlot: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.status.logicalSlotReady(tt.logicalSlot); got != tt.want {
+				t.Fatalf("logicalSlotReady(%d) = %t, want %t", tt.logicalSlot, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDecodeSlotStatusPhysicalSlotInformation(t *testing.T) {
 	tests := []struct {
 		name    string

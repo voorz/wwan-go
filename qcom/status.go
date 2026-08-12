@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/damonto/wwan-go/qcom/tlv"
 )
@@ -193,14 +194,21 @@ func (s *CardStatus) UnmarshalTLVs(tlvs tlv.TLVs) error {
 }
 
 func (s CardStatus) Ready() bool {
-	for _, card := range s.Cards {
-		if card.State != CardStatePresent {
-			continue
-		}
-		for _, app := range card.Applications {
-			if app.Type == ApplicationTypeUSIM && app.State == ApplicationStateReady {
-				return true
-			}
+	return slices.ContainsFunc(s.Cards, cardReady)
+}
+
+func (s CardStatus) logicalSlotReady(logicalSlot uint8) bool {
+	index := int(logicalSlot) - 1
+	return index >= 0 && index < len(s.Cards) && cardReady(s.Cards[index])
+}
+
+func cardReady(card Card) bool {
+	if card.State != CardStatePresent {
+		return false
+	}
+	for _, app := range card.Applications {
+		if app.Type == ApplicationTypeUSIM && app.State == ApplicationStateReady {
+			return true
 		}
 	}
 	return false
