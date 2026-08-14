@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // MarshalTLVs encodes a complete WDS profile configuration.

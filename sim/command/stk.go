@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/damonto/wwan-go/apdu"
+	"github.com/voorz/wwan-go/apdu"
 )
 
 type TerminalProfile struct {

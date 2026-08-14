@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 const DefaultIMSPDNAPN = "ims"

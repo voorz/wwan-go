@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 type Dialer interface {

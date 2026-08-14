@@ -17,6 +17,36 @@ var ErrReaderNotFound = errors.New("reader not found")
 
 const TransportPCSC = "pcsc"
 
+// terminalCapabilitiesAPDU is sent after connecting when
+// OpenOptions.SendTerminalCapabilities is true (matching lpac behaviour).
+var terminalCapabilitiesAPDU = []byte{
+	0x80, 0xAA, 0x00, 0x00, 0x0A,
+	0xA9, 0x08, 0x81, 0x00, 0x82, 0x01, 0x01, 0x83, 0x01, 0x07,
+}
+
+// OpenOptions controls reader connection behaviour on non-Linux platforms.
+// On Linux these are ignored because USBFS is inherently exclusive.
+type OpenOptions struct {
+	ShareMode                ShareMode
+	Protocol                 Protocol
+	SendTerminalCapabilities bool
+}
+
+type ShareMode int
+
+const (
+	ShareExclusive ShareMode = iota
+	ShareShared
+)
+
+type Protocol int
+
+const (
+	ProtocolAny Protocol = iota
+	ProtocolT0
+	ProtocolT1
+)
+
 // ReaderInfo is the non-Linux fallback for the USBFS ReaderInfo type.
 // On non-Linux platforms the transport is always PC/SC and USB-specific
 // fields are zero values.
@@ -83,6 +113,14 @@ func ListReaders(ctx context.Context) ([]string, error) {
 }
 
 func Open(ctx context.Context, readerName string) (*Reader, error) {
+	return OpenWithOptions(ctx, readerName, OpenOptions{
+		ShareMode: ShareShared,
+		Protocol: ProtocolAny,
+	})
+}
+
+// OpenWithOptions opens a reader with the given PC/SC share mode and protocol.
+func OpenWithOptions(ctx context.Context, readerName string, opts OpenOptions) (*Reader, error) {
 	readerName = strings.TrimSpace(readerName)
 	if readerName == "" {
 		return nil, errors.New("opening reader: reader name is empty")
@@ -114,7 +152,19 @@ func Open(ctx context.Context, readerName string) (*Reader, error) {
 		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("opening reader: %w", err)
 	}
-	card, _, err := pcscCtx.Connect(readerName, goscard.SCardShareShared, goscard.SCardProtocolAny)
+	shareMode := goscard.SCardShareShared
+	protocol := goscard.SCardProtocolAny
+	switch opts.ShareMode {
+	case ShareExclusive:
+		shareMode = goscard.SCardShareExclusive
+	}
+	switch opts.Protocol {
+	case ProtocolT0:
+		protocol = goscard.SCardProtocolT0
+	case ProtocolT1:
+		protocol = goscard.SCardProtocolT1
+	}
+	card, _, err := pcscCtx.Connect(readerName, shareMode, protocol)
 	if err != nil {
 		releasePCSCContext(pcscCtx)
 		return nil, fmt.Errorf("connecting to %s: %w", readerName, err)
@@ -124,6 +174,9 @@ func Open(ctx context.Context, readerName string) (*Reader, error) {
 		_, _ = card.Disconnect(goscard.SCardLeaveCard) // Cleanup cannot change the protocol error.
 		releasePCSCContext(pcscCtx)
 		return nil, err
+	}
+	if opts.SendTerminalCapabilities {
+		_, _, _ = card.Transmit(ioSend, terminalCapabilitiesAPDU, nil)
 	}
 
 	return &Reader{

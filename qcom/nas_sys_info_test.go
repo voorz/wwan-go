@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestNASSysInfoUnmarshalTLVs(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/damonto/wwan-go/modem/sms"
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/modem/sms"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 const deviceStorageBit = uint32(1 << 31)

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	"github.com/damonto/wwan-go/modem/sms"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	"github.com/voorz/wwan-go/modem/sms"
 )
 
 const (

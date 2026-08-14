@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 var errTransportClosed = errors.New("QRTR transport is closed")

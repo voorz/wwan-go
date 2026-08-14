@@ -9,11 +9,11 @@ import (
 	"os"
 	"path/filepath"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	modemmbim "github.com/damonto/wwan-go/modem/mbim"
-	modemqmi "github.com/damonto/wwan-go/modem/qmi"
-	"github.com/damonto/wwan-go/qcom"
-	qmiproto "github.com/damonto/wwan-go/qcom/qmi"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	modemmbim "github.com/voorz/wwan-go/modem/mbim"
+	modemqmi "github.com/voorz/wwan-go/modem/qmi"
+	"github.com/voorz/wwan-go/qcom"
+	qmiproto "github.com/voorz/wwan-go/qcom/qmi"
 )
 
 var (

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	"github.com/damonto/wwan-go/modem/contract"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	"github.com/voorz/wwan-go/modem/contract"
 )
 
 const closeTimeout = 5 * time.Second

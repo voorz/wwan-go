@@ -9,7 +9,7 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"github.com/damonto/wwan-go/apdu"
+	"github.com/voorz/wwan-go/apdu"
 )
 
 const (

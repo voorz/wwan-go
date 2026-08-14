@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	simcard "github.com/damonto/wwan-go/sim/card"
-	"github.com/damonto/wwan-go/sim/simfile"
+	simcard "github.com/voorz/wwan-go/sim/card"
+	"github.com/voorz/wwan-go/sim/simfile"
 )
 
 type FindAID struct {

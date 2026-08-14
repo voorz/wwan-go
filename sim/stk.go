@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/damonto/wwan-go/sim/stk"
+	"github.com/voorz/wwan-go/sim/stk"
 )
 
 type STKSession struct {

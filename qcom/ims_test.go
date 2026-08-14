@@ -7,7 +7,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestOpenIMSPDNNormalizesAPN(t *testing.T) {

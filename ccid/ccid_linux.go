@@ -17,6 +17,36 @@ import (
 
 var ErrReaderNotFound = errors.New("reader not found")
 
+// OpenOptions controls reader connection behaviour. On Linux (USBFS transport)
+// these fields are ignored because the USBFS transport is inherently exclusive.
+// On non-Linux platforms they map to the corresponding PC/SC parameters.
+type OpenOptions struct {
+	// ShareMode is the PC/SC share mode. Ignored on Linux.
+	ShareMode ShareMode
+	// Protocol is the preferred PC/SC protocol. Ignored on Linux.
+	Protocol Protocol
+	// SendTerminalCapabilities controls whether the terminal capabilities APDU
+	// is sent after connecting. Ignored on Linux.
+	SendTerminalCapabilities bool
+}
+
+// ShareMode controls how a reader connection is shared among callers.
+type ShareMode int
+
+const (
+	ShareExclusive ShareMode = iota
+	ShareShared
+)
+
+// Protocol selects the card protocol to use after connecting.
+type Protocol int
+
+const (
+	ProtocolAny Protocol = iota
+	ProtocolT0
+	ProtocolT1
+)
+
 // ReaderInfo identifies the USB endpoint currently backing a CCID reader.
 // BusNumber and DeviceAddress are runtime values; callers should translate
 // them to a stable sysfs topology path before persisting an identity.
@@ -86,6 +116,12 @@ func ListReaderInfo(ctx context.Context) ([]ReaderInfo, error) {
 }
 
 func Open(ctx context.Context, readerName string) (*Reader, error) {
+	return OpenWithOptions(ctx, readerName, OpenOptions{})
+}
+
+// OpenWithOptions opens a reader with the given options. On Linux the options
+// are ignored because USBFS connections are inherently exclusive.
+func OpenWithOptions(ctx context.Context, readerName string, opts OpenOptions) (*Reader, error) {
 	ctx = normalizedContext(ctx)
 	readerName = strings.TrimSpace(readerName)
 	if readerName == "" {

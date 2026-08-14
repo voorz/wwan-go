@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestServiceSupportedMessages(t *testing.T) {

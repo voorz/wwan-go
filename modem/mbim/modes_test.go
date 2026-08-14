@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
+	mbimproto "github.com/voorz/wwan-go/mbim"
 )
 
 func TestCanonicalModeTechnology(t *testing.T) {

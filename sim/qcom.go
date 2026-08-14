@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"slices"
 
-	qc "github.com/damonto/wwan-go/qcom"
-	simcard "github.com/damonto/wwan-go/sim/card"
-	"github.com/damonto/wwan-go/sim/command"
-	"github.com/damonto/wwan-go/sim/simfile"
-	"github.com/damonto/wwan-go/sim/stk"
+	qc "github.com/voorz/wwan-go/qcom"
+	simcard "github.com/voorz/wwan-go/sim/card"
+	"github.com/voorz/wwan-go/sim/command"
+	"github.com/voorz/wwan-go/sim/simfile"
+	"github.com/voorz/wwan-go/sim/stk"
 )
 
 var (

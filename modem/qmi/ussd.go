@@ -6,8 +6,8 @@ import (
 	"slices"
 	"unicode/utf16"
 
-	"github.com/damonto/wwan-go/modem/sms"
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/modem/sms"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 func (b *Backend) InitiateUSSD(ctx context.Context, text string) (USSDMessage, error) {

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/damonto/wwan-go/apdu"
+	"github.com/voorz/wwan-go/apdu"
 )
 
 func TestContextTypeValues(t *testing.T) {

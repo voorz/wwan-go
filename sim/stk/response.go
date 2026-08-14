@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/damonto/wwan-go/sim/tlv"
+	"github.com/voorz/wwan-go/sim/tlv"
 )
 
 type TerminalResponse struct {

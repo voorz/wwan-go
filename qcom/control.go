@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // CTLQoSHeader controls whether data packets include a QMI QoS flow header.

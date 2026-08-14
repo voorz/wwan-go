@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/damonto/wwan-go/modem/contract"
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/modem/contract"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 const (

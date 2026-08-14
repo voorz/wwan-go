@@ -8,7 +8,7 @@ import (
 	"io"
 	"slices"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 type SlotStatus struct {

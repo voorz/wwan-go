@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	"github.com/damonto/wwan-go/qcom"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 func TestModemQMIClientUsesResolvedEndpoint(t *testing.T) {

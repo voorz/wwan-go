@@ -3,7 +3,7 @@ package modem
 import (
 	"context"
 
-	"github.com/damonto/wwan-go/modem/contract"
+	"github.com/voorz/wwan-go/modem/contract"
 )
 
 type coreBackend interface {

@@ -1,4 +1,4 @@
-module github.com/damonto/wwan-go
+module github.com/voorz/wwan-go
 
 go 1.26.3
 

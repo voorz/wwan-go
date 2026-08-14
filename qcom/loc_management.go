@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 const locMaxTLVValueLength = 1<<16 - 1

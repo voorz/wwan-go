@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	"github.com/damonto/wwan-go/qcom"
-	qmiproto "github.com/damonto/wwan-go/qcom/qmi"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	"github.com/voorz/wwan-go/qcom"
+	qmiproto "github.com/voorz/wwan-go/qcom/qmi"
 )
 
 var (

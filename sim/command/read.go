@@ -1,6 +1,6 @@
 package command
 
-import "github.com/damonto/wwan-go/apdu"
+import "github.com/voorz/wwan-go/apdu"
 
 type BinaryRead struct {
 	Length byte

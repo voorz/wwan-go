@@ -3,7 +3,7 @@ package modem
 import (
 	"errors"
 
-	"github.com/damonto/wwan-go/modem/contract"
+	"github.com/voorz/wwan-go/modem/contract"
 )
 
 var (

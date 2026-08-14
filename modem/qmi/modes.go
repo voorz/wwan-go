@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 const modeNR5G = TechnologyNR5GNSA | TechnologyNR5GSA

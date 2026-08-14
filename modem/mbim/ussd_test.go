@@ -3,7 +3,7 @@ package mbim
 import (
 	"testing"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
+	mbimproto "github.com/voorz/wwan-go/mbim"
 )
 
 func TestUSSDCodec(t *testing.T) {

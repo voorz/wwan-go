@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/damonto/wwan-go/apdu"
+	"github.com/voorz/wwan-go/apdu"
 )
 
 func TestTextUnmarshalBinary(t *testing.T) {

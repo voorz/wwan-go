@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 const (

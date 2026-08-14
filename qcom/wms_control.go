@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // WMSModifyTagRequest changes the state tag on a stored message.

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/damonto/wwan-go/modem/contract"
+	"github.com/voorz/wwan-go/modem/contract"
 )
 
 func selectNetworkPort(ctx context.Context, controlPort, requested string) (Port, error) {

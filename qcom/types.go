@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // ServiceType represents QMI service types. QRTR uses a 32-bit service ID;

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 type poolDialer struct {

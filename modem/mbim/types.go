@@ -1,6 +1,6 @@
 package mbim
 
-import "github.com/damonto/wwan-go/modem/contract"
+import "github.com/voorz/wwan-go/modem/contract"
 
 var ErrNotSupported = contract.ErrNotSupported
 

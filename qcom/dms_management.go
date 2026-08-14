@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 const dmsMACAddressMax = 8

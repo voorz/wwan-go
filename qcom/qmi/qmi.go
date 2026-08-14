@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 const defaultProxyOpenTimeout = 5 * time.Second

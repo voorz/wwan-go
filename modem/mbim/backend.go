@@ -8,9 +8,9 @@ import (
 	"slices"
 	"sync"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	wwansim "github.com/damonto/wwan-go/sim"
-	simcard "github.com/damonto/wwan-go/sim/card"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	wwansim "github.com/voorz/wwan-go/sim"
+	simcard "github.com/voorz/wwan-go/sim/card"
 )
 
 type Backend struct {

@@ -3,7 +3,7 @@ package command
 import (
 	"slices"
 
-	"github.com/damonto/wwan-go/apdu"
+	"github.com/voorz/wwan-go/apdu"
 )
 
 type SelectID struct {

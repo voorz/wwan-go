@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/damonto/wwan-go/sim/tlv"
+	"github.com/voorz/wwan-go/sim/tlv"
 )
 
 func TestProactiveCommandUnmarshalBinary(t *testing.T) {

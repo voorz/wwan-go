@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/damonto/wwan-go/apdu"
+	"github.com/voorz/wwan-go/apdu"
 )
 
 type Authenticate3G struct {

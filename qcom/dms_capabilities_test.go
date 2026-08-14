@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestDMSDeviceCapabilitiesUnmarshalTLVs(t *testing.T) {

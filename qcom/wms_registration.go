@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // WMSIndicationState contains the optional registration state returned by the

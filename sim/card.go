@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"strings"
 
-	simcard "github.com/damonto/wwan-go/sim/card"
-	"github.com/damonto/wwan-go/sim/command"
-	"github.com/damonto/wwan-go/sim/simfile"
+	simcard "github.com/voorz/wwan-go/sim/card"
+	"github.com/voorz/wwan-go/sim/command"
+	"github.com/voorz/wwan-go/sim/simfile"
 )
 
 var (

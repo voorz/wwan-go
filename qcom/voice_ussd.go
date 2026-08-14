@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // VoiceUSSDNoWaitResult is the asynchronous result of Originate USSD No Wait.

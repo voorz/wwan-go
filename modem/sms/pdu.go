@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/damonto/wwan-go/modem/contract"
+	"github.com/voorz/wwan-go/modem/contract"
 )
 
 type Message = contract.Message

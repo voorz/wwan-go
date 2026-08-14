@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // WDSAutoconnectSetting is the modem's automatic packet-data policy.

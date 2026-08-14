@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 const directSyncTimeout = 10 * time.Second

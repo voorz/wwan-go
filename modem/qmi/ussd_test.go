@@ -3,7 +3,7 @@ package qmi
 import (
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 )
 
 func TestUSSDCodec(t *testing.T) {

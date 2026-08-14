@@ -6,7 +6,7 @@ import (
 	"io"
 	"slices"
 
-	"github.com/damonto/wwan-go/sim/tlv"
+	"github.com/voorz/wwan-go/sim/tlv"
 )
 
 type Command interface {

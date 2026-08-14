@@ -11,7 +11,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/damonto/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom"
 	"golang.org/x/sys/unix"
 )
 

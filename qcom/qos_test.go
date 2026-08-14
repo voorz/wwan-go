@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestQoSRequestEncoding(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom"
-	stkpkg "github.com/damonto/wwan-go/sim/stk"
-	"github.com/damonto/wwan-go/sim/tlv"
+	"github.com/voorz/wwan-go/qcom"
+	stkpkg "github.com/voorz/wwan-go/sim/stk"
+	"github.com/voorz/wwan-go/sim/tlv"
 )
 
 func TestSTKHandle(t *testing.T) {

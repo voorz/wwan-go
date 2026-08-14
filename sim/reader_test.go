@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	simcard "github.com/damonto/wwan-go/sim/card"
-	"github.com/damonto/wwan-go/sim/command"
-	"github.com/damonto/wwan-go/sim/stk"
-	"github.com/damonto/wwan-go/sim/tlv"
+	simcard "github.com/voorz/wwan-go/sim/card"
+	"github.com/voorz/wwan-go/sim/command"
+	"github.com/voorz/wwan-go/sim/stk"
+	"github.com/voorz/wwan-go/sim/tlv"
 )
 
 type apduScriptTransmitter struct {

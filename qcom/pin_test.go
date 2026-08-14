@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestPINOperations(t *testing.T) {

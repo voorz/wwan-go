@@ -8,7 +8,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // PBMEventRegistrationMask selects Phonebook Management indications.

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/damonto/wwan-go/sim/simfile"
+	"github.com/voorz/wwan-go/sim/simfile"
 )
 
 const (

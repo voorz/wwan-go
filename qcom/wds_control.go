@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // WDSChannelRateUnit identifies the unit used by extended channel rates.

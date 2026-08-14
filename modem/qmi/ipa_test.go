@@ -12,8 +12,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom"
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestIPADPMConfig(t *testing.T) {

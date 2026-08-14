@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/damonto/wwan-go/cdcwdm"
+	"github.com/voorz/wwan-go/cdcwdm"
 )
 
 type DirectDialer struct {

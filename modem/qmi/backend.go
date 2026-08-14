@@ -12,11 +12,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/damonto/wwan-go/modem/sms"
-	"github.com/damonto/wwan-go/qcom"
-	wwansim "github.com/damonto/wwan-go/sim"
-	simcard "github.com/damonto/wwan-go/sim/card"
-	"github.com/damonto/wwan-go/sim/simfile"
+	"github.com/voorz/wwan-go/modem/sms"
+	"github.com/voorz/wwan-go/qcom"
+	wwansim "github.com/voorz/wwan-go/sim"
+	simcard "github.com/voorz/wwan-go/sim/card"
+	"github.com/voorz/wwan-go/sim/simfile"
 )
 
 type Backend struct {

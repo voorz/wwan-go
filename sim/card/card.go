@@ -3,7 +3,7 @@ package card
 import (
 	"context"
 
-	"github.com/damonto/wwan-go/sim/simfile"
+	"github.com/voorz/wwan-go/sim/simfile"
 )
 
 type Application struct {

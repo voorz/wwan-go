@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestWDAControlRequestEncoding(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom"
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 type radioTestCall func(qcom.Request) (qcom.Response, error)

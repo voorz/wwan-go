@@ -1,6 +1,6 @@
 package modem
 
-import "github.com/damonto/wwan-go/modem/contract"
+import "github.com/voorz/wwan-go/modem/contract"
 
 type Result[T any] = contract.Result[T]
 

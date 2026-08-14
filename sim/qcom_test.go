@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom"
-	"github.com/damonto/wwan-go/qcom/tlv"
-	"github.com/damonto/wwan-go/sim"
+	"github.com/voorz/wwan-go/qcom"
+	"github.com/voorz/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/sim"
 )
 
 type simTransport struct {

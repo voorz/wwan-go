@@ -3,8 +3,8 @@ package mbim
 import (
 	"testing"
 
-	mbimproto "github.com/damonto/wwan-go/mbim"
-	smscodec "github.com/damonto/wwan-go/modem/sms"
+	mbimproto "github.com/voorz/wwan-go/mbim"
+	smscodec "github.com/voorz/wwan-go/modem/sms"
 )
 
 func TestFlashMessageParts(t *testing.T) {

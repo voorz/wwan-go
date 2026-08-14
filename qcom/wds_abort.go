@@ -3,7 +3,7 @@ package qcom
 import (
 	"time"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 // WDSAbortRequest encodes the library-level WDS Abort command. The target must

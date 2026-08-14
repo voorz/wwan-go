@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/damonto/wwan-go/qcom/tlv"
+	"github.com/voorz/wwan-go/qcom/tlv"
 )
 
 func TestEncodeNASPLMNNameRequest(t *testing.T) {
