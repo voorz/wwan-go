@@ -25,6 +25,7 @@ type fakeTransport struct {
 
 type transportCall struct {
 	check func(Request)
+	wait  func()
 	resp  Response
 	err   error
 }
@@ -48,6 +49,32 @@ func (t *fakeTransport) Do(_ context.Context, req Request) (Response, error) {
 		return Response{}, call.err
 	}
 	return call.resp, nil
+}
+
+func (t *fakeTransport) Dispatch(_ context.Context, req Request) (func() (Response, error), error) {
+	t.t.Helper()
+	t.mu.Lock()
+	if t.idx >= len(t.calls) {
+		t.mu.Unlock()
+		t.t.Fatalf("Dispatch() got unexpected request: %+v", req)
+	}
+
+	call := t.calls[t.idx]
+	t.idx++
+	t.mu.Unlock()
+
+	if call.check != nil {
+		call.check(req)
+	}
+	return func() (Response, error) {
+		if call.wait != nil {
+			call.wait()
+		}
+		if call.err != nil {
+			return Response{}, call.err
+		}
+		return call.resp, nil
+	}, nil
 }
 
 func (t *fakeTransport) Close() error {
@@ -147,6 +174,87 @@ type serializedRequestTransport struct {
 	requestStarted chan struct{}
 	releaseRequest chan struct{}
 	startOnce      sync.Once
+}
+
+type doOnlyTransport struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (t *doOnlyTransport) Do(context.Context, Request) (Response, error) {
+	t.mu.Lock()
+	t.calls++
+	t.mu.Unlock()
+	return Response{}, errors.New("unexpected QMI request")
+}
+
+func (*doOnlyTransport) Close() error { return nil }
+
+func (t *doOnlyTransport) callCount() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.calls
+}
+
+type batchCancelTransport struct {
+	mu            sync.Mutex
+	want          int
+	dispatched    int
+	settled       int
+	contexts      []context.Context
+	allDispatched chan struct{}
+	allSettled    chan struct{}
+}
+
+func newBatchCancelTransport(want int) *batchCancelTransport {
+	return &batchCancelTransport{
+		want:          want,
+		allDispatched: make(chan struct{}),
+		allSettled:    make(chan struct{}),
+	}
+}
+
+func (*batchCancelTransport) Do(context.Context, Request) (Response, error) {
+	return Response{}, errors.New("unexpected synchronous QMI request")
+}
+
+func (t *batchCancelTransport) Dispatch(ctx context.Context, _ Request) (func() (Response, error), error) {
+	t.mu.Lock()
+	t.contexts = append(t.contexts, ctx)
+	t.dispatched++
+	if t.dispatched == t.want {
+		close(t.allDispatched)
+	}
+	t.mu.Unlock()
+
+	var once sync.Once
+	return func() (Response, error) {
+		<-ctx.Done()
+		once.Do(func() {
+			t.mu.Lock()
+			t.settled++
+			if t.settled == t.want {
+				close(t.allSettled)
+			}
+			t.mu.Unlock()
+		})
+		return Response{}, ctx.Err()
+	}, nil
+}
+
+func (t *batchCancelTransport) Close() error {
+	select {
+	case <-t.allSettled:
+		return nil
+	default:
+		return errors.New("closing transport before dispatched requests settled")
+	}
+}
+
+func (t *batchCancelTransport) contextSnapshot() []context.Context {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return slices.Clone(t.contexts)
 }
 
 func (t *serializedRequestTransport) Do(ctx context.Context, req Request) (Response, error) {
@@ -1504,6 +1612,90 @@ func TestClientCloseCancelsInFlightRequests(t *testing.T) {
 			assertTLV(t, requests[1].TLVs, 0x01, []byte{byte(tt.service), 7})
 			if closeCalls != 1 {
 				t.Fatalf("transport Close() calls = %d, want 1", closeCalls)
+			}
+		})
+	}
+}
+
+func TestClientCloseCancelsDispatchedRequestBatch(t *testing.T) {
+	tests := []struct {
+		name         string
+		requestCount int
+	}{
+		{name: "two requests", requestCount: 2},
+		{name: "three requests", requestCount: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			transport := newBatchCancelTransport(tt.requestCount)
+			client := &Client{transport: transport, slot: 1}
+			requests := make([]Request, tt.requestCount)
+			for i := range requests {
+				requests[i] = Request{
+					Service:   ServiceWDS,
+					ClientID:  uint8(i + 1),
+					MessageID: MessageWDSStartNetworkInterface,
+				}
+			}
+
+			type dispatchResult struct {
+				responseErrs []error
+				err          error
+			}
+			dispatchDone := make(chan dispatchResult, 1)
+			go func() {
+				_, responseErrs, err := client.dispatchRequests(context.Background(), requests)
+				dispatchDone <- dispatchResult{responseErrs: responseErrs, err: err}
+			}()
+
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			select {
+			case <-transport.allDispatched:
+			case <-ctx.Done():
+				t.Fatalf("waiting for request dispatch: %v", ctx.Err())
+			}
+
+			closeDone := make(chan error, 1)
+			go func() {
+				closeDone <- client.Close()
+			}()
+
+			select {
+			case result := <-dispatchDone:
+				if result.err != nil {
+					t.Fatalf("dispatchRequests() error = %v", result.err)
+				}
+				if len(result.responseErrs) != tt.requestCount {
+					t.Fatalf("response errors = %d, want %d", len(result.responseErrs), tt.requestCount)
+				}
+				for i, err := range result.responseErrs {
+					if !errors.Is(err, context.Canceled) {
+						t.Fatalf("response error %d = %v, want context canceled", i, err)
+					}
+				}
+			case <-ctx.Done():
+				t.Fatalf("waiting for dispatched requests: %v", ctx.Err())
+			}
+
+			select {
+			case err := <-closeDone:
+				if err != nil {
+					t.Fatalf("Close() error = %v", err)
+				}
+			case <-ctx.Done():
+				t.Fatalf("waiting for Close(): %v", ctx.Err())
+			}
+
+			contexts := transport.contextSnapshot()
+			if len(contexts) != tt.requestCount {
+				t.Fatalf("dispatched contexts = %d, want %d", len(contexts), tt.requestCount)
+			}
+			for i, requestCtx := range contexts {
+				if !errors.Is(requestCtx.Err(), context.Canceled) {
+					t.Fatalf("request context %d error = %v, want context canceled", i, requestCtx.Err())
+				}
 			}
 		})
 	}

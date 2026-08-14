@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,14 @@ type PDNConfig struct {
 	LegacyMuxDataPort WDSSIOPort
 	LegacyMuxFallback *WDSMuxDataPort
 	CallType          *WDSCallType
+}
+
+// PDNOpenResult reports one packet-data call from OpenPDNs. Session is set
+// only when that family completed its Start Network transaction and runtime
+// settings were read successfully.
+type PDNOpenResult struct {
+	Session *PDNSession
+	Err     error
 }
 
 // PDNInfo contains the negotiated network configuration of a packet-data call.
@@ -115,6 +124,95 @@ func (c *Client) OpenPDN(ctx context.Context, cfg PDNConfig) (*PDNSession, error
 		return nil, fmt.Errorf("opening PDN: %w", err)
 	}
 	return session, nil
+}
+
+// OpenPDNs prepares every WDS client first, then writes Start Network requests
+// in config order before awaiting any response. Qualcomm dual-stack calls use
+// this ordering so IPv4 and IPv6 share one mux without serializing on the first
+// family becoming fully connected. A transport without ordered dispatch is
+// rejected before modem state is changed. Individual failures are returned in
+// result order; err is non-nil when setup fails or no PDN opens successfully.
+func (c *Client) OpenPDNs(ctx context.Context, configs []PDNConfig) ([]PDNOpenResult, error) {
+	if c == nil {
+		return nil, errors.New("opening PDNs: client is nil")
+	}
+	if len(configs) == 0 {
+		return nil, errors.New("opening PDNs: configurations are required")
+	}
+
+	openConfigs := make([]pdnOpenConfig, len(configs))
+	for i, cfg := range configs {
+		normalized, err := normalizePDNOpenConfig(pdnOpenConfig{
+			PDNConfig:         cfg,
+			requestedSettings: WDSRuntimeRequestedNetworkSettings,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("opening PDN %d: %w", i, err)
+		}
+		openConfigs[i] = normalized
+	}
+	if err := c.checkRequestDispatch(ctx); err != nil {
+		return nil, fmt.Errorf("opening PDNs: %w", err)
+	}
+
+	sessions := make([]*PDNSession, len(openConfigs))
+	for i, cfg := range openConfigs {
+		session, err := c.preparePDN(ctx, cfg)
+		if err != nil {
+			return nil, errors.Join(
+				fmt.Errorf("opening PDN %d: %w", i, err),
+				closePDNSessions(sessions[:i]),
+			)
+		}
+		sessions[i] = session
+	}
+
+	requests := make([]Request, len(sessions))
+	for i, session := range sessions {
+		requests[i] = session.startRequest(openConfigs[i])
+	}
+	responses, responseErrs, dispatchErr := c.dispatchRequests(ctx, requests)
+	if dispatchErr != nil {
+		var settleErr error
+		for i := range responses {
+			settleErr = errors.Join(settleErr, sessions[i].acceptStartResponse(responses[i], responseErrs[i]))
+		}
+		return nil, errors.Join(
+			fmt.Errorf("opening PDNs: %w", dispatchErr),
+			settleErr,
+			closePDNSessions(sessions),
+		)
+	}
+
+	results := make([]PDNOpenResult, len(sessions))
+	var openErr error
+	opened := 0
+	for i, session := range sessions {
+		err := session.acceptStartResponse(responses[i], responseErrs[i])
+		if err == nil {
+			err = session.loadRuntime(ctx)
+		}
+		if err != nil {
+			resultErr := errors.Join(err, session.Close())
+			results[i].Err = fmt.Errorf("opening PDN: %w", resultErr)
+			openErr = errors.Join(openErr, fmt.Errorf("opening PDN %d: %w", i, resultErr))
+			continue
+		}
+		results[i].Session = session
+		opened++
+	}
+	if opened == 0 {
+		return results, fmt.Errorf("opening PDNs: %w", openErr)
+	}
+	return results, nil
+}
+
+func closePDNSessions(sessions []*PDNSession) error {
+	var result error
+	for _, session := range slices.Backward(sessions) {
+		result = errors.Join(result, session.Close())
+	}
+	return result
 }
 
 // OpenIMSPDN starts an IMS PDN and reads the matching NAS voice state. When
@@ -206,38 +304,63 @@ func (c *Client) openPDN(ctx context.Context, cfg pdnOpenConfig) (*PDNSession, e
 	if c == nil {
 		return nil, errors.New("client is nil")
 	}
+	normalized, err := normalizePDNOpenConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	session, err := c.preparePDN(ctx, normalized)
+	if err != nil {
+		return nil, err
+	}
+	startCfg := normalized
+	if normalized.profileIPFamily {
+		startCfg.IPPreference = WDSIPPreferenceDefault
+	}
+	if err := session.start(ctx, startCfg); err != nil {
+		return nil, errors.Join(err, session.Close())
+	}
+	if err := session.loadRuntime(ctx); err != nil {
+		return nil, errors.Join(err, session.Close())
+	}
+	return session, nil
+}
+
+func normalizePDNOpenConfig(cfg pdnOpenConfig) (pdnOpenConfig, error) {
 	if cfg.MuxDataPort != nil && cfg.LegacyMuxDataPort != 0 {
-		return nil, errors.New("mux data port and legacy mux data port are mutually exclusive")
+		return pdnOpenConfig{}, errors.New("mux data port and legacy mux data port are mutually exclusive")
 	}
 	if cfg.LegacyMuxFallback != nil && cfg.LegacyMuxDataPort == 0 {
-		return nil, errors.New("legacy mux fallback requires a legacy mux data port")
+		return pdnOpenConfig{}, errors.New("legacy mux fallback requires a legacy mux data port")
 	}
 	if err := validateWDSIPPreference(cfg.IPPreference); err != nil {
-		return nil, err
+		return pdnOpenConfig{}, err
 	}
 	if cfg.Subscription != nil {
 		if err := validateWDSSubscription(*cfg.Subscription); err != nil {
-			return nil, err
+			return pdnOpenConfig{}, err
 		}
 	}
 	cfg.APN = strings.TrimSpace(cfg.APN)
 	if err := validateWDSString(cfg.APN, wdsAPNMaxLength); err != nil {
-		return nil, fmt.Errorf("validating WDS APN: %w", err)
+		return pdnOpenConfig{}, fmt.Errorf("validating WDS APN: %w", err)
 	}
 	if err := validateWDSString(cfg.Username, wdsUsernameMaxLength); err != nil {
-		return nil, fmt.Errorf("validating WDS username: %w", err)
+		return pdnOpenConfig{}, fmt.Errorf("validating WDS username: %w", err)
 	}
 	if err := validateWDSString(cfg.Password, wdsPasswordMaxLength); err != nil {
-		return nil, fmt.Errorf("validating WDS password: %w", err)
+		return pdnOpenConfig{}, fmt.Errorf("validating WDS password: %w", err)
 	}
 	if err := validateWDSAuthentication(cfg.Authentication); err != nil {
-		return nil, err
+		return pdnOpenConfig{}, err
 	}
-	timeout := cfg.RequestTimeout
-	if timeout <= 0 {
-		timeout = DefaultRequestTimeout
+	if cfg.RequestTimeout <= 0 {
+		cfg.RequestTimeout = DefaultRequestTimeout
 	}
-	session := &PDNSession{client: c, timeout: timeout, done: make(chan struct{})}
+	return cfg, nil
+}
+
+func (c *Client) preparePDN(ctx context.Context, cfg pdnOpenConfig) (*PDNSession, error) {
+	session := &PDNSession{client: c, timeout: cfg.RequestTimeout, done: make(chan struct{})}
 
 	wdsClientID, releaseWDSClient, err := c.sessionServiceClientID(ctx, ServiceWDS)
 	if err != nil {
@@ -249,13 +372,6 @@ func (c *Client) openPDN(ctx context.Context, cfg pdnOpenConfig) (*PDNSession, e
 	session.requestedSettings = cfg.requestedSettings
 	if cfg.Subscription != nil {
 		if err := session.bindSubscription(ctx, *cfg.Subscription); err != nil {
-			return nil, errors.Join(err, session.Close())
-		}
-	}
-	// Some IMS profiles on legacy BAM-DMUX firmware own the IP-family choice.
-	// General PDNs still need the caller's explicit family on the same endpoint.
-	if !cfg.profileIPFamily && (cfg.IPPreference == WDSIPPreferenceIPv4 || cfg.IPPreference == WDSIPPreferenceIPv6) {
-		if err := session.setClientIPFamily(ctx, WDSIPFamily(cfg.IPPreference)); err != nil {
 			return nil, errors.Join(err, session.Close())
 		}
 	}
@@ -272,21 +388,29 @@ func (c *Client) openPDN(ctx context.Context, cfg pdnOpenConfig) (*PDNSession, e
 			return nil, errors.Join(err, session.Close())
 		}
 	}
-	startCfg := cfg
-	if cfg.profileIPFamily {
-		startCfg.IPPreference = WDSIPPreferenceDefault
+	// Bind the data port before selecting the client family. Qualcomm's WDS
+	// setup sequence scopes the family to the already-bound endpoint; doing it
+	// in the opposite order can leave a second client on the same mux with an
+	// invalid family preference on some firmware.
+	if !cfg.profileIPFamily && (cfg.IPPreference == WDSIPPreferenceIPv4 || cfg.IPPreference == WDSIPPreferenceIPv6) {
+		if err := session.setClientIPFamily(ctx, WDSIPFamily(cfg.IPPreference)); err != nil {
+			return nil, errors.Join(err, session.Close())
+		}
 	}
-	if err := session.start(ctx, startCfg); err != nil {
-		return nil, errors.Join(err, session.Close())
-	}
-	runtime, err := session.runtimeSettings(ctx, cfg.requestedSettings)
-	if err != nil {
-		return nil, errors.Join(fmt.Errorf("read runtime settings: %w", err), session.Close())
-	}
-	session.runtime = runtime
-	session.info = pdnInfo(runtime, session.packetDataHandle != 0)
-	session.connectionStatus = WDSConnectionStatusConnected
 	return session, nil
+}
+
+func (s *PDNSession) loadRuntime(ctx context.Context) error {
+	runtime, err := s.runtimeSettings(ctx, s.requestedSettings)
+	if err != nil {
+		return fmt.Errorf("read runtime settings: %w", err)
+	}
+	s.mu.Lock()
+	s.runtime = runtime
+	s.info = pdnInfo(runtime, s.packetDataHandle != 0)
+	s.connectionStatus = WDSConnectionStatusConnected
+	s.mu.Unlock()
+	return nil
 }
 
 func validateWDSIPPreference(preference WDSIPPreference) error {
@@ -462,7 +586,13 @@ func (s *PDNSession) bindLegacyMuxDataPort(ctx context.Context, dataPort WDSSIOP
 }
 
 func (s *PDNSession) start(ctx context.Context, cfg pdnOpenConfig) error {
-	req := WDSStartNetworkInterfaceRequest{
+	req := s.startRequest(cfg)
+	resp, err := s.client.requestServiceWithTimeout(ctx, req.Service, req.ClientID, req.MessageID, req.TLVs, req.Timeout)
+	return s.acceptStartResponse(resp, err)
+}
+
+func (s *PDNSession) startRequest(cfg pdnOpenConfig) Request {
+	return WDSStartNetworkInterfaceRequest{
 		ClientID:             s.wdsClientID,
 		Timeout:              s.timeout,
 		APN:                  cfg.APN,
@@ -474,7 +604,9 @@ func (s *PDNSession) start(ctx context.Context, cfg pdnOpenConfig) error {
 		ProfileIndex3GPP:     cfg.ProfileIndex,
 		CallType:             cfg.CallType,
 	}.Request()
-	resp, err := s.client.requestServiceWithTimeout(ctx, req.Service, req.ClientID, req.MessageID, req.TLVs, req.Timeout)
+}
+
+func (s *PDNSession) acceptStartResponse(resp Response, err error) error {
 	if err != nil {
 		return fmt.Errorf("start WDS network: %w", err)
 	}
@@ -494,7 +626,9 @@ func (s *PDNSession) start(ctx context.Context, cfg pdnOpenConfig) error {
 	if parsed.PacketDataHandle == 0 {
 		return errors.New("start WDS network: packet data handle is missing")
 	}
+	s.mu.Lock()
 	s.packetDataHandle = parsed.PacketDataHandle
+	s.mu.Unlock()
 	return nil
 }
 

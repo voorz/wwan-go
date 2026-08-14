@@ -9,7 +9,10 @@ import (
 	"github.com/damonto/wwan-go/qcom/tlv"
 )
 
-var errClientClosed = errors.New("QCOM client is closed")
+var (
+	errClientClosed               = errors.New("QCOM client is closed")
+	errRequestDispatchUnsupported = errors.New("QMI transport does not support ordered request dispatch")
+)
 
 // RequestDeadline returns the earlier of the context deadline and the request
 // timeout. A non-positive timeout leaves an existing context deadline intact.
@@ -331,6 +334,76 @@ func (c *Client) requestServiceWithTimeout(
 		return Response{}, errClientClosed
 	}
 	return c.sendRequest(ctx, service, clientID, id, tlvs, timeout)
+}
+
+type responseWaiter func() (Response, error)
+
+type requestDispatcher interface {
+	Dispatch(context.Context, Request) (func() (Response, error), error)
+}
+
+func requestDispatcherFor(transport Transport) (requestDispatcher, error) {
+	dispatcher, ok := transport.(requestDispatcher)
+	if !ok {
+		return nil, errRequestDispatchUnsupported
+	}
+	return dispatcher, nil
+}
+
+func (c *Client) checkRequestDispatch(ctx context.Context) error {
+	if err := c.mu.LockContext(ctx); err != nil {
+		return err
+	}
+	defer c.mu.Unlock()
+	if !c.isOpenLocked() {
+		return errClientClosed
+	}
+	_, err := requestDispatcherFor(c.transport)
+	return err
+}
+
+// dispatchRequests writes every request in slice order, then settles every
+// response before releasing the client request lock. One lifecycle context
+// covers the whole batch so Close cancels and waits for all transactions.
+func (c *Client) dispatchRequests(ctx context.Context, requests []Request) ([]Response, []error, error) {
+	if err := c.mu.LockContext(ctx); err != nil {
+		return nil, nil, err
+	}
+	defer c.mu.Unlock()
+	if !c.isOpenLocked() {
+		return nil, nil, errClientClosed
+	}
+	dispatcher, err := requestDispatcherFor(c.transport)
+	if err != nil {
+		return nil, nil, err
+	}
+	requestCtx, finish, err := c.beginRequest(ctx, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer finish()
+
+	waiters := make([]responseWaiter, 0, len(requests))
+	for i, request := range requests {
+		request.TransactionID = c.nextTransactionID(request.Service)
+		wait, err := dispatcher.Dispatch(requestCtx, request)
+		if err != nil {
+			responses, responseErrs := settleResponseWaiters(waiters)
+			return responses, responseErrs, fmt.Errorf("dispatch request %d: %w", i, err)
+		}
+		waiters = append(waiters, wait)
+	}
+	responses, responseErrs := settleResponseWaiters(waiters)
+	return responses, responseErrs, nil
+}
+
+func settleResponseWaiters(waiters []responseWaiter) ([]Response, []error) {
+	responses := make([]Response, len(waiters))
+	errs := make([]error, len(waiters))
+	for i, wait := range waiters {
+		responses[i], errs[i] = wait()
+	}
+	return responses, errs
 }
 
 // sendRequest assumes c.mu is held and c.transport is live.

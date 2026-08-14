@@ -132,6 +132,74 @@ func TestMarshalRequestRejectsInvalidRequest(t *testing.T) {
 	}
 }
 
+func TestTransportDispatchWritesOrderedRequestsBeforeWaiting(t *testing.T) {
+	tests := []struct {
+		name   string
+		frames [][]byte
+	}{
+		{
+			name: "responses in request order",
+			frames: [][]byte{
+				serviceResultFrame(1, qcom.MessageGetCardStatus),
+				serviceResultFrame(2, qcom.MessageGetSlotStatus),
+			},
+		},
+		{
+			name: "responses in reverse order",
+			frames: [][]byte{
+				serviceResultFrame(2, qcom.MessageGetSlotStatus),
+				serviceResultFrame(1, qcom.MessageGetCardStatus),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := newAsyncDeadlineConn()
+			transport := New(conn)
+			defer transport.Close()
+
+			waitFirst, err := transport.Dispatch(t.Context(), qcom.Request{
+				Service:       qcom.ServiceUIM,
+				ClientID:      7,
+				TransactionID: 1,
+				MessageID:     qcom.MessageGetCardStatus,
+				Timeout:       time.Second,
+			})
+			if err != nil {
+				t.Fatalf("Dispatch(first) error = %v", err)
+			}
+			waitSecond, err := transport.Dispatch(t.Context(), qcom.Request{
+				Service:       qcom.ServiceUIM,
+				ClientID:      7,
+				TransactionID: 2,
+				MessageID:     qcom.MessageGetSlotStatus,
+				Timeout:       time.Second,
+			})
+			if err != nil {
+				t.Fatalf("Dispatch(second) error = %v", err)
+			}
+			conn.waitWrites(t, 2)
+
+			conn.frames <- joinFrames(tt.frames...)
+			first, err := waitFirst()
+			if err != nil {
+				t.Fatalf("wait first error = %v", err)
+			}
+			second, err := waitSecond()
+			if err != nil {
+				t.Fatalf("wait second error = %v", err)
+			}
+			if first.TransactionID != 1 || first.MessageID != qcom.MessageGetCardStatus {
+				t.Fatalf("first response = %+v", first)
+			}
+			if second.TransactionID != 2 || second.MessageID != qcom.MessageGetSlotStatus {
+				t.Fatalf("second response = %+v", second)
+			}
+		})
+	}
+}
+
 func TestTransportEOFPreservesCause(t *testing.T) {
 	tests := []struct {
 		name string
