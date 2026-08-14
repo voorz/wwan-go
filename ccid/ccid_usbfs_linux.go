@@ -322,7 +322,7 @@ func formatUSBFSReaderName(devicePath, usbPath string, interfaceNumber, slot uin
 	if identity == "" {
 		identity = usbPath
 	}
-	return fmt.Sprintf("%s (%s) %02d %02d [celmux]", name, identity, interfaceNumber, slot)
+	return fmt.Sprintf("%s (%s) %02d %02d", name, identity, interfaceNumber, slot)
 }
 
 func readUSBFSString(path, name string) string {
