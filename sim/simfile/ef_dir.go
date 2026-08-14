@@ -2,6 +2,7 @@ package simfile
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/damonto/wwan-go/apdu"
 	"github.com/damonto/wwan-go/sim/tlv"
@@ -36,39 +37,39 @@ func (rec EFDirRecord) MarshalBinary() ([]byte, error) {
 }
 
 func (rec *EFDirRecord) UnmarshalBinary(data []byte) error {
-	data = trimEFDirPadding(data)
-	if len(data) == 0 {
+	if len(trimEFDirPadding(data)) == 0 {
 		*rec = EFDirRecord{}
 		return nil
 	}
 
-	var top tlv.Items
-	if err := top.UnmarshalBinary(data); err != nil {
+	top, consumed, err := tlv.Consume(data)
+	if err != nil {
 		return malformedTLV(err)
 	}
-	if len(top) == 0 {
+	if top.Tag != tagRecord {
+		return fmt.Errorf("parsing EF_DIR record tag 0x%02X: %w", top.Tag, apdu.ErrMalformedResponse)
+	}
+	if len(trimEFDirPadding(data[consumed:])) != 0 {
 		return apdu.ErrMalformedResponse
-	}
-	if top[0].Tag != tagRecord {
-		return errors.New("unexpected EF_DIR record tag")
-	}
-
-	var inner tlv.Items
-	if err := inner.UnmarshalBinary(top[0].Value); err != nil {
-		return malformedTLV(err)
 	}
 
 	parsed := EFDirRecord{}
-	for _, item := range inner {
+	inner := top.Value
+	for len(trimEFDirPadding(inner)) != 0 {
+		item, consumed, err := tlv.Consume(inner)
+		if err != nil {
+			return malformedTLV(err)
+		}
 		switch item.Tag {
 		case tagRecordAID:
 			parsed.AID = append([]byte(nil), item.Value...)
 		case tagRecordLabel:
 			parsed.Label = string(item.Value)
 		}
+		inner = inner[consumed:]
 	}
 	if len(parsed.AID) == 0 {
-		return errors.New("missing EF_DIR record AID")
+		return fmt.Errorf("parsing EF_DIR record AID: %w", apdu.ErrMalformedResponse)
 	}
 
 	*rec = parsed
