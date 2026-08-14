@@ -27,20 +27,17 @@ func TestModemQMIClientUsesResolvedEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			oldOpen := openModemQMIClient
-			t.Cleanup(func() { openModemQMIClient = oldOpen })
-
 			wantClient := new(qcom.Client)
 			called := false
-			openModemQMIClient = func(_ context.Context, device string, access Access, slot uint8) (*qcom.Client, error) {
+			m := newModem(Port{Type: tt.portType, Path: "/dev/cdc-wdm0"}, tt.access, unsupportedBackend{})
+			m.clients.openQMI = func(_ context.Context, config clientOpenConfig) (*qcom.Client, error) {
 				called = true
-				if device != "/dev/cdc-wdm0" || access != tt.access || slot != 2 {
-					t.Errorf("QMI endpoint = (%q, %s, %d), want (/dev/cdc-wdm0, %s, 2)", device, access, slot, tt.access)
+				if config.device != "/dev/cdc-wdm0" || config.access != tt.access || config.slot != 2 {
+					t.Errorf("QMI endpoint = (%q, %s, %d), want (/dev/cdc-wdm0, %s, 2)", config.device, config.access, config.slot, tt.access)
 				}
 				return wantClient, nil
 			}
 
-			m := newModem(Port{Type: tt.portType, Path: "/dev/cdc-wdm0"}, tt.access, unsupportedBackend{})
 			if tt.closed {
 				if err := m.Close(); err != nil {
 					t.Fatalf("Close() error = %v", err)
@@ -81,20 +78,17 @@ func TestModemMBIMClientUsesResolvedEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			oldOpen := openModemMBIMClient
-			t.Cleanup(func() { openModemMBIMClient = oldOpen })
-
 			wantClient := new(mbimproto.Client)
 			called := false
-			openModemMBIMClient = func(_ context.Context, device string, access Access, slot uint8) (*mbimproto.Client, error) {
+			m := newModem(Port{Type: tt.portType, Path: "/dev/cdc-wdm0"}, tt.access, unsupportedBackend{})
+			m.clients.openMBIM = func(_ context.Context, config clientOpenConfig) (*mbimproto.Client, error) {
 				called = true
-				if device != "/dev/cdc-wdm0" || access != tt.access || slot != 2 {
-					t.Errorf("MBIM endpoint = (%q, %s, %d), want (/dev/cdc-wdm0, %s, 2)", device, access, slot, tt.access)
+				if config.device != "/dev/cdc-wdm0" || config.access != tt.access || config.slot != 2 {
+					t.Errorf("MBIM endpoint = (%q, %s, %d), want (/dev/cdc-wdm0, %s, 2)", config.device, config.access, config.slot, tt.access)
 				}
 				return wantClient, nil
 			}
 
-			m := newModem(Port{Type: tt.portType, Path: "/dev/cdc-wdm0"}, tt.access, unsupportedBackend{})
 			if tt.closed {
 				if err := m.Close(); err != nil {
 					t.Fatalf("Close() error = %v", err)
@@ -128,9 +122,7 @@ func TestModemProtocolClientPropagatesOpenError(t *testing.T) {
 			name:     "QMI",
 			portType: PortQMI,
 			run: func(m *Modem) error {
-				oldOpen := openModemQMIClient
-				defer func() { openModemQMIClient = oldOpen }()
-				openModemQMIClient = func(context.Context, string, Access, uint8) (*qcom.Client, error) {
+				m.clients.openQMI = func(context.Context, clientOpenConfig) (*qcom.Client, error) {
 					return nil, openErr
 				}
 				_, err := m.QMIClient(context.Background(), 1)
@@ -141,9 +133,7 @@ func TestModemProtocolClientPropagatesOpenError(t *testing.T) {
 			name:     "MBIM",
 			portType: PortMBIM,
 			run: func(m *Modem) error {
-				oldOpen := openModemMBIMClient
-				defer func() { openModemMBIMClient = oldOpen }()
-				openModemMBIMClient = func(context.Context, string, Access, uint8) (*mbimproto.Client, error) {
+				m.clients.openMBIM = func(context.Context, clientOpenConfig) (*mbimproto.Client, error) {
 					return nil, openErr
 				}
 				_, err := m.MBIMClient(context.Background(), 1)

@@ -21,6 +21,7 @@ const (
 type Modem struct {
 	mu             sync.RWMutex
 	backend        backend
+	clients        clientOpeners
 	port           Port
 	access         Access
 	closed         bool
@@ -34,7 +35,11 @@ type Modem struct {
 
 func newModem(port Port, access Access, b backend) *Modem {
 	return &Modem{
-		backend:        b,
+		backend: b,
+		clients: clientOpeners{
+			openQMI:  openQMIClient,
+			openMBIM: openMBIMClient,
+		},
 		port:           port,
 		access:         access,
 		done:           make(chan struct{}),
