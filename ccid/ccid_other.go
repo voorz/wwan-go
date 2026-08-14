@@ -1,3 +1,5 @@
+//go:build !linux
+
 package ccid
 
 import (
@@ -12,6 +14,40 @@ import (
 )
 
 var ErrReaderNotFound = errors.New("reader not found")
+
+const TransportPCSC = "pcsc"
+
+// ReaderInfo is the non-Linux fallback for the USBFS ReaderInfo type.
+// On non-Linux platforms the transport is always PC/SC and USB-specific
+// fields are zero values.
+type ReaderInfo struct {
+	Name             string
+	BusNumber        uint8
+	DeviceAddress    uint8
+	ChannelAvailable bool
+	USBPath          string
+	USBSerial        string
+	VendorID         uint16
+	ProductID        uint16
+	Transport        string
+}
+
+// ListReaderInfo enumerates readers through PC/SC on non-Linux platforms.
+func ListReaderInfo(ctx context.Context) ([]ReaderInfo, error) {
+	names, err := ListReaders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	infos := make([]ReaderInfo, 0, len(names))
+	for _, name := range names {
+		infos = append(infos, ReaderInfo{
+			Name:             name,
+			ChannelAvailable: true,
+			Transport:        TransportPCSC,
+		})
+	}
+	return infos, nil
+}
 
 type Reader struct {
 	mu     sync.Mutex
@@ -203,4 +239,14 @@ func ioRequestForProtocol(protocol goscard.SCardProtocol) (*goscard.SCardIOReque
 	default:
 		return nil, fmt.Errorf("unsupported active PC/SC protocol: %s", protocol.String())
 	}
+}
+
+// Ping verifies that the reader is still usable on non-Linux platforms.
+func (r *Reader) Ping(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed || r.card == nil {
+		return errors.New("checking reader: reader is closed")
+	}
+	return nil
 }
