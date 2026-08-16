@@ -169,7 +169,7 @@ func (e *PhonebookEntry) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("name: %w", err)
 	}
-	if err := validateDataBufferRefs(data, 20, []valueRef{numberRef, nameRef}); err != nil {
+	if err := validateRecordDataBufferRefs(data, 20, []valueRef{numberRef, nameRef}); err != nil {
 		return fmt.Errorf("data buffer: %w", err)
 	}
 	if err := validateUTF16Refs(data, []valueRef{numberRef, nameRef}); err != nil {

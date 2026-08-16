@@ -136,7 +136,7 @@ func (r *IPPacketFiltersInfo) UnmarshalBinary(data []byte) error {
 		maskOffset := binary.LittleEndian.Uint32(record[8:12])
 		filterRef := valueRef{offset: filterOffset, size: filterSize}
 		maskRef := valueRef{offset: maskOffset, size: filterSize}
-		if err := validateDataBufferRefs(record, uint32(fixedSize), []valueRef{filterRef, maskRef}); err != nil {
+		if err := validateRecordDataBufferRefs(record, uint32(fixedSize), []valueRef{filterRef, maskRef}); err != nil {
 			return fmt.Errorf("parsing MBIM IP packet filter %d data buffer: %w", i, err)
 		}
 		filters[i] = PacketFilter{

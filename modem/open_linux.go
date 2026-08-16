@@ -110,7 +110,7 @@ func openQMI(ctx context.Context, device string, access Access) (backend, Access
 	}
 	transport, err := qmiproto.Open(ctx, option)
 	if err != nil {
-		return nil, access, fmt.Errorf("opening QMI transport: %w", err)
+		return nil, access, err
 	}
 	selected := AccessDirect
 	if transport.UsesProxy() {
@@ -119,11 +119,11 @@ func openQMI(ctx context.Context, device string, access Access) (backend, Access
 	client, err := qcom.NewClient(transport)
 	if err != nil {
 		_ = transport.Close() // Cleanup cannot change the client-construction error.
-		return nil, selected, fmt.Errorf("creating QMI client: %w", err)
+		return nil, selected, err
 	}
 	if _, err := client.DeviceCapabilities(ctx); err != nil {
 		_ = client.Close() // Cleanup cannot change the capability-probe error.
-		return nil, selected, fmt.Errorf("probing QMI device capabilities: %w", err)
+		return nil, selected, err
 	}
 	return modemqmi.New(client, device), selected, nil
 }
@@ -140,7 +140,7 @@ func openMBIM(ctx context.Context, device string, access Access) (backend, Acces
 	}
 	client, err := mbimproto.Open(ctx, option)
 	if err != nil {
-		return nil, access, fmt.Errorf("opening MBIM client: %w", err)
+		return nil, access, err
 	}
 	selected := AccessDirect
 	if client.UsesProxy() {
@@ -148,7 +148,7 @@ func openMBIM(ctx context.Context, device string, access Access) (backend, Acces
 	}
 	if _, err := client.DeviceServices(ctx); err != nil {
 		_ = client.Close() // Cleanup cannot change the service-probe error.
-		return nil, selected, fmt.Errorf("probing MBIM device services: %w", err)
+		return nil, selected, err
 	}
 	return modemmbim.New(client, device), selected, nil
 }

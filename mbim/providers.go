@@ -67,6 +67,14 @@ func (p Provider) marshalBinary() []byte {
 }
 
 func (p *Provider) UnmarshalBinary(data []byte) error {
+	return p.unmarshalBinary(data, false)
+}
+
+func (p *Provider) unmarshalRecordBinary(data []byte) error {
+	return p.unmarshalBinary(data, true)
+}
+
+func (p *Provider) unmarshalBinary(data []byte, nestedRecord bool) error {
 	if len(data) < 32 {
 		return errors.New("parsing MBIM provider: payload is truncated")
 	}
@@ -84,7 +92,11 @@ func (p *Provider) UnmarshalBinary(data []byte) error {
 	if providerNameRef.size > 40 {
 		return fmt.Errorf("parsing MBIM provider name: size %d exceeds 40 bytes", providerNameRef.size)
 	}
-	if err := validateDataBufferRefs(data, 32, []valueRef{providerIDRef, providerNameRef}); err != nil {
+	validateDataBuffer := validateDataBufferRefs
+	if nestedRecord {
+		validateDataBuffer = validateRecordDataBufferRefs
+	}
+	if err := validateDataBuffer(data, 32, []valueRef{providerIDRef, providerNameRef}); err != nil {
 		return fmt.Errorf("parsing MBIM provider data buffer: %w", err)
 	}
 	if err := validateUTF16Refs(data, []valueRef{providerIDRef, providerNameRef}); err != nil {
@@ -195,7 +207,7 @@ func (p *Providers) UnmarshalBinary(data []byte) error {
 	}
 	providers := make([]Provider, count)
 	for i, ref := range refs {
-		if err := providers[i].UnmarshalBinary(data[ref.offset : ref.offset+ref.size]); err != nil {
+		if err := providers[i].unmarshalRecordBinary(data[ref.offset : ref.offset+ref.size]); err != nil {
 			return fmt.Errorf("parsing MBIM provider %d: %w", i, err)
 		}
 	}

@@ -33,14 +33,14 @@ func (b *Backend) Connect(ctx context.Context, cfg ConnectConfig) (sessionBacken
 func (b *Backend) ConnectPort(ctx context.Context, cfg ConnectConfig, port Port) (sessionBackend, error) {
 	interfaceName := cfg.Interface
 	if cfg.ProfileID > 255 {
-		return nil, fmt.Errorf("connecting QMI data session: profile ID %d exceeds 255", cfg.ProfileID)
+		return nil, fmt.Errorf("connecting data session: profile ID %d exceeds 255", cfg.ProfileID)
 	}
 	var link *rmnetLink
 	if port.QMIEndpoint.Type == QMIEndpointEmbedded {
 		var err error
 		link, err = b.prepareIPALink(ctx, port)
 		if err != nil {
-			return nil, fmt.Errorf("connecting QMI data session: %w", err)
+			return nil, fmt.Errorf("connecting data session: %w", err)
 		}
 		interfaceName = link.Name
 	}
@@ -59,7 +59,7 @@ func (b *Backend) ConnectPort(ctx context.Context, cfg ConnectConfig, port Port)
 			closeErr := closeSessions(sessions)
 			linkErr := link.Close()
 			return nil, errors.Join(
-				fmt.Errorf("connecting QMI %s data session: %w", preference, err),
+				fmt.Errorf("connecting %s data session: %w", preference, err),
 				closeErr,
 				linkErr,
 			)
@@ -133,7 +133,7 @@ func (s *session) Stats(ctx context.Context) (BearerStats, error) {
 	for i, session := range sessions {
 		stats, err := session.PacketStatistics(ctx, qcom.WDSStatisticsAll)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("reading QMI bearer session %d statistics: %w", i, err))
+			errs = append(errs, fmt.Errorf("reading bearer session %d statistics: %w", i, err))
 			continue
 		}
 		result.RXBytes += stats.RxBytes
@@ -155,7 +155,7 @@ func (s *session) Watch(ctx context.Context) (<-chan Result[BearerEvent], error)
 		stream, err := session.WatchStatus(watchCtx)
 		if err != nil {
 			cancel()
-			return nil, fmt.Errorf("watching QMI bearer session %d: %w", i, err)
+			return nil, fmt.Errorf("watching bearer session %d: %w", i, err)
 		}
 		streams = append(streams, stream)
 	}
@@ -232,7 +232,7 @@ func closeSessions(sessions []*qcom.PDNSession) error {
 	var errs []error
 	for i, session := range sessions {
 		if err := session.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("closing QMI bearer session %d: %w", i, err))
+			errs = append(errs, fmt.Errorf("closing bearer session %d: %w", i, err))
 		}
 	}
 	return errors.Join(errs...)

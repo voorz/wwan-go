@@ -1,14 +1,11 @@
 package mbim
 
-import (
-	"context"
-	"fmt"
-)
+import "context"
 
 func (b *Backend) SupportedBands(ctx context.Context) ([]Band, error) {
 	caps, err := b.client.DeviceCaps(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reading MBIM supported bands: %w", err)
+		return nil, err
 	}
 	var bands []Band
 	for bit := range 32 {

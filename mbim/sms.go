@@ -311,7 +311,7 @@ func (r *SMSPDURecord) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := validateDataBufferRefs(data, 16, []valueRef{pduRef}); err != nil {
+	if err := validateRecordDataBufferRefs(data, 16, []valueRef{pduRef}); err != nil {
 		return err
 	}
 	if pduRef.size > 255 {
@@ -372,7 +372,7 @@ func (r *SMSCDMARecord) UnmarshalBinary(data []byte) error {
 		}
 	}
 	dataRefs := []valueRef{addressRef, timestampRef, messageRef}
-	if err := validateDataBufferRefs(data, 44, dataRefs); err != nil {
+	if err := validateRecordDataBufferRefs(data, 44, dataRefs); err != nil {
 		return fmt.Errorf("data buffer: %w", err)
 	}
 	if addressRef.size%2 != 0 {

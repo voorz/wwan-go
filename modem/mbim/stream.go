@@ -58,7 +58,7 @@ func (b *Backend) ensureWatchNotifications(ctx context.Context, requested ...mbi
 
 	list, err := b.client.SetDeviceServiceSubscribeList(ctx, mbimproto.DeviceServiceSubscribeList{Entries: entries})
 	if err != nil {
-		return fmt.Errorf("enabling MBIM watch notifications: %w", err)
+		return fmt.Errorf("enabling watch notifications: %w", err)
 	}
 	b.notificationEntries = list.Entries
 	return nil
@@ -179,12 +179,12 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM radio state", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching radio state", result.Err))
 					return
 				}
 				var radio mbimproto.RadioStateInfo
 				if err := radio.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM radio state indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding radio state indication", err))
 					return
 				}
 				current.Power = powerState(radio)
@@ -197,12 +197,12 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM subscriber status", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching subscriber status", result.Err))
 					return
 				}
 				ready := mbimproto.SubscriberReadyStatusResponse{MBIMExVersion: version}
 				if err := ready.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM subscriber status indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding subscriber status indication", err))
 					return
 				}
 				current.SIM = simState(ready.ReadyState)
@@ -215,12 +215,12 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM registration state", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching registration state", result.Err))
 					return
 				}
 				registration := mbimproto.RegistrationStateInfo{MBIMExVersion: version}
 				if err := registration.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM registration state indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding registration state indication", err))
 					return
 				}
 				applyRegistrationToStatus(&current, registration)
@@ -233,12 +233,12 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM packet service", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching packet service", result.Err))
 					return
 				}
 				packet := mbimproto.PacketServiceInfo{MBIMExVersion: version}
 				if err := packet.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM packet service indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding packet service indication", err))
 					return
 				}
 				applyPacketToStatus(&current, packet)
@@ -251,12 +251,12 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM signal state", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching signal state", result.Err))
 					return
 				}
 				signal := mbimproto.SignalStateInfo{MBIMExVersion: version}
 				if err := signal.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM signal state indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding signal state indication", err))
 					return
 				}
 				current.SignalQuality = signalFromState(signal).Quality
@@ -322,12 +322,12 @@ func (b *Backend) WatchSIM(ctx context.Context) (<-chan Result[SIMInfo], error) 
 					return
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(SIMInfo{}, "watching MBIM subscriber status", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(SIMInfo{}, "watching subscriber status", result.Err))
 					return
 				}
 				ready := mbimproto.SubscriberReadyStatusResponse{MBIMExVersion: version}
 				if err := ready.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(SIMInfo{}, "decoding MBIM subscriber status indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(SIMInfo{}, "decoding subscriber status indication", err))
 					return
 				}
 				if !queryAndSend(watchCtx, out, b.SIMInfo) {
@@ -390,12 +390,12 @@ func (b *Backend) WatchNetwork(ctx context.Context) (<-chan Result[NetworkStatus
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM registration state", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching registration state", result.Err))
 					return
 				}
 				registration := mbimproto.RegistrationStateInfo{MBIMExVersion: version}
 				if err := registration.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM registration state indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding registration state indication", err))
 					return
 				}
 				applyRegistration(&current, registration)
@@ -408,12 +408,12 @@ func (b *Backend) WatchNetwork(ctx context.Context) (<-chan Result[NetworkStatus
 					break
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "watching MBIM packet service", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "watching packet service", result.Err))
 					return
 				}
 				packet := mbimproto.PacketServiceInfo{MBIMExVersion: version}
 				if err := packet.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding MBIM packet service indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding packet service indication", err))
 					return
 				}
 				applyPacketService(&current, packet)
@@ -479,12 +479,12 @@ func (b *Backend) WatchSignal(ctx context.Context) (<-chan Result[Signal], error
 					return
 				}
 				if result.Err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(Signal{}, "watching MBIM signal state", result.Err))
+					sendWatchError(watchCtx, out, watchErrorResult(Signal{}, "watching signal state", result.Err))
 					return
 				}
 				signal := mbimproto.SignalStateInfo{MBIMExVersion: version}
 				if err := signal.UnmarshalBinary(result.Value.InformationBuffer); err != nil {
-					sendWatchError(watchCtx, out, watchErrorResult(Signal{}, "decoding MBIM signal state indication", err))
+					sendWatchError(watchCtx, out, watchErrorResult(Signal{}, "decoding signal state indication", err))
 					return
 				}
 				if !contract.SendStreamResult(watchCtx, out, Result[Signal]{Value: signalFromState(signal)}) {

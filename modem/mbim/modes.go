@@ -18,7 +18,7 @@ var errModePreferenceUnavailable = errors.New("mode preference is unavailable")
 
 func (b *Backend) Modes(ctx context.Context) ([]Mode, Mode, error) {
 	if b.client.Version().MBIMExVersion < mbimExVersion20 {
-		return nil, Mode{}, fmt.Errorf("reading MBIM modes: MBIMEx 2.0 is required: %w", ErrNotSupported)
+		return nil, Mode{}, fmt.Errorf("reading modes: MBIMEx 2.0 is required: %w", ErrNotSupported)
 	}
 	supported, all, err := b.supportedModes(ctx)
 	if err != nil {
@@ -27,55 +27,55 @@ func (b *Backend) Modes(ctx context.Context) ([]Mode, Mode, error) {
 
 	registration, err := b.client.RegistrationState(ctx)
 	if err != nil {
-		return nil, Mode{}, fmt.Errorf("reading MBIM mode preference: %w", err)
+		return nil, Mode{}, err
 	}
 	current := Mode{Allowed: canonicalModeTechnology(technologyFromDataClass(registration.PreferredDataClasses)) & all}
 	if current.Allowed == 0 {
-		return nil, Mode{}, fmt.Errorf("reading MBIM modes: %w", errModePreferenceUnavailable)
+		return nil, Mode{}, errModePreferenceUnavailable
 	}
 	if !slices.Contains(supported, current) {
-		return nil, Mode{}, fmt.Errorf("reading MBIM modes: current mode %#x is not supported", current.Allowed)
+		return nil, Mode{}, fmt.Errorf("reading modes: current mode %#x is not supported", current.Allowed)
 	}
 	return supported, current, nil
 }
 
 func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
 	if mode.Allowed&^TechnologyAny != 0 {
-		return fmt.Errorf("setting MBIM modes: allowed technologies %#x are invalid", mode.Allowed)
+		return fmt.Errorf("setting modes: allowed technologies %#x are invalid", mode.Allowed)
 	}
 	mode.Allowed = canonicalModeTechnology(mode.Allowed)
 	if mode.Allowed == 0 {
-		return fmt.Errorf("setting MBIM modes: allowed technologies %#x are invalid", mode.Allowed)
+		return fmt.Errorf("setting modes: allowed technologies %#x are invalid", mode.Allowed)
 	}
 	if mode.Preferred != 0 {
-		return fmt.Errorf("setting MBIM modes: preferred technologies are unsupported: %w", ErrNotSupported)
+		return fmt.Errorf("setting modes: preferred technologies are unsupported: %w", ErrNotSupported)
 	}
 	if b.client.Version().MBIMExVersion < mbimExVersion20 {
-		return fmt.Errorf("setting MBIM modes: MBIMEx 2.0 is required: %w", ErrNotSupported)
+		return fmt.Errorf("setting modes: MBIMEx 2.0 is required: %w", ErrNotSupported)
 	}
 
 	supported, _, err := b.supportedModes(ctx)
 	if err != nil {
-		return fmt.Errorf("validating MBIM mode: %w", err)
+		return fmt.Errorf("validating mode: %w", err)
 	}
 	if !slices.Contains(supported, mode) {
-		return fmt.Errorf("setting MBIM modes: mode %#x is not supported: %w", mode.Allowed, ErrNotSupported)
+		return fmt.Errorf("setting modes: mode %#x is not supported: %w", mode.Allowed, ErrNotSupported)
 	}
 	registration, err := b.client.RegistrationState(ctx)
 	if err != nil {
-		return fmt.Errorf("setting MBIM modes: reading registration state: %w", err)
+		return fmt.Errorf("setting modes: %w", err)
 	}
 	providerID, action, err := modeRegistration(registration)
 	if err != nil {
-		return fmt.Errorf("setting MBIM modes: %w", err)
+		return fmt.Errorf("setting modes: %w", err)
 	}
 	registration, err = b.client.SetRegistrationState(ctx, providerID, action, dataClass(mode.Allowed))
 	if err != nil {
-		return fmt.Errorf("setting MBIM modes: %w", err)
+		return fmt.Errorf("setting modes: %w", err)
 	}
 	actual := canonicalModeTechnology(technologyFromDataClass(registration.PreferredDataClasses))
 	if actual != mode.Allowed {
-		return fmt.Errorf("setting MBIM modes: modem selected %#x, want %#x", actual, mode.Allowed)
+		return fmt.Errorf("setting modes: modem selected %#x, want %#x", actual, mode.Allowed)
 	}
 	return nil
 }
@@ -83,11 +83,11 @@ func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
 func (b *Backend) supportedModes(ctx context.Context) ([]Mode, Technology, error) {
 	caps, err := b.client.DeviceCaps(ctx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("reading MBIM mode capabilities: %w", err)
+		return nil, 0, err
 	}
 	all := canonicalModeTechnology(technologyFromDataClass(caps.DataClass))
 	if all == 0 {
-		return nil, 0, fmt.Errorf("reading MBIM modes: %w", ErrNotSupported)
+		return nil, 0, ErrNotSupported
 	}
 	return modeCombinations(all), all, nil
 }

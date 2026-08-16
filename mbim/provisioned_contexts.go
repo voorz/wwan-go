@@ -92,7 +92,7 @@ func (r *ProvisionedContext) unmarshalBinary(data []byte) error {
 		}
 		refs[i] = ref
 	}
-	if err := validateContextStringRefs(data, 52, refs); err != nil {
+	if err := validateRecordContextStringRefs(data, 52, refs); err != nil {
 		return fmt.Errorf("validating strings: %w", err)
 	}
 	values := make([]string, 3)

@@ -474,7 +474,7 @@ func decodeBCDAddress(typeOfAddress byte, data []byte, digitCount int) string {
 	if typeOfAddress&0x70 == 0x10 {
 		result.WriteByte('+')
 	}
-	for i := 0; i < digitCount; i++ {
+	for i := range digitCount {
 		nibble := data[i/2] >> (4 * (i % 2)) & 0x0f
 		if nibble <= 9 {
 			result.WriteByte('0' + nibble)

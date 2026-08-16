@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -78,6 +79,30 @@ func TestOffsetSizeRefsValidateOrdering(t *testing.T) {
 			_, err := offsetSizeRefs(data, 4, 2)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("offsetSizeRefs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateRecordDataBufferRefsFinalPadding(t *testing.T) {
+	tests := []struct {
+		name    string
+		length  int
+		wantErr bool
+	}{
+		{name: "logical size", length: 14},
+		{name: "padded wire size", length: 16},
+		{name: "partial padding", length: 15, wantErr: true},
+		{name: "trailing data", length: 20, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := make([]byte, tt.length)
+			ref := valueRef{offset: 12, size: 2}
+			err := validateRecordDataBufferRefs(data, 12, []valueRef{ref})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateRecordDataBufferRefs() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -856,12 +881,14 @@ func TestProviderMarshalBinaryValidation(t *testing.T) {
 
 func TestProviderUnmarshalBinaryValidation(t *testing.T) {
 	valid := Provider{ID: "310260", Name: "Carrier"}.marshalBinary()
+	providerNameEnd := binary.LittleEndian.Uint32(valid[12:16]) + binary.LittleEndian.Uint32(valid[16:20])
 	tests := []struct {
 		name    string
 		data    []byte
 		wantErr bool
 	}{
 		{name: "valid", data: valid},
+		{name: "missing final padding", data: valid[:providerNameEnd], wantErr: true},
 		{
 			name: "provider ID points into fixed fields",
 			data: mutateBytes(valid, func(data []byte) {
@@ -894,6 +921,43 @@ func TestProviderUnmarshalBinaryValidation(t *testing.T) {
 			err := got.UnmarshalBinary(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalBinary() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestProvidersUnmarshalBinaryLogicalRecordSizes(t *testing.T) {
+	tests := []struct {
+		name      string
+		providers []Provider
+	}{
+		{name: "one record", providers: []Provider{{ID: "310260", Name: "A"}}},
+		{
+			name: "multiple records",
+			providers: []Provider{
+				{ID: "310260", Name: "A"},
+				{ID: "46000", Name: "XYZ"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			records := make([][]byte, len(tt.providers))
+			for i, provider := range tt.providers {
+				record := provider.marshalBinary()
+				providerNameEnd := binary.LittleEndian.Uint32(record[12:16]) + binary.LittleEndian.Uint32(record[16:20])
+				records[i] = record[:providerNameEnd]
+			}
+			header := binary.LittleEndian.AppendUint32(nil, uint32(len(records)))
+			data := appendOffsetSizeElements(header, records)
+
+			var got Providers
+			if err := got.UnmarshalBinary(data); err != nil {
+				t.Fatalf("UnmarshalBinary() error = %v", err)
+			}
+			if !slices.Equal(got.Providers, tt.providers) {
+				t.Errorf("Providers = %+v, want %+v", got.Providers, tt.providers)
 			}
 		})
 	}
@@ -1419,6 +1483,66 @@ func TestSMSPDURecordProtocolLimits(t *testing.T) {
 	}
 }
 
+func TestSMSReadInfoLogicalRecordSizes(t *testing.T) {
+	tests := []struct {
+		name string
+		pdus [][]byte
+	}{
+		{name: "one padding byte", pdus: [][]byte{{0x01, 0x02, 0x03}}},
+		{name: "three padding bytes", pdus: [][]byte{{0x01}}},
+		{name: "aligned", pdus: [][]byte{{0x01, 0x02, 0x03, 0x04}}},
+		{name: "multiple records", pdus: [][]byte{{0x01}, {0x02, 0x03}, {0x04, 0x05, 0x06}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := smsReadInfoWithLogicalRecordSizesForValidation(tt.pdus)
+			var got SMSReadInfo
+			if err := got.UnmarshalBinary(data); err != nil {
+				t.Fatalf("UnmarshalBinary() error = %v", err)
+			}
+			if len(got.PDURecords) != len(tt.pdus) {
+				t.Fatalf("len(PDURecords) = %d, want %d", len(got.PDURecords), len(tt.pdus))
+			}
+			for i, want := range tt.pdus {
+				if !bytes.Equal(got.PDURecords[i].PDU, want) {
+					t.Errorf("PDURecords[%d].PDU = %x, want %x", i, got.PDURecords[i].PDU, want)
+				}
+			}
+		})
+	}
+}
+
+func TestSMSReadInfoRejectsInvalidRecordBounds(t *testing.T) {
+	valid := smsReadInfoWithLogicalRecordSizesForValidation([][]byte{{0x01}})
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{name: "missing physical padding", data: valid[:len(valid)-1]},
+		{
+			name: "PDU crosses logical record size",
+			data: mutateBytes(valid, func(data []byte) {
+				binary.LittleEndian.PutUint32(data[28:32], 2)
+			}),
+		},
+		{
+			name: "partial padding included in logical size",
+			data: mutateBytes(valid, func(data []byte) {
+				binary.LittleEndian.PutUint32(data[12:16], 18)
+			}),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := new(SMSReadInfo).UnmarshalBinary(tt.data); err == nil {
+				t.Fatal("UnmarshalBinary() error = nil, want non-nil")
+			}
+		})
+	}
+}
+
 func TestSMSCDMARecordProtocolLimits(t *testing.T) {
 	valid := smsCDMARecordForValidation("+123", "24/01/01,00:00:00+00", []byte{0x01})
 	addressOffset := binary.LittleEndian.Uint32(valid[8:12])
@@ -1796,6 +1920,20 @@ func smsConfigurationPayloadForValidation(address string) []byte {
 func smsPDURecordForValidation(pdu []byte) []byte {
 	data := make([]byte, 16)
 	return appendRefValue(data, 8, pdu)
+}
+
+func smsReadInfoWithLogicalRecordSizesForValidation(pdus [][]byte) []byte {
+	records := make([][]byte, len(pdus))
+	for i, pdu := range pdus {
+		record := make([]byte, 16)
+		binary.LittleEndian.PutUint32(record[0:4], uint32(i+1))
+		binary.LittleEndian.PutUint32(record[8:12], 16)
+		binary.LittleEndian.PutUint32(record[12:16], uint32(len(pdu)))
+		records[i] = append(record, pdu...)
+	}
+	header := binary.LittleEndian.AppendUint32(nil, uint32(SMSFormatPDU))
+	header = binary.LittleEndian.AppendUint32(header, uint32(len(records)))
+	return appendOffsetSizeElements(header, records)
 }
 
 func smsCDMARecordForValidation(address, timestamp string, message []byte) []byte {

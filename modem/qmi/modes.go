@@ -33,30 +33,30 @@ func (b *Backend) Modes(ctx context.Context) ([]Mode, Mode, error) {
 func (b *Backend) readModeState(ctx context.Context) (modeState, error) {
 	caps, err := b.client.DeviceCapabilities(ctx)
 	if err != nil {
-		return modeState{}, fmt.Errorf("reading QMI mode capabilities: %w", err)
+		return modeState{}, err
 	}
 
 	all := canonicalModeTechnology(technologyFromDMSRadios(caps.RadioInterfaces))
 	if all == 0 {
-		return modeState{}, fmt.Errorf("reading QMI modes: %w", ErrNotSupported)
+		return modeState{}, ErrNotSupported
 	}
 
 	preference, err := b.client.SystemSelectionPreference(ctx)
 	if err != nil {
 		if isUnsupported(err) {
-			return modeState{}, fmt.Errorf("reading QMI modes: system selection preference is required: %w", ErrNotSupported)
+			return modeState{}, fmt.Errorf("reading modes: system selection preference is required: %w", ErrNotSupported)
 		}
-		return modeState{}, fmt.Errorf("reading QMI mode preference: %w", err)
+		return modeState{}, err
 	}
 
 	current := Mode{Allowed: all}
 	if preference.ModePreferenceKnown {
 		current.Allowed = canonicalModeTechnology(technologyFromModePreference(preference.ModePreference)) & all
 		if current.Allowed == 0 {
-			return modeState{}, fmt.Errorf("reading QMI modes: %w", errModePreferenceUnavailable)
+			return modeState{}, errModePreferenceUnavailable
 		}
 	} else if len(enabledModeFamilies(all)) > 1 {
-		return modeState{}, fmt.Errorf("reading QMI modes: %w", errModePreferenceUnavailable)
+		return modeState{}, errModePreferenceUnavailable
 	}
 	current.Preferred = preferredMode(preference, current.Allowed)
 
@@ -73,7 +73,7 @@ func (b *Backend) readModeState(ctx context.Context) (modeState, error) {
 
 	if !slices.Contains(supported, current) {
 		return modeState{}, fmt.Errorf(
-			"reading QMI modes: current mode allowed=%#x preferred=%#x is not supported",
+			"reading modes: current mode allowed=%#x preferred=%#x is not supported",
 			current.Allowed,
 			current.Preferred,
 		)
@@ -83,27 +83,27 @@ func (b *Backend) readModeState(ctx context.Context) (modeState, error) {
 
 func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
 	if mode.Allowed&^TechnologyAny != 0 {
-		return fmt.Errorf("setting QMI modes: allowed technologies %#x are invalid", mode.Allowed)
+		return fmt.Errorf("setting modes: allowed technologies %#x are invalid", mode.Allowed)
 	}
 	if mode.Preferred&^TechnologyAny != 0 {
-		return fmt.Errorf("setting QMI modes: preferred technologies %#x are invalid", mode.Preferred)
+		return fmt.Errorf("setting modes: preferred technologies %#x are invalid", mode.Preferred)
 	}
 	mode.Allowed = canonicalModeTechnology(mode.Allowed)
 	mode.Preferred = canonicalModeTechnology(mode.Preferred)
 	if mode.Allowed == 0 {
-		return fmt.Errorf("setting QMI modes: allowed technologies %#x are invalid", mode.Allowed)
+		return fmt.Errorf("setting modes: allowed technologies %#x are invalid", mode.Allowed)
 	}
 	if mode.Preferred != 0 && (len(enabledModeFamilies(mode.Preferred)) != 1 || mode.Preferred&^mode.Allowed != 0) {
-		return fmt.Errorf("setting QMI modes: preferred technologies %#x are invalid", mode.Preferred)
+		return fmt.Errorf("setting modes: preferred technologies %#x are invalid", mode.Preferred)
 	}
 
 	state, err := b.readModeState(ctx)
 	if err != nil {
-		return fmt.Errorf("validating QMI mode: %w", err)
+		return fmt.Errorf("validating mode: %w", err)
 	}
 	if !slices.Contains(state.supported, mode) {
 		return fmt.Errorf(
-			"setting QMI modes: mode allowed=%#x preferred=%#x is not supported: %w",
+			"setting modes: mode allowed=%#x preferred=%#x is not supported: %w",
 			mode.Allowed,
 			mode.Preferred,
 			ErrNotSupported,
@@ -116,9 +116,9 @@ func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
 	}
 	if err := b.client.SetSystemSelectionPreference(ctx, config); err != nil {
 		if isUnsupported(err) {
-			return fmt.Errorf("setting QMI modes: %w: %w", ErrNotSupported, err)
+			return fmt.Errorf("setting modes: %w: %w", ErrNotSupported, err)
 		}
-		return fmt.Errorf("setting QMI modes: %w", err)
+		return err
 	}
 	return nil
 }
@@ -137,14 +137,14 @@ func modeSelectionConfig(mode Mode, preference qcom.NASSystemSelectionPreference
 			order, ok := preferredAcquisitionOrder(preference.AcquisitionOrder, mode.Preferred)
 			if !ok {
 				return qcom.NASSystemSelectionConfig{}, fmt.Errorf(
-					"setting QMI modes: preferred technology %#x is unavailable in acquisition order",
+					"setting modes: preferred technology %#x is unavailable in acquisition order",
 					mode.Preferred,
 				)
 			}
 			config.AcquisitionOrder = order
 		} else if mode.Allowed != TechnologyGSM|TechnologyUMTS || !preference.GWAcquisitionOrderKnown {
 			return qcom.NASSystemSelectionConfig{}, fmt.Errorf(
-				"setting QMI modes: preferred technology %#x is unsupported: %w",
+				"setting modes: preferred technology %#x is unsupported: %w",
 				mode.Preferred,
 				ErrNotSupported,
 			)

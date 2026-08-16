@@ -78,7 +78,7 @@ func openQMIClient(ctx context.Context, config clientOpenConfig) (*qcom.Client, 
 
 	transport, err := qmiproto.Open(ctx, option)
 	if err != nil {
-		return nil, fmt.Errorf("opening QMI client transport: %w", err)
+		return nil, err
 	}
 	client, err := qcom.NewClient(transport, qcom.WithSlot(config.slot))
 	if err != nil {
@@ -101,7 +101,7 @@ func openMBIMClient(ctx context.Context, config clientOpenConfig) (*mbimproto.Cl
 
 	client, err := mbimproto.Open(ctx, option, mbimproto.WithSlot(int(config.slot)))
 	if err != nil {
-		return nil, fmt.Errorf("opening MBIM client: %w", err)
+		return nil, err
 	}
 	return client, nil
 }
