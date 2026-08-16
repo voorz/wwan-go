@@ -13,21 +13,22 @@ import (
 const (
 	watchPollInterval   = 2 * time.Second
 	watchResyncInterval = time.Minute
+	watchSIMRetryLimit  = 30
 )
 
 func pollStream[T any](ctx context.Context, query func(context.Context) (T, error)) <-chan Result[T] {
 	return contract.PollStream(ctx, watchPollInterval, query)
 }
 
-func queryAndSend[T any](ctx context.Context, out chan<- Result[T], query func(context.Context) (T, error)) bool {
+func queryAndSend[T any](ctx context.Context, out chan<- Result[T], query func(context.Context) (T, error)) (T, bool) {
 	value, err := query(ctx)
 	if ctx.Err() != nil {
-		return false
+		return value, false
 	}
 	if !contract.SendStreamResult(ctx, out, Result[T]{Value: value, Err: err}) {
-		return false
+		return value, false
 	}
-	return err == nil
+	return value, err == nil
 }
 
 func forwardPollStream[T any](ctx context.Context, out chan<- Result[T], query func(context.Context) (T, error)) {
@@ -169,7 +170,14 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 
 		resync := time.NewTimer(watchResyncInterval)
 		defer resync.Stop()
+		simRetry := time.NewTicker(watchPollInterval)
+		defer simRetry.Stop()
+		simRetryAttempts := 0
 		for {
+			var simRetryC <-chan time.Time
+			if shouldRetrySIMState(current.SIM, simRetryAttempts) {
+				simRetryC = simRetry.C
+			}
 			select {
 			case <-watchCtx.Done():
 				return
@@ -205,7 +213,11 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 					sendWatchError(watchCtx, out, watchErrorResult(current, "decoding subscriber status indication", err))
 					return
 				}
-				current.SIM = simState(ready.ReadyState)
+				previousSIM := current.SIM
+				current.SIM, _, _ = resolveSubscriberSIMState(watchCtx, ready.ReadyState, b.client)
+				if previousSIM != current.SIM || current.SIM != SIMStateUnknown {
+					simRetryAttempts = 0
+				}
 				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
 					return
 				}
@@ -263,12 +275,29 @@ func (b *Backend) WatchStatus(ctx context.Context) (<-chan Result[Status], error
 				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
 					return
 				}
+			case <-simRetryC:
+				simRetryAttempts++
+				state, readErr := b.querySIMState(watchCtx)
+				if watchCtx.Err() != nil {
+					return
+				}
+				if readErr != nil || state == current.SIM {
+					continue
+				}
+				current.SIM = state
+				if state != SIMStateUnknown {
+					simRetryAttempts = 0
+				}
+				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current}) {
+					return
+				}
 			case <-resync.C:
 				value, readErr := b.Status(watchCtx)
 				if watchCtx.Err() != nil {
 					return
 				}
 				current = value
+				simRetryAttempts = 0
 				if !contract.SendStreamResult(watchCtx, out, Result[Status]{Value: current, Err: readErr}) || readErr != nil {
 					return
 				}
@@ -305,13 +334,21 @@ func (b *Backend) WatchSIM(ctx context.Context) (<-chan Result[SIMInfo], error) 
 	go func() {
 		defer close(out)
 		defer cancel()
-		if !queryAndSend(watchCtx, out, b.SIMInfo) {
+		current, ok := queryAndSend(watchCtx, out, b.SIMInfo)
+		if !ok {
 			return
 		}
 
 		resync := time.NewTimer(watchResyncInterval)
 		defer resync.Stop()
+		simRetry := time.NewTicker(watchPollInterval)
+		defer simRetry.Stop()
+		simRetryAttempts := 0
 		for {
+			var simRetryC <-chan time.Time
+			if shouldRetrySIMState(current.State, simRetryAttempts) {
+				simRetryC = simRetry.C
+			}
 			select {
 			case <-watchCtx.Done():
 				return
@@ -330,13 +367,39 @@ func (b *Backend) WatchSIM(ctx context.Context) (<-chan Result[SIMInfo], error) 
 					sendWatchError(watchCtx, out, watchErrorResult(SIMInfo{}, "decoding subscriber status indication", err))
 					return
 				}
-				if !queryAndSend(watchCtx, out, b.SIMInfo) {
+				previousSIM := current.State
+				value, sent := queryAndSend(watchCtx, out, b.SIMInfo)
+				if !sent {
 					return
+				}
+				current = value
+				if previousSIM != current.State || current.State != SIMStateUnknown {
+					simRetryAttempts = 0
+				}
+			case <-simRetryC:
+				simRetryAttempts++
+				state, readErr := b.querySIMState(watchCtx)
+				if watchCtx.Err() != nil {
+					return
+				}
+				if readErr != nil || state == SIMStateUnknown {
+					continue
+				}
+				value, sent := queryAndSend(watchCtx, out, b.SIMInfo)
+				if !sent {
+					return
+				}
+				current = value
+				if current.State != SIMStateUnknown {
+					simRetryAttempts = 0
 				}
 			case <-resync.C:
-				if !queryAndSend(watchCtx, out, b.SIMInfo) {
+				value, sent := queryAndSend(watchCtx, out, b.SIMInfo)
+				if !sent {
 					return
 				}
+				current = value
+				simRetryAttempts = 0
 				resync.Reset(watchResyncInterval)
 			}
 		}
@@ -462,7 +525,7 @@ func (b *Backend) WatchSignal(ctx context.Context) (<-chan Result[Signal], error
 	go func() {
 		defer close(out)
 		defer cancel()
-		if !queryAndSend(watchCtx, out, b.Signal) {
+		if _, ok := queryAndSend(watchCtx, out, b.Signal); !ok {
 			return
 		}
 
@@ -491,7 +554,7 @@ func (b *Backend) WatchSignal(ctx context.Context) (<-chan Result[Signal], error
 					return
 				}
 			case <-resync.C:
-				if !queryAndSend(watchCtx, out, b.Signal) {
+				if _, ok := queryAndSend(watchCtx, out, b.Signal); !ok {
 					return
 				}
 				resync.Reset(watchResyncInterval)
@@ -510,6 +573,10 @@ func applyRegistrationToStatus(status *Status, registration mbimproto.Registrati
 func applyPacketToStatus(status *Status, packet mbimproto.PacketServiceInfo) {
 	status.PacketService = PacketServiceState(packet.PacketServiceState)
 	status.Technology = technologyFromDataClass(packet.CurrentDataClass)
+}
+
+func shouldRetrySIMState(state SIMState, attempts int) bool {
+	return state == SIMStateUnknown && attempts < watchSIMRetryLimit
 }
 
 func knownSignal(db float64) SignalValue { return SignalValue{DB: db, Known: true} }

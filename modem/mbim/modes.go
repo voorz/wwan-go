@@ -11,6 +11,7 @@ import (
 
 const (
 	mbimExVersion20 = 0x0200
+	mbimExVersion30 = 0x0300
 	modeNR5G        = TechnologyNR5GNSA | TechnologyNR5GSA
 )
 
@@ -69,7 +70,12 @@ func (b *Backend) SetModes(ctx context.Context, mode Mode) error {
 	if err != nil {
 		return fmt.Errorf("setting modes: %w", err)
 	}
-	registration, err = b.client.SetRegistrationState(ctx, providerID, action, dataClass(mode.Allowed))
+	registration, err = b.client.SetRegistrationState(
+		ctx,
+		providerID,
+		action,
+		dataClass(b.client.Version().MBIMExVersion, mode.Allowed),
+	)
 	if err != nil {
 		return fmt.Errorf("setting modes: %w", err)
 	}

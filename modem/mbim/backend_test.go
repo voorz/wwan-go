@@ -257,6 +257,200 @@ func TestSIMInfoFromSubscriber(t *testing.T) {
 	}
 }
 
+func TestApplyPINRetries(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial SIMInfo
+		pin     mbimproto.PINInfo
+		wantPIN uint8
+		wantPUK uint8
+	}{
+		{
+			name:    "PIN1 attempts",
+			pin:     mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, RemainingAttempts: 3},
+			wantPIN: 3,
+		},
+		{
+			name:    "PUK1 attempts",
+			pin:     mbimproto.PINInfo{Type: mbimproto.PINTypePUK1, RemainingAttempts: 10},
+			wantPUK: 10,
+		},
+		{
+			name:    "MBIM unknown attempts",
+			initial: SIMInfo{PINRetries: 3, PUKRetries: 10},
+			pin:     mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, RemainingAttempts: unknownPINAttempts},
+			wantPIN: 3,
+			wantPUK: 10,
+		},
+		{
+			name:    "all bits set attempts",
+			initial: SIMInfo{PINRetries: 3, PUKRetries: 10},
+			pin:     mbimproto.PINInfo{Type: mbimproto.PINTypePUK1, RemainingAttempts: math.MaxUint32},
+			wantPIN: 3,
+			wantPUK: 10,
+		},
+		{
+			name:    "attempts saturate to uint8",
+			pin:     mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, RemainingAttempts: math.MaxUint8 + 1},
+			wantPIN: math.MaxUint8,
+		},
+		{
+			name:    "unrelated PIN type",
+			initial: SIMInfo{PINRetries: 3, PUKRetries: 10},
+			pin:     mbimproto.PINInfo{Type: mbimproto.PINTypePIN2, RemainingAttempts: 2},
+			wantPIN: 3,
+			wantPUK: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			info := tt.initial
+			applyPINRetries(&info, tt.pin)
+			if info.PINRetries != tt.wantPIN {
+				t.Errorf("PIN retries = %d, want %d", info.PINRetries, tt.wantPIN)
+			}
+			if info.PUKRetries != tt.wantPUK {
+				t.Errorf("PUK retries = %d, want %d", info.PUKRetries, tt.wantPUK)
+			}
+		})
+	}
+}
+
+type fakeSIMPINReader struct {
+	pin   mbimproto.PINInfo
+	err   error
+	calls int
+}
+
+func (r *fakeSIMPINReader) PIN(context.Context) (mbimproto.PINInfo, error) {
+	r.calls++
+	return r.pin, r.err
+}
+
+func TestResolveSubscriberSIMState(t *testing.T) {
+	queryErr := errors.New("PIN query unavailable")
+	tests := []struct {
+		name         string
+		readyState   mbimproto.SubscriberReadyState
+		pin          mbimproto.PINInfo
+		pinErr       error
+		wantState    SIMState
+		wantPINValid bool
+		wantCalls    int
+	}{
+		{
+			name:       "initialized with PIN unlocked is ready",
+			readyState: mbimproto.SubscriberReadyStateInitialized,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, State: mbimproto.PINStateUnlocked, RemainingAttempts: 3},
+			wantState:  SIMStateReady, wantPINValid: true, wantCalls: 1,
+		},
+		{
+			name:       "transient device lock with PIN unlocked is unknown",
+			readyState: mbimproto.SubscriberReadyStateDeviceLocked,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, State: mbimproto.PINStateUnlocked, RemainingAttempts: 3},
+			wantState:  SIMStateUnknown, wantPINValid: true, wantCalls: 1,
+		},
+		{
+			name:       "PIN1 lock is locked",
+			readyState: mbimproto.SubscriberReadyStateDeviceLocked,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, State: mbimproto.PINStateLocked, RemainingAttempts: 2},
+			wantState:  SIMStateLocked, wantPINValid: true, wantCalls: 1,
+		},
+		{
+			name:       "PUK1 lock is locked",
+			readyState: mbimproto.SubscriberReadyStateInitialized,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePUK1, State: mbimproto.PINStateLocked, RemainingAttempts: 8},
+			wantState:  SIMStateLocked, wantPINValid: true, wantCalls: 1,
+		},
+		{
+			name:       "personalization lock is not reported as SIM PIN",
+			readyState: mbimproto.SubscriberReadyStateDeviceLocked,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypeNetwork, State: mbimproto.PINStateLocked, RemainingAttempts: 5},
+			wantState:  SIMStateUnknown, wantPINValid: true, wantCalls: 1,
+		},
+		{
+			name:         "PIN required status assumes PIN1",
+			readyState:   mbimproto.SubscriberReadyStateDeviceLocked,
+			pinErr:       mbimproto.StatusPINRequired,
+			wantState:    SIMStateLocked,
+			wantPINValid: true,
+			wantCalls:    1,
+		},
+		{
+			name:       "PIN required status preserves response",
+			readyState: mbimproto.SubscriberReadyStateDeviceLocked,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, State: mbimproto.PINStateLocked, RemainingAttempts: 1},
+			pinErr:     mbimproto.StatusPINRequired,
+			wantState:  SIMStateLocked, wantPINValid: true, wantCalls: 1,
+		},
+		{
+			name:       "PIN query failure keeps subscriber state",
+			readyState: mbimproto.SubscriberReadyStateDeviceLocked,
+			pinErr:     queryErr,
+			wantState:  SIMStateUnknown, wantCalls: 1,
+		},
+		{
+			name:       "not initialized skips PIN query",
+			readyState: mbimproto.SubscriberReadyStateNotInitialized,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, State: mbimproto.PINStateLocked},
+			wantState:  SIMStateUnknown,
+		},
+		{
+			name:       "missing SIM skips PIN query",
+			readyState: mbimproto.SubscriberReadyStateSIMNotInserted,
+			pin:        mbimproto.PINInfo{Type: mbimproto.PINTypePIN1, State: mbimproto.PINStateLocked},
+			wantState:  SIMStateAbsent,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := &fakeSIMPINReader{pin: tt.pin, err: tt.pinErr}
+			gotState, gotPIN, gotPINValid := resolveSubscriberSIMState(t.Context(), tt.readyState, reader)
+			if gotState != tt.wantState {
+				t.Errorf("resolveSubscriberSIMState() state = %d, want %d", gotState, tt.wantState)
+			}
+			if gotPINValid != tt.wantPINValid {
+				t.Errorf("resolveSubscriberSIMState() PIN valid = %t, want %t", gotPINValid, tt.wantPINValid)
+			}
+			wantPIN := tt.pin
+			if tt.wantCalls == 0 {
+				wantPIN = mbimproto.PINInfo{}
+			}
+			if gotPIN != wantPIN {
+				t.Errorf("resolveSubscriberSIMState() PIN = %+v, want %+v", gotPIN, wantPIN)
+			}
+			if reader.calls != tt.wantCalls {
+				t.Errorf("PIN() call count = %d, want %d", reader.calls, tt.wantCalls)
+			}
+		})
+	}
+}
+
+func TestShouldRetrySIMState(t *testing.T) {
+	tests := []struct {
+		name     string
+		state    SIMState
+		attempts int
+		want     bool
+	}{
+		{name: "unknown state starts retrying", state: SIMStateUnknown, want: true},
+		{name: "last retry is allowed", state: SIMStateUnknown, attempts: watchSIMRetryLimit - 1, want: true},
+		{name: "retry limit is bounded", state: SIMStateUnknown, attempts: watchSIMRetryLimit},
+		{name: "ready state does not retry", state: SIMStateReady},
+		{name: "locked state does not retry", state: SIMStateLocked},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldRetrySIMState(tt.state, tt.attempts); got != tt.want {
+				t.Errorf("shouldRetrySIMState(%d, %d) = %t, want %t", tt.state, tt.attempts, got, tt.want)
+			}
+		})
+	}
+}
+
 type fakeSIMATRReader struct {
 	responses []struct {
 		atr []byte

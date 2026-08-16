@@ -37,6 +37,12 @@ type simATRReader interface {
 	QueryUICCATR(context.Context) ([]byte, error)
 }
 
+type simPINReader interface {
+	PIN(context.Context) (mbimproto.PINInfo, error)
+}
+
+const unknownPINAttempts = 0x00ffffff
+
 func New(client *mbimproto.Client, device string) *Backend {
 	return &Backend{client: client, device: device}
 }
@@ -197,6 +203,7 @@ func (b *Backend) Status(ctx context.Context) (Status, error) {
 	if err != nil {
 		return Status{}, err
 	}
+	sim, _, _ := resolveSubscriberSIMState(ctx, ready.ReadyState, b.client)
 	registration, err := b.client.RegistrationState(ctx)
 	if err != nil {
 		return Status{}, err
@@ -213,7 +220,7 @@ func (b *Backend) Status(ctx context.Context) (Status, error) {
 	signal := signalFromState(signalState)
 	return Status{
 		Power:         powerState(radio),
-		SIM:           simState(ready.ReadyState),
+		SIM:           sim,
 		Registration:  network.Registration,
 		PacketService: network.PacketService,
 		Technology:    network.Technology,
@@ -229,11 +236,10 @@ func (b *Backend) SIMInfo(ctx context.Context) (SIMInfo, error) {
 		return SIMInfo{}, err
 	}
 	result := simInfoFromSubscriber(ready)
-	if pin, pinErr := b.client.PIN(ctx); pinErr == nil {
-		result.PINRetries = uint8(min(pin.RemainingAttempts, math.MaxUint8))
-		if pin.State == mbimproto.PINStateLocked {
-			result.State = SIMStateLocked
-		}
+	state, pin, pinValid := resolveSubscriberSIMState(ctx, ready.ReadyState, b.client)
+	result.State = state
+	if pinValid {
+		applyPINRetries(&result, pin)
 	}
 	result.ATR = readSIMATR(ctx, ready.ReadyState, b.client)
 	if result.State == SIMStateAbsent {
@@ -278,6 +284,61 @@ func simInfoFromSubscriber(ready mbimproto.SubscriberReadyStatusResponse) SIMInf
 		result.Slot = 1
 	}
 	return result
+}
+
+func applyPINRetries(info *SIMInfo, pin mbimproto.PINInfo) {
+	// MBIM 1.0 specifies 0x00ffffff for an unknown value, while common
+	// implementations also use an all-bits-set uint32.
+	if pin.RemainingAttempts == unknownPINAttempts || pin.RemainingAttempts == math.MaxUint32 {
+		return
+	}
+
+	retries := uint8(min(pin.RemainingAttempts, math.MaxUint8))
+	switch pin.Type {
+	case mbimproto.PINTypePIN1:
+		info.PINRetries = retries
+	case mbimproto.PINTypePUK1:
+		info.PUKRetries = retries
+	}
+}
+
+func (b *Backend) querySIMState(ctx context.Context) (SIMState, error) {
+	ready, err := b.client.SubscriberReadyStatus(ctx)
+	if err != nil {
+		return SIMStateUnknown, err
+	}
+	state, _, _ := resolveSubscriberSIMState(ctx, ready.ReadyState, b.client)
+	return state, nil
+}
+
+func resolveSubscriberSIMState(
+	ctx context.Context,
+	readyState mbimproto.SubscriberReadyState,
+	reader simPINReader,
+) (SIMState, mbimproto.PINInfo, bool) {
+	state := simState(readyState)
+	if readyState != mbimproto.SubscriberReadyStateDeviceLocked &&
+		readyState != mbimproto.SubscriberReadyStateInitialized {
+		return state, mbimproto.PINInfo{}, false
+	}
+
+	pin, err := reader.PIN(ctx)
+	if errors.Is(err, mbimproto.StatusPINRequired) {
+		// Some devices return PIN_REQUIRED instead of a successful PIN1 response.
+		return SIMStateLocked, pin, true
+	}
+	if err != nil {
+		return state, pin, false
+	}
+	if pin.State != mbimproto.PINStateLocked {
+		return state, pin, true
+	}
+	if pin.Type == mbimproto.PINTypePIN1 || pin.Type == mbimproto.PINTypePUK1 {
+		return SIMStateLocked, pin, true
+	}
+	// The public contract cannot describe PIN2 or personalization locks. Do not
+	// misreport those as a SIM PIN lock.
+	return state, pin, true
 }
 
 type nonClosingSIMReader struct{ simcard.Reader }
@@ -457,7 +518,12 @@ func (b *Backend) Register(ctx context.Context, cfg RegisterConfig) error {
 	if cfg.OperatorID != "" {
 		action = mbimproto.RegisterActionManual
 	}
-	if _, err := b.client.SetRegistrationState(ctx, cfg.OperatorID, action, dataClass(cfg.Technology)); err != nil {
+	if _, err := b.client.SetRegistrationState(
+		ctx,
+		cfg.OperatorID,
+		action,
+		dataClass(b.client.Version().MBIMExVersion, cfg.Technology),
+	); err != nil {
 		return err
 	}
 	return nil
@@ -986,7 +1052,9 @@ func simState(state mbimproto.SubscriberReadyState) SIMState {
 	case mbimproto.SubscriberReadyStateSIMNotInserted, mbimproto.SubscriberReadyStateNoESIMProfile:
 		return SIMStateAbsent
 	case mbimproto.SubscriberReadyStateDeviceLocked:
-		return SIMStateLocked
+		// CID_SUBSCRIBER_READY_STATUS does not identify which lock is active.
+		// CID_PIN is the source of truth for SIM PIN and PUK locks.
+		return SIMStateUnknown
 	case mbimproto.SubscriberReadyStateBadSIM, mbimproto.SubscriberReadyStateFailure:
 		return SIMStateFailure
 	default:
@@ -1024,7 +1092,7 @@ func registrationState(state mbimproto.RegisterState) RegistrationState {
 	}
 }
 
-func dataClass(technology Technology) mbimproto.DataClass {
+func dataClass(mbimExVersion uint16, technology Technology) mbimproto.DataClass {
 	var result mbimproto.DataClass
 	if technology&TechnologyGSM != 0 {
 		result |= mbimproto.DataClassGPRS | mbimproto.DataClassEDGE
@@ -1035,11 +1103,17 @@ func dataClass(technology Technology) mbimproto.DataClass {
 	if technology&(TechnologyLTE|TechnologyLTECatM|TechnologyLTENB) != 0 {
 		result |= mbimproto.DataClassLTE
 	}
-	if technology&TechnologyNR5GNSA != 0 {
-		result |= mbimproto.DataClass5GNSA
-	}
-	if technology&TechnologyNR5GSA != 0 {
-		result |= mbimproto.DataClass5GSA
+	if technology&modeNR5G != 0 {
+		if mbimExVersion >= mbimExVersion30 {
+			result |= mbimproto.DataClass5G
+		} else {
+			if technology&TechnologyNR5GNSA != 0 {
+				result |= mbimproto.DataClass5GNSA
+			}
+			if technology&TechnologyNR5GSA != 0 {
+				result |= mbimproto.DataClass5GSA
+			}
+		}
 	}
 	return result
 }

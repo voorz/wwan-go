@@ -685,6 +685,152 @@ func TestClientConnectActivatesSlotBeforeMBIMEx4(t *testing.T) {
 	}
 }
 
+func TestClientConnectResynchronizesNotOpened(t *testing.T) {
+	staleIndication := []byte{0x01}
+	currentIndication := []byte{0x02}
+	tests := []struct {
+		name            string
+		firstError      ProtocolError
+		wantResync      bool
+		secondNotOpened bool
+		wantErr         error
+		wantTxn         uint32
+	}{
+		{
+			name:       "recovers once",
+			firstError: ProtocolErrorNotOpened,
+			wantResync: true,
+			wantTxn:    5,
+		},
+		{
+			name:            "stops after one resynchronization",
+			firstError:      ProtocolErrorNotOpened,
+			wantResync:      true,
+			secondNotOpened: true,
+			wantErr:         ProtocolErrorNotOpened,
+			wantTxn:         4,
+		},
+		{
+			name:       "does not retry another protocol error",
+			firstError: ProtocolErrorUnknown,
+			wantErr:    ProtocolErrorUnknown,
+			wantTxn:    2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, server := net.Pipe()
+			t.Cleanup(func() { _ = client.Close() })
+			mbimClient := &Client{conn: client}
+
+			errc := make(chan error, 1)
+			go func() {
+				defer close(errc)
+				defer server.Close()
+
+				if err := expectMBIMOpen(server, 1); err != nil {
+					errc <- err
+					return
+				}
+				if _, err := server.Write(mbimOpenDone(1)); err != nil {
+					errc <- err
+					return
+				}
+
+				if err := expectMBIMCommandWithService(server, 2, ServiceBasicConnect, CIDDeviceServices, CommandTypeQuery, nil); err != nil {
+					errc <- err
+					return
+				}
+				if _, err := server.Write(mbimIndication(ServiceBasicConnect, CIDSignalState, staleIndication)); err != nil {
+					errc <- err
+					return
+				}
+				if _, err := server.Write(mbimFunctionError(2, tt.firstError)); err != nil {
+					errc <- err
+					return
+				}
+				if !tt.wantResync {
+					return
+				}
+
+				if err := expectMBIMOpen(server, 3); err != nil {
+					errc <- err
+					return
+				}
+				// A delayed response from the rejected session must not satisfy
+				// the new OPEN request.
+				if _, err := server.Write(mbimOpenDone(1)); err != nil {
+					errc <- err
+					return
+				}
+				var indication *Indication
+				if !tt.secondNotOpened {
+					indication = &Indication{
+						MessageType:       MessageTypeIndicateStatus,
+						ServiceID:         ServiceBasicConnect,
+						CommandID:         CIDSignalState,
+						InformationLength: uint32(len(currentIndication)),
+						InformationBuffer: currentIndication,
+					}
+				}
+				// Keep OPEN_DONE delivery and the following indication in one
+				// critical section so the regression test is scheduler-independent.
+				if err := deliverResponseThenQueueIndication(mbimClient, mbimOpenDone(3), indication); err != nil {
+					errc <- err
+					return
+				}
+
+				if err := expectMBIMCommandWithService(server, 4, ServiceBasicConnect, CIDDeviceServices, CommandTypeQuery, nil); err != nil {
+					errc <- err
+					return
+				}
+				if tt.secondNotOpened {
+					if _, err := server.Write(mbimFunctionError(4, ProtocolErrorNotOpened)); err != nil {
+						errc <- err
+					}
+					return
+				}
+				if _, err := server.Write(mbimCommandDone(4, ServiceBasicConnect, CIDDeviceServices, deviceServicesPayload())); err != nil {
+					errc <- err
+					return
+				}
+
+				if err := expectMBIMCommandWithService(server, 5, ServiceMSBasicConnectExtensions, CIDDeviceSlotMappings, CommandTypeQuery, nil); err != nil {
+					errc <- err
+					return
+				}
+				if _, err := server.Write(mbimCommandDone(5, ServiceMSBasicConnectExtensions, CIDDeviceSlotMappings, slotMappingsPayload(0))); err != nil {
+					errc <- err
+				}
+			}()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			err := mbimClient.connect(ctx, "")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("connect() error = %v, want %v", err, tt.wantErr)
+			}
+			if got := mbimClient.ensureState().txn.Load(); got != tt.wantTxn {
+				t.Errorf("transaction ID = %d, want %d", got, tt.wantTxn)
+			}
+			if err == nil {
+				indication, indicationErr := mbimClient.NextIndication(ctx, ServiceBasicConnect, CIDSignalState)
+				if indicationErr != nil {
+					t.Fatalf("NextIndication() error = %v", indicationErr)
+				}
+				if !bytes.Equal(indication.InformationBuffer, currentIndication) {
+					t.Errorf("indication payload = %x, want %x", indication.InformationBuffer, currentIndication)
+				}
+			}
+			if err := <-errc; err != nil {
+				t.Fatalf("device peer exchange error = %v", err)
+			}
+		})
+	}
+}
+
 func TestSTKRequestData(t *testing.T) {
 	envelope := []byte{0xD1, 0x09, 0x82, 0x02, 0x83, 0x81, 0x8B, 0x03, 0x00, 0x7F, 0xF6}
 	terminalResponse := []byte{0x81, 0x03, 0x01, 0x21, 0x00}
@@ -3120,6 +3266,39 @@ func mbimOpenDone(transactionID uint32) []byte {
 	buf = binary.LittleEndian.AppendUint32(buf, 16)
 	buf = binary.LittleEndian.AppendUint32(buf, transactionID)
 	return binary.LittleEndian.AppendUint32(buf, uint32(StatusNone))
+}
+
+func mbimFunctionError(transactionID uint32, status ProtocolError) []byte {
+	buf := binary.LittleEndian.AppendUint32(nil, uint32(MessageTypeFunctionError))
+	buf = binary.LittleEndian.AppendUint32(buf, 16)
+	buf = binary.LittleEndian.AppendUint32(buf, transactionID)
+	return binary.LittleEndian.AppendUint32(buf, uint32(status))
+}
+
+func deliverResponseThenQueueIndication(
+	c *Client,
+	response []byte,
+	indication *Indication,
+) error {
+	transactionID := binary.LittleEndian.Uint32(response[8:12])
+	c.ensureState()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	waiter, ok := c.pending[transactionID]
+	if !ok {
+		return fmt.Errorf("pending response for transaction %d not found", transactionID)
+	}
+	select {
+	case waiter.ch <- responseResult{data: slices.Clone(response)}:
+	default:
+		return fmt.Errorf("pending response for transaction %d is already complete", transactionID)
+	}
+	if indication != nil {
+		key := indicationKey{serviceID: indication.ServiceID, commandID: indication.CommandID}
+		c.queueIndicationLocked(key, *indication)
+	}
+	return nil
 }
 
 type scriptMBIMConn struct {
