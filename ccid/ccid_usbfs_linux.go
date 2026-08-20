@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -342,6 +343,19 @@ func readUSBFSUint(path, name string, base, bits int) (uint64, bool) {
 	return parsed, err == nil
 }
 
+// extractSerialFromReaderName 从读卡器名称中提取括号内的序列号。
+// 例如 "ESTKme-RED (2051315E5056) 00 00" → "2051315E5056"
+// 用于跨模式（pcscd/USBFS）回退匹配，因为两种模式下读卡器名称不同但序列号一致。
+var readerSerialRe = regexp.MustCompile(`\(([^)]+)\)`)
+
+func extractSerialFromReaderName(name string) string {
+	m := readerSerialRe.FindStringSubmatch(name)
+	if m == nil {
+		return ""
+	}
+	return strings.TrimSpace(m[1])
+}
+
 func openUSBFSReader(ctx context.Context, readerName string) (*usbfsReader, error) {
 	devices, err := discoverUSBFSDevices(ctx)
 	if err != nil {
@@ -352,6 +366,20 @@ func openUSBFSReader(ctx context.Context, readerName string) (*usbfsReader, erro
 		if devices[i].info.Name == readerName {
 			selected = &devices[i]
 			break
+		}
+	}
+	// 全名匹配失败时回退到序列号匹配：
+	// pcscd 和 USBFS 两种模式下读卡器名称可能不同（如 "ESTKme-RED (SN) 00 00" vs "Generic Smart Card Reader Interface (SN) 00 00"），
+	// 但序列号始终一致。
+	if selected == nil {
+		targetSerial := extractSerialFromReaderName(readerName)
+		if targetSerial != "" {
+			for i := range devices {
+				if devices[i].info.USBSerial == targetSerial {
+					selected = &devices[i]
+					break
+				}
+			}
 		}
 	}
 	if selected == nil {
