@@ -41,6 +41,8 @@ const (
 	ccidICCAbsent                = 0x02
 	ccidAutoActivation           = 0x00000004
 	ccidAutoVoltage              = 0x00000008
+	ccidAutoConfATR              = 0x00000002 // CCID_CLASS_AUTO_CONF_ATR: reader auto-configures ATR (firmware-handled)
+	ccidAutoBaud                 = 0x00000020 // CCID_CLASS_AUTO_BAUD: reader auto-detects baud rate (overlaps with PPS)
 	ccidAutoParameterNegotiation = 0x00000040 // CCID_CLASS_AUTO_PPS_PROP: reader auto-handles PPS + SetParameters
 	ccidAutoPPSCurrent           = 0x00000080 // CCID_CLASS_AUTO_PPS_CUR: reader auto-handles PPS exchange only
 	ccidExchangeMask             = 0x00070000
@@ -82,12 +84,14 @@ type usbfsDevice struct {
 }
 
 type usbfsReader struct {
-	file        *os.File
-	device      usbfsDevice
-	sequence    uint8
-	active      bool
-	closed      bool
-	cardTimeout uint32 // T=0 communication timeout in ms (computed from ATR + reader clock)
+	file           *os.File
+	device         usbfsDevice
+	sequence       uint8
+	active         bool
+	closed         bool
+	cardTimeout    uint32 // T=0 communication timeout in ms (computed from ATR + reader clock)
+	characterLevel bool   // true if reader is at CHARACTER exchange level (host drives T=0 procedure bytes)
+	protocol       uint8  // active card protocol (0 = T=0, 1 = T=1)
 }
 
 type usbfsBulkTransfer struct {
@@ -445,9 +449,10 @@ func (r *usbfsReader) release() error {
 
 func (r *usbfsReader) activate(ctx context.Context) error {
 	exchange := r.device.descriptor.features & ccidExchangeMask
-	if exchange != ccidExchangeTPDU && exchange != ccidExchangeShortAPDU && exchange != ccidExchangeExtendedAPDU {
+	if exchange != ccidExchangeCharacter && exchange != ccidExchangeTPDU && exchange != ccidExchangeShortAPDU && exchange != ccidExchangeExtendedAPDU {
 		return fmt.Errorf("unsupported CCID exchange level 0x%08X", exchange)
 	}
+	r.characterLevel = exchange == ccidExchangeCharacter
 	atr, err := r.powerOn(ctx)
 	if err != nil {
 		return err
@@ -457,7 +462,13 @@ func (r *usbfsReader) activate(ctx context.Context) error {
 		return fmt.Errorf("parsing card ATR: %w", err)
 	}
 	if parsed.protocol != 0 {
-		return fmt.Errorf("built-in CCID currently requires a T=0 card, ATR selected T=%d", parsed.protocol)
+		// T=1 is supported at the detection level, but full T=1 transmission
+		// is not yet implemented (returns ErrT1NotImplemented).
+		// For now, only T=0 is fully functional.
+		if r.device.descriptor.protocols&0x02 != 0 {
+			r.protocol = parsed.protocol
+		}
+		return fmt.Errorf("built-in CCID currently supports T=0 only, ATR selected T=%d (T=1 not yet implemented)", parsed.protocol)
 	}
 	if r.device.descriptor.protocols&0x01 == 0 {
 		return errors.New("reader does not advertise T=0 support")
@@ -808,6 +819,10 @@ func (r *usbfsReader) transmit(ctx context.Context, request []byte) ([]byte, err
 	maxPayload := int(r.device.descriptor.maxMessageLength) - ccidHeaderLength
 	if len(request) > maxPayload {
 		return nil, fmt.Errorf("APDU length %d exceeds reader limit %d", len(request), maxPayload)
+	}
+	// CHARACTER exchange level: host must drive T=0 procedure bytes.
+	if r.characterLevel {
+		return r.transmitT0Character(ctx, request)
 	}
 	response, err := r.command(ctx, ccidTransferBlock, 0, 0, 0, request, ccidDataBlock)
 	if err != nil {
