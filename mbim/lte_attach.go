@@ -153,7 +153,7 @@ func (c *LTEAttachConfiguration) UnmarshalBinary(data []byte) error {
 	if len(data) < 44 {
 		return errors.New("LTE attach configuration is truncated")
 	}
-	refs, err := lteAttachStringRefs(data, 44, []uint32{12, 20, 28})
+	refs, err := lteAttachRecordStringRefs(data, 44, []uint32{12, 20, 28})
 	if err != nil {
 		return err
 	}
@@ -317,6 +317,28 @@ func (i *LTEAttachInfo) UnmarshalBinary(data []byte) error {
 }
 
 func lteAttachStringRefs(data []byte, fixedLength uint32, offsets []uint32) ([]valueRef, error) {
+	refs, err := readLTEAttachStringRefs(data, offsets)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateContextStringRefs(data, fixedLength, refs); err != nil {
+		return nil, fmt.Errorf("validating strings: %w", err)
+	}
+	return refs, nil
+}
+
+func lteAttachRecordStringRefs(data []byte, fixedLength uint32, offsets []uint32) ([]valueRef, error) {
+	refs, err := readLTEAttachStringRefs(data, offsets)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateRecordContextStringRefs(data, fixedLength, refs); err != nil {
+		return nil, fmt.Errorf("validating strings: %w", err)
+	}
+	return refs, nil
+}
+
+func readLTEAttachStringRefs(data []byte, offsets []uint32) ([]valueRef, error) {
 	refs := make([]valueRef, len(offsets))
 	for index, offset := range offsets {
 		ref, err := readOffsetSizeRef(data, offset)
@@ -324,9 +346,6 @@ func lteAttachStringRefs(data []byte, fixedLength uint32, offsets []uint32) ([]v
 			return nil, fmt.Errorf("string %d reference: %w", index, err)
 		}
 		refs[index] = ref
-	}
-	if err := validateContextStringRefs(data, fixedLength, refs); err != nil {
-		return nil, fmt.Errorf("validating strings: %w", err)
 	}
 	return refs, nil
 }

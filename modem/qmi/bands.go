@@ -40,7 +40,7 @@ var legacyBands = []legacyBand{
 func (b *Backend) SupportedBands(ctx context.Context) ([]Band, error) {
 	caps, err := b.client.BandCapabilities(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reading QMI supported bands: %w", err)
+		return nil, err
 	}
 	bands := bandsFromLegacyMask(caps.BandMask)
 	if caps.LTEBandsKnown {
@@ -61,7 +61,7 @@ func (b *Backend) SupportedBands(ctx context.Context) ([]Band, error) {
 func (b *Backend) Bands(ctx context.Context) ([]Band, error) {
 	pref, err := b.client.SystemSelectionPreference(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reading QMI selected bands: %w", err)
+		return nil, err
 	}
 	var bands []Band
 	if pref.BandPreferenceKnown {
@@ -93,14 +93,14 @@ func (b *Backend) Bands(ctx context.Context) ([]Band, error) {
 	}
 	bands = normalizeBands(bands)
 	if len(bands) == 0 {
-		return nil, fmt.Errorf("reading QMI selected bands: %w", errBandPreferenceUnavailable)
+		return nil, errBandPreferenceUnavailable
 	}
 	return bands, nil
 }
 
 func (b *Backend) SetBands(ctx context.Context, bands []Band) error {
 	if len(bands) == 0 {
-		return errors.New("setting QMI bands: bands are required")
+		return errors.New("setting bands: bands are required")
 	}
 	legacy, lte, nr, err := bandMasks(bands)
 	if err != nil {
@@ -108,14 +108,14 @@ func (b *Backend) SetBands(ctx context.Context, bands []Band) error {
 	}
 	preference, err := b.client.SystemSelectionPreference(ctx)
 	if err != nil {
-		return fmt.Errorf("setting QMI bands: reading current preference: %w", err)
+		return fmt.Errorf("setting bands: %w", err)
 	}
 	config, err := bandSelectionConfig(preference, legacy, lte, nr)
 	if err != nil {
 		return err
 	}
 	if err := b.client.SetSystemSelectionPreference(ctx, config); err != nil {
-		return fmt.Errorf("setting QMI bands: %w", err)
+		return fmt.Errorf("setting bands: %w", err)
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ func bandSelectionConfig(
 		lteLegacy := qcom.NASLTEBandPreference(lte.Bits1To64)
 		config.LTEBandPreference = &lteLegacy
 	} else if bandsWordsSet(lteWords(lte)) {
-		return qcom.NASSystemSelectionConfig{}, errors.New("setting QMI bands: LTE band preference is unavailable")
+		return qcom.NASSystemSelectionConfig{}, errors.New("setting bands: LTE band preference is unavailable")
 	}
 
 	// QMI marks the combined NR TLV deprecated. Only write split masks that the
@@ -150,7 +150,7 @@ func bandSelectionConfig(
 		config.NR5GNSABands = &nr
 	}
 	if bandsWordsSet(nrWords(nr)) && config.NR5GSABands == nil && config.NR5GNSABands == nil {
-		return qcom.NASSystemSelectionConfig{}, errors.New("setting QMI bands: split NR5G band preference is unavailable")
+		return qcom.NASSystemSelectionConfig{}, errors.New("setting bands: split NR5G band preference is unavailable")
 	}
 	return config, nil
 }
@@ -164,19 +164,19 @@ func bandMasks(bands []Band) (qcom.NASBandPreference, qcom.NASLTEBandPreferenceE
 		case TechnologyGSM, TechnologyUMTS:
 			entry, ok := findLegacyBand(band)
 			if !ok {
-				return 0, lte, nr, fmt.Errorf("setting QMI bands: unsupported legacy band %+v", band)
+				return 0, lte, nr, fmt.Errorf("setting bands: unsupported legacy band %+v", band)
 			}
 			legacy |= qcom.NASBandPreference(entry.mask)
 		case TechnologyLTE:
 			if !setWordBit(lteWordsMutable(&lte), band.Number) {
-				return 0, lte, nr, fmt.Errorf("setting QMI bands: LTE band %d is outside 1..256", band.Number)
+				return 0, lte, nr, fmt.Errorf("setting bands: LTE band %d is outside 1..256", band.Number)
 			}
 		case TechnologyNR5GNSA, TechnologyNR5GSA, TechnologyNR5GNSA | TechnologyNR5GSA:
 			if !setWordBit(nrWordsMutable(&nr), band.Number) {
-				return 0, lte, nr, fmt.Errorf("setting QMI bands: NR band %d is outside 1..512", band.Number)
+				return 0, lte, nr, fmt.Errorf("setting bands: NR band %d is outside 1..512", band.Number)
 			}
 		default:
-			return 0, lte, nr, fmt.Errorf("setting QMI bands: technology %#x is unsupported", band.Technology)
+			return 0, lte, nr, fmt.Errorf("setting bands: technology %#x is unsupported", band.Technology)
 		}
 	}
 	return legacy, lte, nr, nil

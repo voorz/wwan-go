@@ -43,19 +43,19 @@ func TestOpenPDN(t *testing.T) {
 				},
 				{
 					check: func(req Request) {
-						if req.MessageID != MessageWDSSetClientIPFamily {
-							t.Fatalf("message = 0x%04X, want set IP family", req.MessageID)
-						}
-					},
-					resp: successResponse(MessageWDSSetClientIPFamily),
-				},
-				{
-					check: func(req Request) {
 						if req.MessageID != MessageWDSBindMuxDataPort {
 							t.Fatalf("message = 0x%04X, want bind mux data port", req.MessageID)
 						}
 					},
 					resp: successResponse(MessageWDSBindMuxDataPort),
+				},
+				{
+					check: func(req Request) {
+						if req.MessageID != MessageWDSSetClientIPFamily {
+							t.Fatalf("message = 0x%04X, want set IP family", req.MessageID)
+						}
+					},
+					resp: successResponse(MessageWDSSetClientIPFamily),
 				},
 				{
 					check: func(req Request) {
@@ -96,6 +96,272 @@ func TestOpenPDN(t *testing.T) {
 			}
 			if got := transport.callCount(); got != len(transport.calls) {
 				t.Fatalf("Do() calls = %d, want %d", got, len(transport.calls))
+			}
+		})
+	}
+}
+
+func TestOpenPDNsDispatchesOrderedStartsAfterPreparingAllClients(t *testing.T) {
+	tests := []struct {
+		name        string
+		preferences [2]WDSIPPreference
+		families    [2]WDSIPFamily
+	}{
+		{
+			name:        "IPv4 then IPv6",
+			preferences: [2]WDSIPPreference{WDSIPPreferenceIPv4, WDSIPPreferenceIPv6},
+			families:    [2]WDSIPFamily{WDSIPFamilyIPv4, WDSIPFamilyIPv6},
+		},
+		{
+			name:        "IPv6 then IPv4",
+			preferences: [2]WDSIPPreference{WDSIPPreferenceIPv6, WDSIPPreferenceIPv4},
+			families:    [2]WDSIPFamily{WDSIPFamilyIPv6, WDSIPFamilyIPv4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secondStartDispatched := make(chan struct{})
+			firstWaitedEarly := make(chan struct{}, 1)
+			calls := make([]transportCall, 0, 14)
+			for i, family := range tt.families {
+				clientID := uint8(i + 2)
+				calls = append(calls,
+					transportCall{resp: allocatedClientResponse(ServiceWDS, clientID)},
+					transportCall{
+						check: func(req Request) {
+							if req.MessageID != MessageWDSBindMuxDataPort || req.ClientID != clientID {
+								t.Fatalf("bind mux request = %+v", req)
+							}
+						},
+						resp: successResponse(MessageWDSBindMuxDataPort),
+					},
+					transportCall{
+						check: func(req Request) {
+							if req.MessageID != MessageWDSSetClientIPFamily || req.ClientID != clientID {
+								t.Fatalf("set family request = %+v", req)
+							}
+							assertTLV(t, req.TLVs, 0x01, []byte{byte(family)})
+						},
+						resp: successResponse(MessageWDSSetClientIPFamily),
+					},
+				)
+			}
+			for i, preference := range tt.preferences {
+				clientID := uint8(i + 2)
+				call := transportCall{
+					check: func(req Request) {
+						if req.MessageID != MessageWDSStartNetworkInterface || req.ClientID != clientID {
+							t.Fatalf("Start Network request = %+v", req)
+						}
+						assertTLV(t, req.TLVs, 0x19, []byte{byte(preference)})
+						if i == 1 {
+							close(secondStartDispatched)
+						}
+					},
+					resp: successResponse(
+						MessageWDSStartNetworkInterface,
+						tlv.Uint(0x01, uint32(0x01020304+i)),
+					),
+				}
+				if i == 0 {
+					call.wait = func() {
+						select {
+						case <-secondStartDispatched:
+						default:
+							firstWaitedEarly <- struct{}{}
+						}
+					}
+				}
+				calls = append(calls, call)
+			}
+			for _, family := range tt.families {
+				calls = append(calls, transportCall{
+					resp: successResponse(MessageWDSGetRuntimeSettings, tlv.Bytes(0x2B, []byte{byte(family)})),
+				})
+			}
+			for range tt.families {
+				calls = append(calls,
+					transportCall{resp: successResponse(MessageWDSStopNetworkInterface)},
+					transportCall{resp: successResponse(MessageReleaseClientID)},
+				)
+			}
+
+			transport := &fakeTransport{t: t, calls: calls}
+			client := &Client{transport: transport, slot: 1}
+			mux := &WDSMuxDataPort{MuxID: 1}
+			configs := make([]PDNConfig, len(tt.preferences))
+			for i, preference := range tt.preferences {
+				configs[i] = PDNConfig{APN: "internet", IPPreference: preference, MuxDataPort: mux}
+			}
+
+			results, err := client.OpenPDNs(t.Context(), configs)
+			if err != nil {
+				t.Fatalf("OpenPDNs() error = %v", err)
+			}
+			select {
+			case <-firstWaitedEarly:
+				t.Fatal("first response awaited before second Start Network was dispatched")
+			default:
+			}
+			if len(results) != len(tt.families) {
+				t.Fatalf("OpenPDNs() results = %d, want %d", len(results), len(tt.families))
+			}
+			for i, result := range results {
+				if result.Err != nil || result.Session == nil {
+					t.Fatalf("OpenPDNs() result %d = %+v", i, result)
+				}
+				if got := result.Session.Info().IPFamily; got != tt.families[i] {
+					t.Fatalf("session %d family = %d, want %d", i, got, tt.families[i])
+				}
+				if err := result.Session.Close(); err != nil {
+					t.Fatalf("Close(%d) error = %v", i, err)
+				}
+			}
+			if got := transport.callCount(); got != len(transport.calls) {
+				t.Fatalf("transport calls = %d, want %d", got, len(transport.calls))
+			}
+		})
+	}
+}
+
+func TestOpenPDNsResultSemantics(t *testing.T) {
+	startSuccess := func(handle uint32) Response {
+		return successResponse(MessageWDSStartNetworkInterface, tlv.Uint(0x01, handle))
+	}
+	tests := []struct {
+		name         string
+		start        [2]Response
+		wantSessions [2]bool
+		wantErr      bool
+	}{
+		{
+			name:         "IPv4 succeeds",
+			start:        [2]Response{startSuccess(0x01020304), errorResponse(MessageWDSStartNetworkInterface, QMIErrorCallFailed)},
+			wantSessions: [2]bool{true, false},
+		},
+		{
+			name:         "IPv6 succeeds",
+			start:        [2]Response{errorResponse(MessageWDSStartNetworkInterface, QMIErrorCallFailed), startSuccess(0x01020306)},
+			wantSessions: [2]bool{false, true},
+		},
+		{
+			name: "both fail",
+			start: [2]Response{
+				errorResponse(MessageWDSStartNetworkInterface, QMIErrorCallFailed),
+				errorResponse(MessageWDSStartNetworkInterface, QMIErrorCallFailed),
+			},
+			wantErr: true,
+		},
+	}
+	families := [2]WDSIPFamily{WDSIPFamilyIPv4, WDSIPFamilyIPv6}
+	preferences := [2]WDSIPPreference{WDSIPPreferenceIPv4, WDSIPPreferenceIPv6}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			calls := make([]transportCall, 0, 14)
+			for i := range families {
+				calls = append(calls,
+					transportCall{resp: allocatedClientResponse(ServiceWDS, uint8(i+2))},
+					transportCall{resp: successResponse(MessageWDSBindMuxDataPort)},
+					transportCall{resp: successResponse(MessageWDSSetClientIPFamily)},
+				)
+			}
+			for i, response := range tt.start {
+				clientID := uint8(i + 2)
+				calls = append(calls, transportCall{
+					check: func(req Request) {
+						if req.MessageID != MessageWDSStartNetworkInterface || req.ClientID != clientID {
+							t.Fatalf("Start Network request = %+v", req)
+						}
+					},
+					resp: response,
+				})
+			}
+			for i, wantSession := range tt.wantSessions {
+				if wantSession {
+					calls = append(calls, transportCall{
+						resp: successResponse(MessageWDSGetRuntimeSettings, tlv.Bytes(0x2B, []byte{byte(families[i])})),
+					})
+					continue
+				}
+				calls = append(calls, transportCall{resp: successResponse(MessageReleaseClientID)})
+			}
+			for _, wantSession := range tt.wantSessions {
+				if wantSession {
+					calls = append(calls,
+						transportCall{resp: successResponse(MessageWDSStopNetworkInterface)},
+						transportCall{resp: successResponse(MessageReleaseClientID)},
+					)
+				}
+			}
+
+			transport := &fakeTransport{t: t, calls: calls}
+			client := &Client{transport: transport, slot: 1}
+			mux := &WDSMuxDataPort{MuxID: 1}
+			configs := []PDNConfig{
+				{APN: "internet", IPPreference: preferences[0], MuxDataPort: mux},
+				{APN: "internet", IPPreference: preferences[1], MuxDataPort: mux},
+			}
+
+			results, err := client.OpenPDNs(t.Context(), configs)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("OpenPDNs() error = %v, want error %t", err, tt.wantErr)
+			}
+			if tt.wantErr && !errors.Is(err, QMIErrorCallFailed) {
+				t.Fatalf("OpenPDNs() error = %v, want call failed", err)
+			}
+			if len(results) != len(tt.wantSessions) {
+				t.Fatalf("OpenPDNs() results = %d, want %d", len(results), len(tt.wantSessions))
+			}
+			for i, result := range results {
+				if (result.Session != nil) != tt.wantSessions[i] {
+					t.Fatalf("result %d session = %v, want present %t", i, result.Session, tt.wantSessions[i])
+				}
+				if (result.Err == nil) != tt.wantSessions[i] {
+					t.Fatalf("result %d error = %v, want session %t", i, result.Err, tt.wantSessions[i])
+				}
+				if result.Session != nil {
+					if err := result.Session.Close(); err != nil {
+						t.Fatalf("Close(%d) error = %v", i, err)
+					}
+				}
+			}
+			if got := transport.callCount(); got != len(transport.calls) {
+				t.Fatalf("transport calls = %d, want %d", got, len(transport.calls))
+			}
+		})
+	}
+}
+
+func TestOpenPDNsRejectsUnsupportedTransportBeforePreparing(t *testing.T) {
+	tests := []struct {
+		name    string
+		configs []PDNConfig
+	}{
+		{
+			name: "ordered dispatch unavailable",
+			configs: []PDNConfig{
+				{IPPreference: WDSIPPreferenceIPv4, MuxDataPort: &WDSMuxDataPort{MuxID: 1}},
+				{IPPreference: WDSIPPreferenceIPv6, MuxDataPort: &WDSMuxDataPort{MuxID: 1}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			transport := &doOnlyTransport{}
+			client := &Client{transport: transport, slot: 1}
+
+			results, err := client.OpenPDNs(t.Context(), tt.configs)
+			if !errors.Is(err, errRequestDispatchUnsupported) {
+				t.Fatalf("OpenPDNs() error = %v, want unsupported dispatch", err)
+			}
+			if results != nil {
+				t.Fatalf("OpenPDNs() results = %+v, want nil", results)
+			}
+			if got := transport.callCount(); got != 0 {
+				t.Fatalf("Do() calls = %d, want 0", got)
 			}
 		})
 	}
@@ -164,19 +430,19 @@ func TestOpenPDNLegacyMuxKeepsRequestedIPFamily(t *testing.T) {
 				{resp: allocatedClientResponse(ServiceWDS, 2)},
 				{
 					check: func(req Request) {
-						if req.MessageID != MessageWDSSetClientIPFamily {
-							t.Fatalf("MessageID = 0x%04X, want Set Client IP Family", req.MessageID)
-						}
-					},
-					resp: successResponse(MessageWDSSetClientIPFamily),
-				},
-				{
-					check: func(req Request) {
 						if req.MessageID != MessageWDSLegacyBindMuxDataPort {
 							t.Fatalf("MessageID = 0x%04X, want Legacy Bind Data Port", req.MessageID)
 						}
 					},
 					resp: successResponse(MessageWDSLegacyBindMuxDataPort),
+				},
+				{
+					check: func(req Request) {
+						if req.MessageID != MessageWDSSetClientIPFamily {
+							t.Fatalf("MessageID = 0x%04X, want Set Client IP Family", req.MessageID)
+						}
+					},
+					resp: successResponse(MessageWDSSetClientIPFamily),
 				},
 				{
 					check: func(req Request) {

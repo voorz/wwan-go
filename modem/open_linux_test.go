@@ -48,33 +48,28 @@ func TestOpenUsesDeclaredPortProtocol(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			oldStat := statDevice
-			oldQMI, oldMBIM := openQMIBackend, openMBIMBackend
-			t.Cleanup(func() {
-				statDevice = oldStat
-				openQMIBackend, openMBIMBackend = oldQMI, oldMBIM
-			})
-
-			statDevice = func(string) (os.FileInfo, error) { return testFileInfo{}, nil }
 			qmiCalls := 0
 			mbimCalls := 0
-			openQMIBackend = func(_ context.Context, device string, access Access) (backend, Access, error) {
-				qmiCalls++
-				if device != "/dev/cdc-wdm0" || access != tt.requested {
-					t.Errorf("QMI endpoint = (%q, %s), want (/dev/cdc-wdm0, %s)", device, access, tt.requested)
-				}
-				return &testBackend{}, tt.selected, tt.qmiErr
-			}
-			openMBIMBackend = func(_ context.Context, device string, access Access) (backend, Access, error) {
-				mbimCalls++
-				if device != "/dev/cdc-wdm0" || access != tt.requested {
-					t.Errorf("MBIM endpoint = (%q, %s), want (/dev/cdc-wdm0, %s)", device, access, tt.requested)
-				}
-				return &testBackend{}, tt.selected, tt.mbimErr
+			opener := modemOpener{
+				stat: func(string) (os.FileInfo, error) { return testFileInfo{}, nil },
+				openQMI: func(_ context.Context, device string, access Access) (backend, Access, error) {
+					qmiCalls++
+					if device != "/dev/cdc-wdm0" || access != tt.requested {
+						t.Errorf("QMI endpoint = (%q, %s), want (/dev/cdc-wdm0, %s)", device, access, tt.requested)
+					}
+					return &testBackend{}, tt.selected, tt.qmiErr
+				},
+				openMBIM: func(_ context.Context, device string, access Access) (backend, Access, error) {
+					mbimCalls++
+					if device != "/dev/cdc-wdm0" || access != tt.requested {
+						t.Errorf("MBIM endpoint = (%q, %s), want (/dev/cdc-wdm0, %s)", device, access, tt.requested)
+					}
+					return &testBackend{}, tt.selected, tt.mbimErr
+				},
 			}
 
 			port := Port{Type: tt.portType, Name: "cdc-wdm0", Path: "/dev/cdc-wdm0"}
-			got, err := Open(context.Background(), port, tt.requested)
+			got, err := opener.open(context.Background(), port, tt.requested)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Open() error = %v, wantErr %t", err, tt.wantErr)
 			}
@@ -205,18 +200,16 @@ func TestOpenValidatesPortMetadata(t *testing.T) {
 				port.SysPath = entryPath
 			}
 
-			oldStat, oldQMI := statDevice, openQMIBackend
-			t.Cleanup(func() {
-				statDevice, openQMIBackend = oldStat, oldQMI
-			})
-			statDevice = func(string) (os.FileInfo, error) { return testFileInfo{}, nil }
 			calls := 0
-			openQMIBackend = func(context.Context, string, Access) (backend, Access, error) {
-				calls++
-				return &testBackend{}, AccessDirect, nil
+			opener := modemOpener{
+				stat: func(string) (os.FileInfo, error) { return testFileInfo{}, nil },
+				openQMI: func(context.Context, string, Access) (backend, Access, error) {
+					calls++
+					return &testBackend{}, AccessDirect, nil
+				},
 			}
 
-			got, err := Open(context.Background(), port, AccessDirect)
+			got, err := opener.open(context.Background(), port, AccessDirect)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Open() error = %v, wantErr %t", err, tt.wantErr)
 			}

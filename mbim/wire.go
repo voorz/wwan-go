@@ -67,14 +67,47 @@ func (r valueRef) validateDataBuffer(base []byte, dataStart uint32) error {
 }
 
 func validateDataBufferRefs(base []byte, dataStart uint32, refs []valueRef) error {
+	_, paddedEnd, err := dataBufferEnds(base, dataStart, refs)
+	if err != nil {
+		return err
+	}
+	if paddedEnd > uint64(len(base)) {
+		return errors.New("data buffer padding is truncated")
+	}
+	if paddedEnd < uint64(len(base)) {
+		return errors.New("data buffer has trailing data")
+	}
+	return nil
+}
+
+// validateRecordDataBufferRefs accepts either the logical record size or its
+// padded wire size. OL pair sizes exclude padding, so a record sliced using
+// its advertised size does not include padding owned by the enclosing buffer.
+func validateRecordDataBufferRefs(base []byte, dataStart uint32, refs []valueRef) error {
+	payloadEnd, paddedEnd, err := dataBufferEnds(base, dataStart, refs)
+	if err != nil {
+		return err
+	}
+	length := uint64(len(base))
+	if length == payloadEnd || length == paddedEnd {
+		return nil
+	}
+	if length < paddedEnd {
+		return errors.New("data buffer padding is truncated")
+	}
+	return errors.New("data buffer has trailing data")
+}
+
+func dataBufferEnds(base []byte, dataStart uint32, refs []valueRef) (uint64, uint64, error) {
 	if uint64(dataStart) > uint64(len(base)) {
-		return errors.New("data buffer starts beyond payload")
+		return 0, 0, errors.New("data buffer starts beyond payload")
 	}
 
 	nextOffset := uint64(dataStart)
+	payloadEnd := nextOffset
 	for i, ref := range refs {
 		if err := ref.validateDataBuffer(base, dataStart); err != nil {
-			return fmt.Errorf("reference %d: %w", i, err)
+			return 0, 0, fmt.Errorf("reference %d: %w", i, err)
 		}
 		if ref.size == 0 {
 			continue
@@ -82,25 +115,40 @@ func validateDataBufferRefs(base []byte, dataStart uint32, refs []valueRef) erro
 		offset := uint64(ref.offset)
 		if offset != nextOffset {
 			if offset < nextOffset {
-				return fmt.Errorf("reference %d overlaps or precedes an earlier value", i)
+				return 0, 0, fmt.Errorf("reference %d overlaps or precedes an earlier value", i)
 			}
-			return fmt.Errorf("reference %d leaves a sparse data buffer", i)
+			return 0, 0, fmt.Errorf("reference %d leaves a sparse data buffer", i)
 		}
-		nextOffset = offset + uint64(ref.size)
+		payloadEnd = offset + uint64(ref.size)
+		nextOffset = payloadEnd
 		if remainder := nextOffset % 4; remainder != 0 {
 			nextOffset += 4 - remainder
 		}
 	}
-	if nextOffset > uint64(len(base)) {
-		return errors.New("data buffer padding is truncated")
-	}
-	if nextOffset < uint64(len(base)) {
-		return errors.New("data buffer has trailing data")
-	}
-	return nil
+	return payloadEnd, nextOffset, nil
 }
 
 func validateContextStringRefs(base []byte, dataStart uint32, refs []valueRef) error {
+	if err := validateContextStringRefSizes(refs); err != nil {
+		return err
+	}
+	if err := validateDataBufferRefs(base, dataStart, refs); err != nil {
+		return err
+	}
+	return validateUTF16Refs(base, refs)
+}
+
+func validateRecordContextStringRefs(base []byte, dataStart uint32, refs []valueRef) error {
+	if err := validateContextStringRefSizes(refs); err != nil {
+		return err
+	}
+	if err := validateRecordDataBufferRefs(base, dataStart, refs); err != nil {
+		return err
+	}
+	return validateUTF16Refs(base, refs)
+}
+
+func validateContextStringRefSizes(refs []valueRef) error {
 	maximumSizes := [...]uint32{
 		accessStringMaximumSize,
 		userNameMaximumSize,
@@ -111,10 +159,7 @@ func validateContextStringRefs(base []byte, dataStart uint32, refs []valueRef) e
 			return fmt.Errorf("string %d size %d exceeds %d bytes", i, refs[i].size, maximumSize)
 		}
 	}
-	if err := validateDataBufferRefs(base, dataStart, refs); err != nil {
-		return err
-	}
-	return validateUTF16Refs(base, refs)
+	return nil
 }
 
 func appendRefValue(data []byte, fieldOffset int, value []byte) []byte {

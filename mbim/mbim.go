@@ -257,6 +257,16 @@ func (c *Client) connect(ctx context.Context, device string) error {
 	if err := c.startReceiver(); err != nil {
 		return err
 	}
+	if err := c.initialize(ctx); err != nil {
+		if !errors.Is(err, ProtocolErrorNotOpened) {
+			return err
+		}
+		return c.resynchronize(ctx)
+	}
+	return nil
+}
+
+func (c *Client) initialize(ctx context.Context) error {
 	if err := c.negotiateVersion(ctx); err != nil {
 		return err
 	}
@@ -271,15 +281,43 @@ func (c *Client) connect(ctx context.Context, device string) error {
 	return nil
 }
 
-func (c *Client) openDevice(ctx context.Context) error {
-	request := OpenDeviceRequest{
-		TransactionID:      c.nextTransactionID(),
-		MaxControlTransfer: uint32(c.maxControlTransfer),
+func (c *Client) resynchronize(ctx context.Context) error {
+	// The receiver delivers frames in order. Once NOT_OPENED is returned, every
+	// queued indication belongs to the rejected session. Clear it before OPEN
+	// so notifications from the new session cannot be discarded.
+	c.mu.Lock()
+	clear(c.indications)
+	c.mu.Unlock()
+
+	if err := c.reopenDevice(ctx); err != nil {
+		return fmt.Errorf("resynchronizing MBIM device: %w", err)
 	}
-	if err := request.Request().Transmit(ctx, c.conn); err != nil {
+
+	if err := c.initialize(ctx); err != nil {
+		return fmt.Errorf("initializing MBIM device after resynchronization: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) openDevice(ctx context.Context) error {
+	if err := c.openRequest().Transmit(ctx, c.conn); err != nil {
 		return fmt.Errorf("opening MBIM device: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) reopenDevice(ctx context.Context) error {
+	if err := c.transmit(ctx, c.openRequest()); err != nil {
+		return fmt.Errorf("opening MBIM device: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) openRequest() *Request {
+	return (&OpenDeviceRequest{
+		TransactionID:      c.nextTransactionID(),
+		MaxControlTransfer: uint32(c.maxControlTransfer),
+	}).Request()
 }
 
 func (c *Client) Close() error {

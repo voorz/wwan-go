@@ -9,10 +9,16 @@ import (
 	qmiproto "github.com/voorz/wwan-go/qcom/qmi"
 )
 
-var (
-	openModemQMIClient  = openQMIClient
-	openModemMBIMClient = openMBIMClient
-)
+type clientOpenConfig struct {
+	device string
+	access Access
+	slot   uint8
+}
+
+type clientOpeners struct {
+	openQMI  func(context.Context, clientOpenConfig) (*qcom.Client, error)
+	openMBIM func(context.Context, clientOpenConfig) (*mbimproto.Client, error)
+}
 
 // QMIClient opens an independently owned QMI client using the modem's
 // resolved device and access method. The caller must close the returned
@@ -30,7 +36,11 @@ func (m *Modem) QMIClient(ctx context.Context, slot uint8) (*qcom.Client, error)
 	if m.access != AccessProxy && m.access != AccessDirect {
 		return nil, unresolvedAccessError("QMI")
 	}
-	return openModemQMIClient(ctx, m.port.Path, m.access, slot)
+	return m.clients.openQMI(ctx, clientOpenConfig{
+		device: m.port.Path,
+		access: m.access,
+		slot:   slot,
+	})
 }
 
 // MBIMClient opens an independently owned MBIM client using the modem's
@@ -48,25 +58,29 @@ func (m *Modem) MBIMClient(ctx context.Context, slot uint8) (*mbimproto.Client, 
 	if m.access != AccessProxy && m.access != AccessDirect {
 		return nil, unresolvedAccessError("MBIM")
 	}
-	return openModemMBIMClient(ctx, m.port.Path, m.access, slot)
+	return m.clients.openMBIM(ctx, clientOpenConfig{
+		device: m.port.Path,
+		access: m.access,
+		slot:   slot,
+	})
 }
 
-func openQMIClient(ctx context.Context, device string, access Access, slot uint8) (*qcom.Client, error) {
+func openQMIClient(ctx context.Context, config clientOpenConfig) (*qcom.Client, error) {
 	var option qmiproto.Option
-	switch access {
+	switch config.access {
 	case AccessProxy:
-		option = qmiproto.WithProxy(device)
+		option = qmiproto.WithProxy(config.device)
 	case AccessDirect:
-		option = qmiproto.WithDirect(device)
+		option = qmiproto.WithDirect(config.device)
 	default:
 		return nil, unresolvedAccessError("QMI")
 	}
 
 	transport, err := qmiproto.Open(ctx, option)
 	if err != nil {
-		return nil, fmt.Errorf("opening QMI client transport: %w", err)
+		return nil, err
 	}
-	client, err := qcom.NewClient(transport, qcom.WithSlot(slot))
+	client, err := qcom.NewClient(transport, qcom.WithSlot(config.slot))
 	if err != nil {
 		_ = transport.Close() // Cleanup cannot change the client-construction error.
 		return nil, err
@@ -74,20 +88,20 @@ func openQMIClient(ctx context.Context, device string, access Access, slot uint8
 	return client, nil
 }
 
-func openMBIMClient(ctx context.Context, device string, access Access, slot uint8) (*mbimproto.Client, error) {
+func openMBIMClient(ctx context.Context, config clientOpenConfig) (*mbimproto.Client, error) {
 	var option mbimproto.Option
-	switch access {
+	switch config.access {
 	case AccessProxy:
-		option = mbimproto.WithProxy(device)
+		option = mbimproto.WithProxy(config.device)
 	case AccessDirect:
-		option = mbimproto.WithDirect(device)
+		option = mbimproto.WithDirect(config.device)
 	default:
 		return nil, unresolvedAccessError("MBIM")
 	}
 
-	client, err := mbimproto.Open(ctx, option, mbimproto.WithSlot(int(slot)))
+	client, err := mbimproto.Open(ctx, option, mbimproto.WithSlot(int(config.slot)))
 	if err != nil {
-		return nil, fmt.Errorf("opening MBIM client: %w", err)
+		return nil, err
 	}
 	return client, nil
 }

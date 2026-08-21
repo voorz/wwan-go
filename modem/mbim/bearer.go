@@ -67,10 +67,10 @@ func (b *Backend) ConnectPort(ctx context.Context, cfg ConnectConfig, _ Port) (s
 		ContextType:       mbimproto.ContextTypeInternet,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("connecting MBIM data session %d: %w", sessionID, err)
+		return nil, fmt.Errorf("connecting data session %d: %w", sessionID, err)
 	}
 	if connect.ActivationState != mbimproto.ActivationStateActivated {
-		return nil, fmt.Errorf("connecting MBIM data session %d: activation state is %d", sessionID, connect.ActivationState)
+		return nil, fmt.Errorf("connecting data session %d: activation state is %d", sessionID, connect.ActivationState)
 	}
 	ip, err := b.client.IPConfiguration(ctx, mbimproto.SessionID(sessionID))
 	if err != nil {
@@ -79,7 +79,7 @@ func (b *Backend) ConnectPort(ctx context.Context, cfg ConnectConfig, _ Port) (s
 			ActivationCommand: mbimproto.ActivationCommandDeactivate,
 			ContextType:       mbimproto.ContextTypeInternet,
 		})
-		return nil, errors.Join(fmt.Errorf("reading MBIM session IP configuration: %w", err), disconnectErr)
+		return nil, errors.Join(fmt.Errorf("reading session IP configuration: %w", err), disconnectErr)
 	}
 	release = false
 	return &session{
@@ -105,13 +105,13 @@ func (b *Backend) profile(ctx context.Context, id int32) (Profile, error) {
 			return profile, nil
 		}
 	}
-	return Profile{}, fmt.Errorf("connecting MBIM data session: profile %d not found", id)
+	return Profile{}, fmt.Errorf("connecting data session: profile %d not found", id)
 }
 
 func (b *Backend) reserveSession(ctx context.Context, requested *uint32) (uint32, error) {
 	caps, err := b.client.DeviceCaps(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("allocating MBIM session: %w", err)
+		return 0, fmt.Errorf("allocating session: %w", err)
 	}
 	maximum := caps.MaxSessions
 	if maximum == 0 {
@@ -135,7 +135,7 @@ func (b *Backend) prepareSessions(ctx context.Context, maximum uint32) error {
 		return nil
 	}
 	if err := cleanupStaleSessions(ctx, b.client, maximum); err != nil {
-		return fmt.Errorf("preparing MBIM data sessions: %w", err)
+		return fmt.Errorf("preparing data sessions: %w", err)
 	}
 	b.sessionsPrepared = true
 	return nil
@@ -148,7 +148,7 @@ func cleanupStaleSessions(ctx context.Context, client sessionControl, maximum ui
 			continue
 		}
 		if err != nil {
-			return fmt.Errorf("querying MBIM session %d before first connection: %w", sessionID, err)
+			return fmt.Errorf("querying session %d before first connection: %w", sessionID, err)
 		}
 		if info.ActivationState == mbimproto.ActivationStateUnknown ||
 			info.ActivationState == mbimproto.ActivationStateDeactivated {
@@ -163,7 +163,7 @@ func cleanupStaleSessions(ctx context.Context, client sessionControl, maximum ui
 			continue
 		}
 		if err != nil {
-			return fmt.Errorf("disconnecting stale MBIM session %d: %w", sessionID, err)
+			return fmt.Errorf("disconnecting stale session %d: %w", sessionID, err)
 		}
 	}
 	return nil
@@ -177,10 +177,10 @@ func (b *Backend) reserveSessionID(maximum uint32, requested *uint32) (uint32, e
 	}
 	if requested != nil {
 		if *requested >= maximum {
-			return 0, fmt.Errorf("allocating MBIM session: ID %d exceeds maximum %d", *requested, maximum-1)
+			return 0, fmt.Errorf("allocating session: ID %d exceeds maximum %d", *requested, maximum-1)
 		}
 		if _, exists := b.slots[*requested]; exists {
-			return 0, fmt.Errorf("allocating MBIM session: ID %d is already in use", *requested)
+			return 0, fmt.Errorf("allocating session: ID %d is already in use", *requested)
 		}
 		b.slots[*requested] = struct{}{}
 		return *requested, nil
@@ -192,7 +192,7 @@ func (b *Backend) reserveSessionID(maximum uint32, requested *uint32) (uint32, e
 		b.slots[id] = struct{}{}
 		return id, nil
 	}
-	return 0, fmt.Errorf("allocating MBIM session: all %d session IDs are in use", maximum)
+	return 0, fmt.Errorf("allocating session: all %d session IDs are in use", maximum)
 }
 
 func (b *Backend) releaseSession(id uint32) {
@@ -212,7 +212,7 @@ func (s *session) Info() BearerInfo {
 func (s *session) Stats(ctx context.Context) (BearerStats, error) {
 	stats, err := s.backend.client.PacketStatistics(ctx)
 	if err != nil {
-		return BearerStats{}, fmt.Errorf("reading MBIM bearer statistics: %w", err)
+		return BearerStats{}, err
 	}
 	return BearerStats{
 		RXBytes:   stats.InOctets,
@@ -227,7 +227,7 @@ func (s *session) Watch(ctx context.Context) (<-chan Result[BearerEvent], error)
 	return contract.PollStream(ctx, 2*time.Second, func(ctx context.Context) (BearerEvent, error) {
 		connect, err := s.backend.client.QueryConnect(ctx, mbimproto.SessionID(s.id))
 		if err != nil {
-			return BearerEvent{}, fmt.Errorf("reading MBIM bearer: %w", err)
+			return BearerEvent{}, err
 		}
 		s.mu.Lock()
 		s.infoValue.Connected = connect.ActivationState == mbimproto.ActivationStateActivated
@@ -237,7 +237,7 @@ func (s *session) Watch(ctx context.Context) (<-chan Result[BearerEvent], error)
 		if connected {
 			ip, err := s.backend.client.IPConfiguration(ctx, mbimproto.SessionID(s.id))
 			if err != nil {
-				return BearerEvent{}, fmt.Errorf("reading MBIM bearer IP configuration: %w", err)
+				return BearerEvent{}, err
 			}
 			s.mu.Lock()
 			s.infoValue.Network = networkConfig(interfaceName, ip)
@@ -259,7 +259,7 @@ func (s *session) Disconnect(ctx context.Context) error {
 		ContextType:       mbimproto.ContextTypeInternet,
 	})
 	if err != nil {
-		return fmt.Errorf("disconnecting MBIM session %d: %w", s.id, err)
+		return fmt.Errorf("disconnecting session %d: %w", s.id, err)
 	}
 	s.closed = true
 	s.infoValue.Connected = false

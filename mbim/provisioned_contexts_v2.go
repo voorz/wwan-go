@@ -186,7 +186,7 @@ func (c *ProvisionedContextV2) UnmarshalBinary(data []byte) error {
 		}
 		refs[index] = ref
 	}
-	if err := validateContextStringRefs(data, dataStart, refs); err != nil {
+	if err := validateRecordContextStringRefs(data, dataStart, refs); err != nil {
 		return fmt.Errorf("parsing MBIM provisioned context V2 strings: %w", err)
 	}
 	values := make([]string, 3)

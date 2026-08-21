@@ -53,23 +53,23 @@ func (b *Backend) Close() error { return b.client.Close() }
 func (b *Backend) Info(ctx context.Context) (Info, error) {
 	manufacturer, err := b.client.Manufacturer(ctx)
 	if err != nil {
-		return Info{}, fmt.Errorf("reading QMI manufacturer: %w", err)
+		return Info{}, err
 	}
 	model, err := b.client.ModelID(ctx)
 	if err != nil {
-		return Info{}, fmt.Errorf("reading QMI model: %w", err)
+		return Info{}, err
 	}
 	revision, err := b.client.RevisionInfo(ctx)
 	if err != nil {
-		return Info{}, fmt.Errorf("reading QMI revision: %w", err)
+		return Info{}, err
 	}
 	hardware, err := b.client.HardwareRevision(ctx)
 	if err != nil {
-		return Info{}, fmt.Errorf("reading QMI hardware revision: %w", err)
+		return Info{}, err
 	}
 	serials, err := b.client.SerialNumbers(ctx)
 	if err != nil {
-		return Info{}, fmt.Errorf("reading QMI serial numbers: %w", err)
+		return Info{}, err
 	}
 	result := Info{
 		Manufacturer:     manufacturer,
@@ -88,11 +88,11 @@ func (b *Backend) Info(ctx context.Context) (Info, error) {
 func (b *Backend) Capabilities(ctx context.Context) (Capabilities, error) {
 	caps, err := b.client.DeviceCapabilities(ctx)
 	if err != nil {
-		return Capabilities{}, fmt.Errorf("reading QMI device capabilities: %w", err)
+		return Capabilities{}, err
 	}
 	versions, err := b.client.ServiceVersions(ctx)
 	if err != nil {
-		return Capabilities{}, fmt.Errorf("reading QMI service versions: %w", err)
+		return Capabilities{}, fmt.Errorf("reading service versions: %w", err)
 	}
 	technologies := technologyFromDMSRadios(caps.RadioInterfaces)
 	result := Capabilities{
@@ -179,10 +179,10 @@ func (b *Backend) SetPowerState(ctx context.Context, state PowerState) error {
 	case PowerStateOn:
 		mode = qcom.DMSOperatingModeOnline
 	default:
-		return fmt.Errorf("setting QMI power state: state %d is invalid", state)
+		return fmt.Errorf("setting power state: state %d is invalid", state)
 	}
 	if err := b.client.SetOperatingMode(ctx, mode); err != nil {
-		return fmt.Errorf("setting QMI power state: %w", err)
+		return err
 	}
 	return nil
 }
@@ -190,7 +190,7 @@ func (b *Backend) SetPowerState(ctx context.Context, state PowerState) error {
 func (b *Backend) PowerState(ctx context.Context) (PowerState, error) {
 	info, err := b.client.OperatingModeInfo(ctx)
 	if err != nil {
-		return PowerStateUnknown, fmt.Errorf("reading QMI power state: %w", err)
+		return PowerStateUnknown, err
 	}
 	return powerStateFromInfo(info), nil
 }
@@ -199,7 +199,7 @@ func (b *Backend) Reset(ctx context.Context) error {
 	b.ipaMu.Lock()
 	defer b.ipaMu.Unlock()
 	if err := b.client.DMSReset(ctx); err != nil {
-		return fmt.Errorf("resetting QMI modem: %w", err)
+		return err
 	}
 	clear(b.ipaReady)
 	return nil
@@ -207,7 +207,7 @@ func (b *Backend) Reset(ctx context.Context) error {
 
 func (b *Backend) SetCapabilities(ctx context.Context, technologies Technology) error {
 	if technologies == 0 || technologies&^TechnologyAny != 0 {
-		return fmt.Errorf("setting QMI capabilities: technologies %#x are invalid", technologies)
+		return fmt.Errorf("setting capabilities: technologies %#x are invalid", technologies)
 	}
 	preference := modePreferenceFromTechnology(technologies)
 	duration := qcom.NASChangePermanent
@@ -215,10 +215,10 @@ func (b *Backend) SetCapabilities(ctx context.Context, technologies Technology) 
 		ModePreference: &preference,
 		ChangeDuration: &duration,
 	}); err != nil {
-		return fmt.Errorf("setting QMI capabilities: %w", err)
+		return err
 	}
 	if err := b.Reset(ctx); err != nil {
-		return fmt.Errorf("setting QMI capabilities: %w", err)
+		return fmt.Errorf("resetting after setting capabilities: %w", err)
 	}
 	return nil
 }
@@ -226,11 +226,11 @@ func (b *Backend) SetCapabilities(ctx context.Context, technologies Technology) 
 func (b *Backend) Status(ctx context.Context) (Status, error) {
 	info, err := b.client.OperatingModeInfo(ctx)
 	if err != nil {
-		return Status{}, fmt.Errorf("reading QMI operating mode: %w", err)
+		return Status{}, err
 	}
 	card, err := b.client.CardStatus(ctx)
 	if err != nil {
-		return Status{}, fmt.Errorf("reading QMI card status: %w", err)
+		return Status{}, err
 	}
 	status := Status{
 		Power: powerStateFromInfo(info),
@@ -287,7 +287,7 @@ func (b *Backend) SIMInfo(ctx context.Context) (SIMInfo, error) {
 func (b *Backend) simInfo(ctx context.Context) (SIMInfo, error) {
 	status, err := b.client.CardStatus(ctx)
 	if err != nil {
-		return SIMInfo{}, fmt.Errorf("reading QMI card status: %w", err)
+		return SIMInfo{}, err
 	}
 	return b.simInfoFromCardStatus(ctx, status), nil
 }
@@ -347,11 +347,11 @@ func (b *Backend) readSIMICCID(ctx context.Context) (string, error) {
 		Length: qmiSIMICCIDFileSize,
 	})
 	if err != nil {
-		return "", fmt.Errorf("reading QMI UIM EF_ICCID: %w", err)
+		return "", fmt.Errorf("reading UIM EF_ICCID: %w", err)
 	}
 	var iccid simfile.ICCID
 	if err := iccid.UnmarshalBinary(raw); err != nil {
-		return "", fmt.Errorf("decoding QMI UIM EF_ICCID: %w", err)
+		return "", fmt.Errorf("decoding UIM EF_ICCID: %w", err)
 	}
 	return iccid.String(), nil
 }
@@ -359,7 +359,7 @@ func (b *Backend) readSIMICCID(ctx context.Context) (string, error) {
 func (b *Backend) SIMSlots(ctx context.Context) ([]SIMSlot, error) {
 	status, err := b.client.SlotStatus(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reading QMI SIM slots: %w", err)
+		return nil, err
 	}
 	return simSlotsFromStatus(status), nil
 }
@@ -480,7 +480,7 @@ func decodeSlotICCID(value []byte) string {
 
 func (b *Backend) SetPrimarySIMSlot(ctx context.Context, slot uint8) error {
 	if err := b.client.SwitchSlot(ctx, 1, uint32(slot)); err != nil {
-		return fmt.Errorf("setting QMI primary SIM slot: %w", err)
+		return err
 	}
 	return nil
 }
@@ -488,7 +488,7 @@ func (b *Backend) SetPrimarySIMSlot(ctx context.Context, slot uint8) error {
 func (b *Backend) SendPIN(ctx context.Context, pin string) error {
 	_, err := b.client.VerifyPIN(ctx, qcom.PINVerifyRequest{Session: qcom.SessionPrimaryGWProvisioning, ID: qcom.PINIDPIN1, PIN: pin})
 	if err != nil {
-		return fmt.Errorf("sending QMI PIN: %w", err)
+		return err
 	}
 	return nil
 }
@@ -496,7 +496,7 @@ func (b *Backend) SendPIN(ctx context.Context, pin string) error {
 func (b *Backend) SendPUK(ctx context.Context, puk, newPIN string) error {
 	_, err := b.client.UnblockPIN(ctx, qcom.PINUnblockRequest{Session: qcom.SessionPrimaryGWProvisioning, ID: qcom.PINIDPIN1, PUK: puk, NewPIN: newPIN})
 	if err != nil {
-		return fmt.Errorf("sending QMI PUK: %w", err)
+		return err
 	}
 	return nil
 }
@@ -504,7 +504,7 @@ func (b *Backend) SendPUK(ctx context.Context, puk, newPIN string) error {
 func (b *Backend) EnablePIN(ctx context.Context, pin string, enabled bool) error {
 	_, err := b.client.SetPINProtection(ctx, qcom.PINProtectionRequest{Session: qcom.SessionPrimaryGWProvisioning, ID: qcom.PINIDPIN1, PIN: pin, Enable: enabled})
 	if err != nil {
-		return fmt.Errorf("setting QMI PIN protection: %w", err)
+		return err
 	}
 	return nil
 }
@@ -512,7 +512,7 @@ func (b *Backend) EnablePIN(ctx context.Context, pin string, enabled bool) error
 func (b *Backend) ChangePIN(ctx context.Context, oldPIN, newPIN string) error {
 	_, err := b.client.ChangePIN(ctx, qcom.PINChangeRequest{Session: qcom.SessionPrimaryGWProvisioning, ID: qcom.PINIDPIN1, OldPIN: oldPIN, NewPIN: newPIN})
 	if err != nil {
-		return fmt.Errorf("changing QMI PIN: %w", err)
+		return err
 	}
 	return nil
 }
@@ -520,7 +520,7 @@ func (b *Backend) ChangePIN(ctx context.Context, oldPIN, newPIN string) error {
 func (b *Backend) PreferredNetworks(ctx context.Context) ([]PreferredNetwork, error) {
 	result, err := b.client.PreferredNetworks(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reading QMI preferred networks: %w", err)
+		return nil, err
 	}
 	networks := make([]PreferredNetwork, len(result.Networks))
 	for i, network := range result.Networks {
@@ -534,13 +534,13 @@ func (b *Backend) SetPreferredNetworks(ctx context.Context, networks []Preferred
 	for i, network := range networks {
 		var plmn qcom.NASPLMN
 		if err := plmn.UnmarshalText([]byte(network.OperatorID)); err != nil {
-			return fmt.Errorf("setting QMI preferred network %d: %w", i, err)
+			return fmt.Errorf("setting preferred network %d: %w", i, err)
 		}
 		values[i] = qcom.NASPreferredNetwork{PLMN: plmn, AccessTechnology: plmnAccessFromTechnology(network.Technology)}
 	}
 	clear := true
 	if err := b.client.SetPreferredNetworks(ctx, qcom.NASPreferredNetworksConfig{Networks: values, ClearPrevious: &clear}); err != nil {
-		return fmt.Errorf("setting QMI preferred networks: %w", err)
+		return err
 	}
 	return nil
 }
@@ -548,7 +548,7 @@ func (b *Backend) SetPreferredNetworks(ctx context.Context, networks []Preferred
 func (b *Backend) NetworkStatus(ctx context.Context) (NetworkStatus, error) {
 	serving, err := b.client.NASServingSystem(ctx)
 	if err != nil {
-		return NetworkStatus{}, fmt.Errorf("reading QMI serving system: %w", err)
+		return NetworkStatus{}, err
 	}
 	return networkStatusFromServing(serving), nil
 }
@@ -625,14 +625,14 @@ func (b *Backend) Register(ctx context.Context, cfg RegisterConfig) error {
 	if cfg.OperatorID != "" {
 		var plmn qcom.NASPLMN
 		if err := plmn.UnmarshalText([]byte(cfg.OperatorID)); err != nil {
-			return fmt.Errorf("registering QMI network: %w", err)
+			return fmt.Errorf("registering network: %w", err)
 		}
 		radio := nasRadioFromTechnology(cfg.Technology)
 		registration.Action = qcom.NASRegisterManually
 		registration.Manual = &qcom.NASManualRegistration{PLMN: plmn, RadioInterface: radio}
 	}
 	if err := b.client.RegisterNetwork(ctx, registration); err != nil {
-		return fmt.Errorf("registering QMI network: %w", err)
+		return err
 	}
 	return nil
 }
@@ -640,7 +640,7 @@ func (b *Backend) Register(ctx context.Context, cfg RegisterConfig) error {
 func (b *Backend) ScanNetworks(ctx context.Context) ([]Operator, error) {
 	scan, err := b.client.NetworkScan(ctx, qcom.NASNetworkScanConfig{})
 	if err != nil {
-		return nil, fmt.Errorf("scanning QMI networks: %w", err)
+		return nil, err
 	}
 	operators := make([]Operator, len(scan.Networks))
 	for i, network := range scan.Networks {
@@ -662,7 +662,7 @@ func (b *Backend) SetPacketServiceState(ctx context.Context, state PacketService
 		action = qcom.NASPSDetach
 	}
 	if err := b.client.NASAttachDetach(ctx, action); err != nil {
-		return fmt.Errorf("setting QMI packet service: %w", err)
+		return err
 	}
 	return nil
 }
@@ -674,9 +674,9 @@ func (b *Backend) FacilityLocks(ctx context.Context) ([]FacilityLock, error) {
 		status, err := b.client.DMSGetCKStatus(ctx, uimFacility(facility))
 		if err != nil {
 			if isUnsupported(err) {
-				return nil, fmt.Errorf("reading QMI facility %d: %w: %w", facility, ErrNotSupported, err)
+				return nil, fmt.Errorf("reading facility %d: %w: %w", facility, ErrNotSupported, err)
 			}
-			return nil, fmt.Errorf("reading QMI facility %d: %w", facility, err)
+			return nil, fmt.Errorf("reading facility %d: %w", facility, err)
 		}
 		result = append(result, FacilityLock{
 			Facility:       facility,
@@ -700,7 +700,7 @@ func (b *Backend) SetFacilityLock(ctx context.Context, facility Facility, enable
 		Key:      key,
 	})
 	if err != nil {
-		return fmt.Errorf("setting QMI facility lock: %w", err)
+		return err
 	}
 	return nil
 }
@@ -708,7 +708,7 @@ func (b *Backend) SetFacilityLock(ctx context.Context, facility Facility, enable
 func (b *Backend) UnblockFacilityLock(ctx context.Context, facility Facility, key string) error {
 	_, err := b.client.DMSUnblockCK(ctx, qcom.DMSCKUnblockRequest{Facility: uimFacility(facility), Key: key})
 	if err != nil {
-		return fmt.Errorf("unblocking QMI facility lock: %w", err)
+		return err
 	}
 	return nil
 }
@@ -719,7 +719,7 @@ func (b *Backend) InitialEPSBearer(ctx context.Context) (InitialEPSConfig, error
 		return InitialEPSConfig{}, nil
 	}
 	if err != nil {
-		return InitialEPSConfig{}, fmt.Errorf("reading QMI initial EPS bearer: %w", err)
+		return InitialEPSConfig{}, err
 	}
 	result := InitialEPSConfig{}
 	if parameters.APNKnown {
@@ -737,17 +737,17 @@ func (b *Backend) InitialEPSBearer(ctx context.Context) (InitialEPSConfig, error
 func (b *Backend) InitialEPSSettings(ctx context.Context) (InitialEPSConfig, error) {
 	list, err := b.client.WDSLTEAttachPDNList(ctx)
 	if err != nil {
-		return InitialEPSConfig{}, fmt.Errorf("reading QMI initial EPS settings: %w", err)
+		return InitialEPSConfig{}, err
 	}
 	if !list.CurrentKnown || len(list.Current) == 0 {
 		return b.InitialEPSBearer(ctx)
 	}
 	if list.Current[0] > math.MaxUint8 {
-		return InitialEPSConfig{}, fmt.Errorf("reading QMI initial EPS settings: profile ID %d exceeds 255", list.Current[0])
+		return InitialEPSConfig{}, fmt.Errorf("reading initial EPS settings: profile ID %d exceeds 255", list.Current[0])
 	}
 	settings, err := b.client.WDSProfileSettings(ctx, qcom.WDSProfileID{Type: qcom.WDSProfileType3GPP, Index: uint8(list.Current[0])})
 	if err != nil {
-		return InitialEPSConfig{}, fmt.Errorf("reading QMI initial EPS profile %d: %w", list.Current[0], err)
+		return InitialEPSConfig{}, fmt.Errorf("reading initial EPS profile %d: %w", list.Current[0], err)
 	}
 	return initialEPSFromProfile(profileFromSettings(settings)), nil
 }
@@ -755,7 +755,7 @@ func (b *Backend) InitialEPSSettings(ctx context.Context) (InitialEPSConfig, err
 func (b *Backend) SetInitialEPSSettings(ctx context.Context, cfg InitialEPSConfig) (InitialEPSConfig, error) {
 	list, err := b.client.WDSLTEAttachPDNList(ctx)
 	if err != nil {
-		return InitialEPSConfig{}, fmt.Errorf("reading QMI initial EPS profile list: %w", err)
+		return InitialEPSConfig{}, fmt.Errorf("reading initial EPS profile list: %w", err)
 	}
 	profileID := cfg.ProfileID
 	profileKnown := profileID != 0
@@ -764,7 +764,7 @@ func (b *Backend) SetInitialEPSSettings(ctx context.Context, cfg InitialEPSConfi
 		profileID = int32(list.Current[0])
 	}
 	if profileID > math.MaxUint8 {
-		return InitialEPSConfig{}, fmt.Errorf("setting QMI initial EPS settings: profile ID %d exceeds 255", profileID)
+		return InitialEPSConfig{}, fmt.Errorf("setting initial EPS settings: profile ID %d exceeds 255", profileID)
 	}
 
 	if profileKnown {
@@ -780,7 +780,7 @@ func (b *Backend) SetInitialEPSSettings(ctx context.Context, cfg InitialEPSConfi
 			Enabled:        &enabled,
 		})
 		if err != nil {
-			return InitialEPSConfig{}, fmt.Errorf("setting QMI initial EPS profile: %w", err)
+			return InitialEPSConfig{}, fmt.Errorf("setting initial EPS profile: %w", err)
 		}
 	} else {
 		profile, createErr := b.CreateProfile(ctx, ProfileConfig{
@@ -792,7 +792,7 @@ func (b *Backend) SetInitialEPSSettings(ctx context.Context, cfg InitialEPSConfi
 			Enabled:        true,
 		})
 		if createErr != nil {
-			return InitialEPSConfig{}, fmt.Errorf("creating QMI initial EPS profile: %w", createErr)
+			return InitialEPSConfig{}, fmt.Errorf("creating initial EPS profile: %w", createErr)
 		}
 		profileID = profile.ID
 		created = true
@@ -809,7 +809,7 @@ func (b *Backend) SetInitialEPSSettings(ctx context.Context, cfg InitialEPSConfi
 	}
 	action := qcom.WDSAttachPDNListNoAction
 	if err := b.client.WDSSetLTEAttachPDNList(ctx, profiles, &action); err != nil {
-		setErr := fmt.Errorf("setting QMI initial EPS profile list: %w", err)
+		setErr := fmt.Errorf("setting initial EPS profile list: %w", err)
 		if created {
 			setErr = errors.Join(setErr, b.DeleteProfile(ctx, profileID))
 		}
@@ -850,7 +850,7 @@ func (b *Backend) Signal(ctx context.Context) (Signal, error) {
 		return Signal{}, nil
 	}
 	if err != nil {
-		return Signal{}, fmt.Errorf("reading QMI signal: %w", err)
+		return Signal{}, err
 	}
 	return signalFromInfo(info), nil
 }
@@ -883,18 +883,18 @@ func signalFromInfo(info qcom.NASSignalInfo) Signal {
 
 func (b *Backend) SetSignalThresholds(ctx context.Context, thresholds SignalThresholds) error {
 	if thresholds.ErrorRateThreshold {
-		return fmt.Errorf("setting QMI signal thresholds: %w", ErrNotSupported)
+		return ErrNotSupported
 	}
 	lteReport, nr5gReport, err := signalReportConfigs(thresholds.Interval)
 	if err != nil {
-		return fmt.Errorf("setting QMI signal thresholds: %w", err)
+		return fmt.Errorf("setting signal thresholds: %w", err)
 	}
 	deltaDB := thresholds.RSSIChangeDB
 	if deltaDB == 0 {
 		deltaDB = 5
 	}
 	if deltaDB > math.MaxUint16/10 {
-		return fmt.Errorf("setting QMI signal thresholds: RSSI delta %d dB is too large", deltaDB)
+		return fmt.Errorf("setting signal thresholds: RSSI delta %d dB is too large", deltaDB)
 	}
 	delta := uint16(deltaDB * 10)
 	config := qcom.NASSignalThresholdConfig2{
@@ -907,7 +907,7 @@ func (b *Backend) SetSignalThresholds(ctx context.Context, thresholds SignalThre
 	if err := b.client.ConfigureSignalInfo2(ctx, config); err == nil {
 		return nil
 	} else if !isSignalV2Unsupported(err) {
-		return fmt.Errorf("setting QMI signal thresholds: %w", err)
+		return err
 	}
 
 	legacy := make([]int8, 0, 16)
@@ -915,7 +915,7 @@ func (b *Backend) SetSignalThresholds(ctx context.Context, thresholds SignalThre
 		legacy = append(legacy, int8(value))
 	}
 	if err := b.client.ConfigureSignalInfo(ctx, qcom.NASSignalThresholdConfig{RSSI: legacy, LTEReport: lteReport}); err != nil {
-		return fmt.Errorf("setting QMI signal thresholds: %w", err)
+		return err
 	}
 	return nil
 }
@@ -928,7 +928,7 @@ func signalReportConfigs(interval time.Duration) (*qcom.NASLTESignalReportConfig
 		return nil, nil, errors.New("signal interval is negative")
 	}
 	if interval > 5*time.Second {
-		return nil, nil, fmt.Errorf("signal interval %s exceeds the QMI LTE limit of 5s", interval)
+		return nil, nil, fmt.Errorf("signal interval %s exceeds the LTE limit of 5s", interval)
 	}
 
 	seconds := uint8((interval + time.Second - 1) / time.Second)
@@ -948,13 +948,13 @@ func isSignalV2Unsupported(err error) bool {
 func (b *Backend) Profiles(ctx context.Context) ([]Profile, error) {
 	entries, err := b.client.WDSProfiles(ctx, qcom.WDSProfileType3GPP)
 	if err != nil {
-		return nil, fmt.Errorf("reading QMI profiles: %w", err)
+		return nil, err
 	}
 	profiles := make([]Profile, 0, len(entries))
 	for _, entry := range entries {
 		settings, err := b.client.WDSProfileSettings(ctx, entry.ID)
 		if err != nil {
-			return nil, fmt.Errorf("reading QMI profile %d: %w", entry.ID.Index, err)
+			return nil, err
 		}
 		profiles = append(profiles, profileFromSettings(settings))
 	}
@@ -969,11 +969,11 @@ func (b *Backend) CreateProfile(ctx context.Context, cfg ProfileConfig) (Profile
 	profileCfg.APNType = &apnType
 	id, err := b.client.WDSCreateProfileWithConfig(ctx, profileCfg)
 	if err != nil {
-		return Profile{}, fmt.Errorf("creating QMI profile: %w", err)
+		return Profile{}, err
 	}
 	settings, err := b.client.WDSProfileSettings(ctx, id)
 	if err != nil {
-		return Profile{}, fmt.Errorf("reading created QMI profile: %w", err)
+		return Profile{}, fmt.Errorf("reading created profile: %w", err)
 	}
 	return profileFromSettings(settings), nil
 }
@@ -998,21 +998,21 @@ func (b *Backend) UpdateProfile(ctx context.Context, update ProfileUpdate) (Prof
 		value.APNDisabled = &disabled
 	}
 	if err := b.client.WDSUpdateProfile(ctx, id, value); err != nil {
-		return Profile{}, fmt.Errorf("updating QMI profile: %w", err)
+		return Profile{}, err
 	}
 	settings, err := b.client.WDSProfileSettings(ctx, id)
 	if err != nil {
-		return Profile{}, fmt.Errorf("reading updated QMI profile: %w", err)
+		return Profile{}, fmt.Errorf("reading updated profile: %w", err)
 	}
 	return profileFromSettings(settings), nil
 }
 
 func (b *Backend) DeleteProfile(ctx context.Context, id int32) error {
 	if id > 255 {
-		return fmt.Errorf("deleting QMI profile: profile ID %d exceeds 255", id)
+		return fmt.Errorf("deleting profile: profile ID %d exceeds 255", id)
 	}
 	if err := b.client.WDSDeleteProfile(ctx, uint8(id)); err != nil {
-		return fmt.Errorf("deleting QMI profile: %w", err)
+		return err
 	}
 	return nil
 }
@@ -1072,9 +1072,9 @@ func (b *Backend) SAR(ctx context.Context) (SARState, error) {
 	state, err := b.client.SARRFState(ctx)
 	if err != nil {
 		if isSARUnsupported(err) {
-			return SARState{}, fmt.Errorf("reading QMI SAR state: %w: %w", ErrNotSupported, err)
+			return SARState{}, fmt.Errorf("reading SAR state: %w: %w", ErrNotSupported, err)
 		}
-		return SARState{}, fmt.Errorf("reading QMI SAR state: %w", err)
+		return SARState{}, err
 	}
 	return SARState{Enabled: true, PowerLevel: uint32(state)}, nil
 }
@@ -1098,10 +1098,10 @@ func isRadioUnavailable(err error) bool {
 
 func (b *Backend) SetSAR(ctx context.Context, state SARState) error {
 	if !state.Enabled {
-		return errors.New("setting QMI SAR state: disabling SAR is not supported")
+		return errors.New("setting SAR state: disabling SAR is not supported")
 	}
 	if err := b.client.SetSARRFState(ctx, qcom.SARRFState(state.PowerLevel)); err != nil {
-		return fmt.Errorf("setting QMI SAR state: %w", err)
+		return err
 	}
 	return nil
 }
@@ -1109,7 +1109,7 @@ func (b *Backend) SetSAR(ctx context.Context, state SARState) error {
 func (b *Backend) FirmwareUpdateInfo(ctx context.Context) (FirmwareUpdateInfo, error) {
 	revision, err := b.client.RevisionInfo(ctx)
 	if err != nil {
-		return FirmwareUpdateInfo{}, fmt.Errorf("reading QMI firmware revision: %w", err)
+		return FirmwareUpdateInfo{}, err
 	}
 	return FirmwareUpdateInfo{Methods: []FirmwareUpdateMethod{FirmwareUpdateQDL}, Version: revision.Revision, Ports: []string{b.device}}, nil
 }

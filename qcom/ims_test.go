@@ -134,6 +134,7 @@ func TestOpenIMSPDNNegotiatesNetworkIPFamilyRestriction(t *testing.T) {
 				},
 				{resp: successResponse(MessageReleaseClientID)},
 				{resp: allocatedClientResponse(ServiceWDS, 3)},
+				{resp: successResponse(MessageWDSBindMuxDataPort)},
 				{
 					check: func(req Request) {
 						if req.MessageID != MessageWDSSetClientIPFamily {
@@ -143,7 +144,6 @@ func TestOpenIMSPDNNegotiatesNetworkIPFamilyRestriction(t *testing.T) {
 					},
 					resp: successResponse(MessageWDSSetClientIPFamily),
 				},
-				{resp: successResponse(MessageWDSBindMuxDataPort)},
 				{
 					check: func(req Request) {
 						assertTLV(t, req.TLVs, 0x19, []byte{byte(tt.retryPreference)})
@@ -214,6 +214,7 @@ func TestOpenIMSPDNKeepsExplicitIPPreference(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			transport := &fakeTransport{t: t, calls: []transportCall{
 				{resp: allocatedClientResponse(ServiceWDS, 2)},
+				{resp: successResponse(MessageWDSBindMuxDataPort)},
 				{
 					check: func(req Request) {
 						if req.MessageID != MessageWDSSetClientIPFamily {
@@ -223,7 +224,6 @@ func TestOpenIMSPDNKeepsExplicitIPPreference(t *testing.T) {
 					},
 					resp: successResponse(MessageWDSSetClientIPFamily),
 				},
-				{resp: successResponse(MessageWDSBindMuxDataPort)},
 				{
 					check: func(req Request) {
 						assertTLV(t, req.TLVs, 0x19, []byte{byte(tt.preference)})
@@ -301,13 +301,13 @@ func TestOpenIMSPDNReleasesBothWDSClientsWhenNegotiationFails(t *testing.T) {
 					resp: successResponse(MessageReleaseClientID),
 				},
 				{resp: allocatedClientResponse(ServiceWDS, 3)},
+				{resp: successResponse(MessageWDSBindMuxDataPort)},
 				{
 					check: func(req Request) {
 						assertTLV(t, req.TLVs, 0x01, []byte{byte(tt.family)})
 					},
 					resp: successResponse(MessageWDSSetClientIPFamily),
 				},
-				{resp: successResponse(MessageWDSBindMuxDataPort)},
 				{
 					check: func(req Request) {
 						assertTLV(t, req.TLVs, 0x19, []byte{byte(tt.preference)})

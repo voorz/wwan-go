@@ -104,3 +104,51 @@ func TestModeRegistration(t *testing.T) {
 		})
 	}
 }
+
+func TestDataClassUsesNegotiatedMBIMExVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		version    uint16
+		technology Technology
+		want       mbimproto.DataClass
+	}{
+		{
+			name:       "MBIMEx 2 keeps NSA and SA bits",
+			version:    mbimExVersion20,
+			technology: TechnologyNR5GNSA | TechnologyNR5GSA,
+			want:       mbimproto.DataClass5GNSA | mbimproto.DataClass5GSA,
+		},
+		{
+			name:       "MBIMEx 2 keeps NSA only",
+			version:    mbimExVersion20,
+			technology: TechnologyNR5GNSA,
+			want:       mbimproto.DataClass5GNSA,
+		},
+		{
+			name:       "MBIMEx 2 keeps SA only",
+			version:    mbimExVersion20,
+			technology: TechnologyNR5GSA,
+			want:       mbimproto.DataClass5GSA,
+		},
+		{
+			name:       "MBIMEx 3 uses generic 5G bit for NSA",
+			version:    mbimExVersion30,
+			technology: TechnologyNR5GNSA,
+			want:       mbimproto.DataClass5G,
+		},
+		{
+			name:       "MBIMEx 4 uses generic 5G bit for SA",
+			version:    0x0400,
+			technology: TechnologyLTE | TechnologyNR5GSA,
+			want:       mbimproto.DataClassLTE | mbimproto.DataClass5G,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := dataClass(tt.version, tt.technology); got != tt.want {
+				t.Fatalf("dataClass(%#x, %#x) = %#x, want %#x", tt.version, tt.technology, got, tt.want)
+			}
+		})
+	}
+}

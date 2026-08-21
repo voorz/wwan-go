@@ -16,13 +16,13 @@ func (*Backend) MessageStorages(context.Context) (MessageStorageInfo, error) {
 func (b *Backend) ListMessages(ctx context.Context) ([]Message, error) {
 	read, err := b.client.ReadSMS(ctx, mbimproto.SMSFormatPDU, mbimproto.SMSReadFlagAll, 0)
 	if err != nil {
-		return nil, fmt.Errorf("listing MBIM messages: %w", err)
+		return nil, fmt.Errorf("listing messages: %w", err)
 	}
 	parts := make([]sms.Part, 0, len(read.PDURecords))
 	for _, record := range read.PDURecords {
 		var part sms.Part
 		if err := part.UnmarshalBinary(record.PDU); err != nil {
-			return nil, fmt.Errorf("decoding MBIM message %d: %w", record.MessageIndex, err)
+			return nil, fmt.Errorf("decoding message %d: %w", record.MessageIndex, err)
 		}
 		part.Message.ID = record.MessageIndex
 		part.Message.Storage = MessageStorageDevice
@@ -35,7 +35,7 @@ func (b *Backend) ListMessages(ctx context.Context) ([]Message, error) {
 
 func (b *Backend) ReadStoredMessage(ctx context.Context, ref MessageRef) (Message, error) {
 	if ref.Storage != MessageStorageUnknown && ref.Storage != MessageStorageDevice {
-		return Message{}, fmt.Errorf("reading MBIM message: storage %d is unsupported", ref.Storage)
+		return Message{}, fmt.Errorf("reading message: storage %d is unsupported", ref.Storage)
 	}
 	return b.ReadMessage(ctx, ref.ID)
 }
@@ -43,15 +43,15 @@ func (b *Backend) ReadStoredMessage(ctx context.Context, ref MessageRef) (Messag
 func (b *Backend) ReadMessage(ctx context.Context, id uint32) (Message, error) {
 	read, err := b.client.ReadSMS(ctx, mbimproto.SMSFormatPDU, mbimproto.SMSReadFlagIndex, id)
 	if err != nil {
-		return Message{}, fmt.Errorf("reading MBIM message %d: %w", id, err)
+		return Message{}, fmt.Errorf("reading message %d: %w", id, err)
 	}
 	if len(read.PDURecords) != 1 {
-		return Message{}, fmt.Errorf("reading MBIM message %d: modem returned %d records", id, len(read.PDURecords))
+		return Message{}, fmt.Errorf("reading message %d: modem returned %d records", id, len(read.PDURecords))
 	}
 	record := read.PDURecords[0]
 	var part sms.Part
 	if err := part.UnmarshalBinary(record.PDU); err != nil {
-		return Message{}, fmt.Errorf("decoding MBIM message %d: %w", id, err)
+		return Message{}, fmt.Errorf("decoding message %d: %w", id, err)
 	}
 	part.Message.ID = record.MessageIndex
 	part.Message.Storage = MessageStorageDevice
@@ -69,12 +69,12 @@ func (b *Backend) SendMessage(ctx context.Context, cfg MessageConfig) (SendResul
 	for _, pdu := range pdus {
 		sent, err := b.client.SendSMSPDU(ctx, pdu)
 		if err != nil {
-			return SendResult{}, fmt.Errorf("sending MBIM message part %d: %w", len(result.References)+1, err)
+			return SendResult{}, fmt.Errorf("sending message part %d: %w", len(result.References)+1, err)
 		}
 		result.References = append(result.References, sent.MessageReference)
 		var part sms.Part
 		if err := part.UnmarshalBinary(pdu); err != nil {
-			return SendResult{}, fmt.Errorf("decoding sent MBIM message part %d: %w", len(result.References), err)
+			return SendResult{}, fmt.Errorf("decoding sent message part %d: %w", len(result.References), err)
 		}
 		part.Message.MessageReference = sent.MessageReference
 		part.Message.State = MessageStateStoredSent
@@ -89,14 +89,14 @@ func (b *Backend) StoreMessage(context.Context, MessageConfig) ([]Message, error
 
 func (b *Backend) DeleteMessage(ctx context.Context, id uint32) error {
 	if err := b.client.DeleteSMS(ctx, mbimproto.SMSReadFlagIndex, id); err != nil {
-		return fmt.Errorf("deleting MBIM message %d: %w", id, err)
+		return fmt.Errorf("deleting message %d: %w", id, err)
 	}
 	return nil
 }
 
 func (b *Backend) DeleteStoredMessage(ctx context.Context, ref MessageRef) error {
 	if ref.Storage != MessageStorageUnknown && ref.Storage != MessageStorageDevice {
-		return fmt.Errorf("deleting MBIM message: storage %d is unsupported", ref.Storage)
+		return fmt.Errorf("deleting message: storage %d is unsupported", ref.Storage)
 	}
 	return b.DeleteMessage(ctx, ref.ID)
 }
@@ -104,7 +104,7 @@ func (b *Backend) DeleteStoredMessage(ctx context.Context, ref MessageRef) error
 func (b *Backend) SendPDU(ctx context.Context, pdu []byte) (uint32, error) {
 	result, err := b.client.SendSMSPDU(ctx, slices.Clone(pdu))
 	if err != nil {
-		return 0, fmt.Errorf("sending MBIM PDU: %w", err)
+		return 0, err
 	}
 	return result.MessageReference, nil
 }
@@ -114,19 +114,19 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 	storedMessages, err := b.client.WatchIndicationResults(watchCtx, mbimproto.ServiceSMS, mbimproto.CIDSMSMessageStoreStatus)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("watching MBIM messages: %w", err)
+		return nil, fmt.Errorf("watching messages: %w", err)
 	}
 	flashMessages, err := b.client.WatchIndicationResults(watchCtx, mbimproto.ServiceSMS, mbimproto.CIDSMSRead)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("watching MBIM messages: %w", err)
+		return nil, fmt.Errorf("watching messages: %w", err)
 	}
 	if err := b.ensureWatchNotifications(ctx, mbimproto.DeviceServiceSubscribeEntry{
 		ServiceID: mbimproto.ServiceSMS,
 		CIDs:      []uint32{mbimproto.CIDSMSRead, mbimproto.CIDSMSMessageStoreStatus},
 	}); err != nil {
 		cancel()
-		return nil, fmt.Errorf("watching MBIM messages: %w", err)
+		return nil, err
 	}
 	out := make(chan Result[Message], 8)
 	go func() {
@@ -152,12 +152,12 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 					continue
 				}
 				if indication.Err != nil {
-					sendError(fmt.Errorf("watching MBIM message store: %w", indication.Err))
+					sendError(fmt.Errorf("watching message store: %w", indication.Err))
 					return
 				}
 				var status mbimproto.SMSStoreStatusInfo
 				if err := status.UnmarshalBinary(indication.Value.InformationBuffer); err != nil {
-					sendError(fmt.Errorf("decoding MBIM message store event: %w", err))
+					sendError(fmt.Errorf("decoding message store event: %w", err))
 					return
 				}
 				if status.Flags&mbimproto.SMSStatusFlagNewMessage == 0 {
@@ -170,7 +170,7 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 				}
 				var part sms.Part
 				if err := part.UnmarshalBinary(message.PDU); err != nil {
-					sendError(fmt.Errorf("decoding MBIM message %d: %w", status.MessageIndex, err))
+					sendError(fmt.Errorf("decoding message %d: %w", status.MessageIndex, err))
 					return
 				}
 				part.Message = message
@@ -183,12 +183,12 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 					continue
 				}
 				if indication.Err != nil {
-					sendError(fmt.Errorf("watching MBIM flash messages: %w", indication.Err))
+					sendError(fmt.Errorf("watching flash messages: %w", indication.Err))
 					return
 				}
 				var read mbimproto.SMSReadInfo
 				if err := read.UnmarshalBinary(indication.Value.InformationBuffer); err != nil {
-					sendError(fmt.Errorf("decoding MBIM flash message event: %w", err))
+					sendError(fmt.Errorf("decoding flash message event: %w", err))
 					return
 				}
 				parts, err := flashMessageParts(read)
@@ -209,13 +209,13 @@ func (b *Backend) WatchMessages(ctx context.Context) (<-chan Result[Message], er
 
 func flashMessageParts(read mbimproto.SMSReadInfo) ([]sms.Part, error) {
 	if read.Format != mbimproto.SMSFormatPDU {
-		return nil, fmt.Errorf("decoding MBIM flash messages: format %d is unsupported", read.Format)
+		return nil, fmt.Errorf("decoding flash messages: format %d is unsupported", read.Format)
 	}
 	parts := make([]sms.Part, 0, len(read.PDURecords))
 	for i, record := range read.PDURecords {
 		var part sms.Part
 		if err := part.UnmarshalBinary(record.PDU); err != nil {
-			return nil, fmt.Errorf("decoding MBIM flash message %d: %w", i+1, err)
+			return nil, fmt.Errorf("decoding flash message %d: %w", i+1, err)
 		}
 		part.Message.State = messageState(record.MessageStatus)
 		parts = append(parts, part)

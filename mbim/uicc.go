@@ -434,7 +434,7 @@ func (a *UICCApplication) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("PIN key references: %w", err)
 	}
 	refs := []valueRef{aidRef, labelRef, pinKeyReferencesRef}
-	if err := validateDataBufferRefs(data, 32, refs); err != nil {
+	if err := validateRecordDataBufferRefs(data, 32, refs); err != nil {
 		return fmt.Errorf("application data buffer: %w", err)
 	}
 	if aidRef.size > uiccApplicationIDMaximumSize {

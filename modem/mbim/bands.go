@@ -1,14 +1,11 @@
 package mbim
 
-import (
-	"context"
-	"fmt"
-)
+import "context"
 
 func (b *Backend) SupportedBands(ctx context.Context) ([]Band, error) {
 	caps, err := b.client.DeviceCaps(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reading MBIM supported bands: %w", err)
+		return nil, err
 	}
 	var bands []Band
 	for bit := range 32 {
@@ -25,6 +22,9 @@ func (b *Backend) SupportedBands(ctx context.Context) ([]Band, error) {
 	return bands, nil
 }
 
+// Bands is unavailable in native MBIM: Device Caps reports supported bands,
+// but the standard defines no query for the active band preference.
 func (*Backend) Bands(context.Context) ([]Band, error) { return nil, ErrNotSupported }
 
+// SetBands is unavailable in native MBIM because no standard CID selects bands.
 func (*Backend) SetBands(context.Context, []Band) error { return ErrNotSupported }

@@ -17,7 +17,7 @@ func (b *Backend) InitiateUSSD(ctx context.Context, text string) (USSDMessage, e
 	}
 	result, err := b.client.VoiceOriginateUSSD(ctx, data)
 	if err != nil {
-		return USSDMessage{}, fmt.Errorf("initiating QMI USSD: %w", err)
+		return USSDMessage{}, err
 	}
 	message, err := ussdMessageFromResult(result)
 	if err != nil {
@@ -33,7 +33,7 @@ func (b *Backend) RespondUSSD(ctx context.Context, text string) (USSDMessage, er
 		return USSDMessage{}, err
 	}
 	if err := b.client.VoiceAnswerUSSD(ctx, data); err != nil {
-		return USSDMessage{}, fmt.Errorf("responding to QMI USSD: %w", err)
+		return USSDMessage{}, err
 	}
 	message, err := ussdMessageFromData(data)
 	if err != nil {
@@ -45,7 +45,7 @@ func (b *Backend) RespondUSSD(ctx context.Context, text string) (USSDMessage, er
 
 func (b *Backend) CancelUSSD(ctx context.Context) error {
 	if err := b.client.VoiceCancelUSSD(ctx); err != nil {
-		return fmt.Errorf("canceling QMI USSD: %w", err)
+		return err
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (b *Backend) CancelUSSD(ctx context.Context) error {
 func (b *Backend) WatchUSSD(ctx context.Context) (<-chan Result[USSDMessage], error) {
 	updates, err := b.client.VoiceWatchUSSD(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("watching QMI USSD: %w", err)
+		return nil, err
 	}
 	out := make(chan Result[USSDMessage], 8)
 	go func() {
@@ -91,10 +91,10 @@ func encodeUSSD(text string) (qcom.VoiceUSSDData, error) {
 	}
 	data, err := sms.UCS2(text).MarshalBinary()
 	if err != nil {
-		return qcom.VoiceUSSDData{}, fmt.Errorf("encoding QMI USSD: %w", err)
+		return qcom.VoiceUSSDData{}, fmt.Errorf("encoding USSD: %w", err)
 	}
 	if len(data) > 255 {
-		return qcom.VoiceUSSDData{}, fmt.Errorf("encoding QMI USSD: payload length %d exceeds 255", len(data))
+		return qcom.VoiceUSSDData{}, fmt.Errorf("encoding USSD: payload length %d exceeds 255", len(data))
 	}
 	return qcom.VoiceUSSDData{Encoding: qcom.VoiceUSSDEncodingUCS2, Data: data}, nil
 }
@@ -104,7 +104,7 @@ func ussdMessageFromResult(result qcom.VoiceUSSDResult) (USSDMessage, error) {
 		text := sms.UCS2(string(utf16.Decode(result.UTF16)))
 		data, err := text.MarshalBinary()
 		if err != nil {
-			return USSDMessage{}, fmt.Errorf("decoding QMI USSD result: %w", err)
+			return USSDMessage{}, fmt.Errorf("decoding USSD result: %w", err)
 		}
 		return USSDMessage{Text: text.String(), DCS: uint32(qcom.VoiceUSSDEncodingUCS2), Data: data}, nil
 	}
@@ -123,7 +123,7 @@ func ussdMessageFromEvent(event qcom.VoiceUSSDEvent) (USSDMessage, error) {
 		text := sms.UCS2(string(utf16.Decode(event.UTF16)))
 		data, err := text.MarshalBinary()
 		if err != nil {
-			return USSDMessage{}, fmt.Errorf("decoding QMI USSD event: %w", err)
+			return USSDMessage{}, fmt.Errorf("decoding USSD event: %w", err)
 		}
 		message.Text = text.String()
 		message.Data = data
@@ -149,11 +149,11 @@ func ussdMessageFromData(data qcom.VoiceUSSDData) (USSDMessage, error) {
 	case qcom.VoiceUSSDEncodingUCS2:
 		var text sms.UCS2
 		if err := text.UnmarshalBinary(data.Data); err != nil {
-			return USSDMessage{}, fmt.Errorf("decoding QMI USSD: %w", err)
+			return USSDMessage{}, fmt.Errorf("decoding USSD: %w", err)
 		}
 		message.Text = text.String()
 	default:
-		return USSDMessage{}, fmt.Errorf("decoding QMI USSD: encoding %d is not supported", data.Encoding)
+		return USSDMessage{}, fmt.Errorf("decoding USSD: encoding %d is not supported", data.Encoding)
 	}
 	return message, nil
 }

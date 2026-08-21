@@ -179,16 +179,27 @@ func (t *Transport) closeCore() error {
 }
 
 func (t *Transport) Do(ctx context.Context, req qcom.Request) (qcom.Response, error) {
+	wait, err := t.Dispatch(ctx, req)
+	if err != nil {
+		return qcom.Response{}, err
+	}
+	return wait()
+}
+
+// Dispatch writes a QMI request before returning a function that waits for
+// its response. This lets callers issue ordered requests without waiting for
+// each modem transaction to complete before writing the next one. The caller
+// must invoke the returned function to release the pending transaction.
+func (t *Transport) Dispatch(ctx context.Context, req qcom.Request) (func() (qcom.Response, error), error) {
 	if t.shared {
 		req.TransactionID = t.nextTransactionID(req.Service)
 	}
 	packet, err := (Request{Request: req}).MarshalBinary()
 	if err != nil {
-		return qcom.Response{}, err
+		return nil, err
 	}
 
 	waitCtx, cancel := requestContext(ctx, req.Timeout)
-	defer cancel()
 
 	key := messageKey{
 		service: qcom.ServiceControl,
@@ -201,18 +212,21 @@ func (t *Transport) Do(ctx context.Context, req qcom.Request) (qcom.Response, er
 	}
 	result := make(chan responseResult, 1)
 	if err := t.addPending(key, result); err != nil {
-		return qcom.Response{}, err
+		cancel()
+		return nil, err
 	}
 	t.startReader()
 
 	if err := acquireWrite(waitCtx, t.writeGate); err != nil {
 		t.removePending(key)
-		return qcom.Response{}, err
+		cancel()
+		return nil, err
 	}
 	if err := waitCtx.Err(); err != nil {
 		releaseWrite(t.writeGate)
 		t.removePending(key)
-		return qcom.Response{}, err
+		cancel()
+		return nil, err
 	}
 
 	deadline, hasDeadline := waitCtx.Deadline()
@@ -220,7 +234,8 @@ func (t *Transport) Do(ctx context.Context, req qcom.Request) (qcom.Response, er
 		if err := t.conn.SetWriteDeadline(deadline); err != nil {
 			releaseWrite(t.writeGate)
 			t.removePending(key)
-			return qcom.Response{}, fmt.Errorf("setting QMI write deadline: %w", err)
+			cancel()
+			return nil, fmt.Errorf("setting QMI write deadline: %w", err)
 		}
 	}
 	interruptDone := make(chan struct{})
@@ -240,32 +255,48 @@ func (t *Transport) Do(ctx context.Context, req qcom.Request) (qcom.Response, er
 	if writeErr != nil {
 		if !t.expirePending(key, result) {
 			outcome := <-result
-			return outcome.resp, outcome.err
+			cancel()
+			return func() (qcom.Response, error) {
+				return outcome.resp, outcome.err
+			}, nil
 		}
-		if ctxErr := waitCtx.Err(); ctxErr != nil && writeInterruptedByContext(writeErr) && (written == 0 || written == len(packet)) {
+		ctxErr := waitCtx.Err()
+		cancel()
+		if ctxErr != nil && writeInterruptedByContext(writeErr) && (written == 0 || written == len(packet)) {
 			if written == len(packet) && isClientIDAllocation(req) {
-				return qcom.Response{}, t.failUncertainClientIDAllocation(ctxErr)
+				return nil, t.failUncertainClientIDAllocation(ctxErr)
 			}
-			return qcom.Response{}, ctxErr
+			return nil, ctxErr
 		}
 		terminalErr := &TransportError{Err: fmt.Errorf("writing QMI request: %w", writeErr)}
 		t.fail(terminalErr)
-		return qcom.Response{}, terminalErr
+		return nil, terminalErr
 	}
 
-	select {
-	case result := <-result:
-		return result.resp, result.err
-	case <-waitCtx.Done():
-		if !t.expirePending(key, result) {
-			outcome := <-result
-			return outcome.resp, outcome.err
-		}
-		if isClientIDAllocation(req) {
-			return qcom.Response{}, t.failUncertainClientIDAllocation(waitCtx.Err())
-		}
-		return qcom.Response{}, waitCtx.Err()
-	}
+	var once sync.Once
+	var response qcom.Response
+	var responseErr error
+	return func() (qcom.Response, error) {
+		once.Do(func() {
+			defer cancel()
+			select {
+			case outcome := <-result:
+				response, responseErr = outcome.resp, outcome.err
+			case <-waitCtx.Done():
+				if !t.expirePending(key, result) {
+					outcome := <-result
+					response, responseErr = outcome.resp, outcome.err
+					return
+				}
+				if isClientIDAllocation(req) {
+					responseErr = t.failUncertainClientIDAllocation(waitCtx.Err())
+					return
+				}
+				responseErr = waitCtx.Err()
+			}
+		})
+		return response, responseErr
+	}, nil
 }
 
 func isClientIDAllocation(req qcom.Request) bool {

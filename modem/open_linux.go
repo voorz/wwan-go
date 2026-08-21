@@ -16,17 +16,26 @@ import (
 	qmiproto "github.com/voorz/wwan-go/qcom/qmi"
 )
 
-var (
-	statDevice      = os.Stat
-	openQMIBackend  = openQMI
-	openMBIMBackend = openMBIM
-)
+type modemOpener struct {
+	stat     func(string) (os.FileInfo, error)
+	openQMI  func(context.Context, string, Access) (backend, Access, error)
+	openMBIM func(context.Context, string, Access) (backend, Access, error)
+}
 
 // Open opens a QMI or MBIM control port through the selected access method.
 // The port protocol must come from kernel discovery or be set explicitly by
 // the caller. Open never probes or falls back to another protocol.
 func Open(ctx context.Context, port Port, access Access) (*Modem, error) {
-	if err := validateOpenInput(ctx, port, access); err != nil {
+	opener := modemOpener{
+		stat:     os.Stat,
+		openQMI:  openQMI,
+		openMBIM: openMBIM,
+	}
+	return opener.open(ctx, port, access)
+}
+
+func (o modemOpener) open(ctx context.Context, port Port, access Access) (*Modem, error) {
+	if err := o.validateInput(ctx, port, access); err != nil {
 		return nil, err
 	}
 
@@ -35,9 +44,9 @@ func Open(ctx context.Context, port Port, access Access) (*Modem, error) {
 	var err error
 	switch port.Type {
 	case PortQMI:
-		b, selected, err = openQMIBackend(ctx, port.Path, access)
+		b, selected, err = o.openQMI(ctx, port.Path, access)
 	case PortMBIM:
-		b, selected, err = openMBIMBackend(ctx, port.Path, access)
+		b, selected, err = o.openMBIM(ctx, port.Path, access)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("opening modem port %s: %w", port.Path, err)
@@ -45,7 +54,7 @@ func Open(ctx context.Context, port Port, access Access) (*Modem, error) {
 	return newModem(port, selected, b), nil
 }
 
-func validateOpenInput(ctx context.Context, port Port, access Access) error {
+func (o modemOpener) validateInput(ctx context.Context, port Port, access Access) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -58,7 +67,7 @@ func validateOpenInput(ctx context.Context, port Port, access Access) error {
 	if access != AccessAuto && access != AccessProxy && access != AccessDirect {
 		return fmt.Errorf("opening modem: access method %d is invalid", access)
 	}
-	info, err := statDevice(port.Path)
+	info, err := o.stat(port.Path)
 	if err != nil {
 		return fmt.Errorf("opening modem node %s: %w", port.Path, err)
 	}
@@ -101,7 +110,7 @@ func openQMI(ctx context.Context, device string, access Access) (backend, Access
 	}
 	transport, err := qmiproto.Open(ctx, option)
 	if err != nil {
-		return nil, access, fmt.Errorf("opening QMI transport: %w", err)
+		return nil, access, err
 	}
 	selected := AccessDirect
 	if transport.UsesProxy() {
@@ -110,11 +119,11 @@ func openQMI(ctx context.Context, device string, access Access) (backend, Access
 	client, err := qcom.NewClient(transport)
 	if err != nil {
 		_ = transport.Close() // Cleanup cannot change the client-construction error.
-		return nil, selected, fmt.Errorf("creating QMI client: %w", err)
+		return nil, selected, err
 	}
 	if _, err := client.DeviceCapabilities(ctx); err != nil {
 		_ = client.Close() // Cleanup cannot change the capability-probe error.
-		return nil, selected, fmt.Errorf("probing QMI device capabilities: %w", err)
+		return nil, selected, err
 	}
 	return modemqmi.New(client, device), selected, nil
 }
@@ -131,7 +140,7 @@ func openMBIM(ctx context.Context, device string, access Access) (backend, Acces
 	}
 	client, err := mbimproto.Open(ctx, option)
 	if err != nil {
-		return nil, access, fmt.Errorf("opening MBIM client: %w", err)
+		return nil, access, err
 	}
 	selected := AccessDirect
 	if client.UsesProxy() {
@@ -139,7 +148,7 @@ func openMBIM(ctx context.Context, device string, access Access) (backend, Acces
 	}
 	if _, err := client.DeviceServices(ctx); err != nil {
 		_ = client.Close() // Cleanup cannot change the service-probe error.
-		return nil, selected, fmt.Errorf("probing MBIM device services: %w", err)
+		return nil, selected, err
 	}
 	return modemmbim.New(client, device), selected, nil
 }

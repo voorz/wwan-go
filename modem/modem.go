@@ -21,6 +21,7 @@ const (
 type Modem struct {
 	mu             sync.RWMutex
 	backend        backend
+	clients        clientOpeners
 	port           Port
 	access         Access
 	closed         bool
@@ -34,7 +35,11 @@ type Modem struct {
 
 func newModem(port Port, access Access, b backend) *Modem {
 	return &Modem{
-		backend:        b,
+		backend: b,
+		clients: clientOpeners{
+			openQMI:  openQMIClient,
+			openMBIM: openMBIMClient,
+		},
 		port:           port,
 		access:         access,
 		done:           make(chan struct{}),
@@ -590,54 +595,54 @@ func (m *Modem) Connect(ctx context.Context, cfg ConnectConfig) (*Bearer, error)
 	if cfg.PIN != "" {
 		info, err := b.SIMInfo(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("connecting modem: reading SIM: %w", err)
+			return nil, err
 		}
 		if info.State == SIMStateLocked {
 			if err := b.SendPIN(ctx, cfg.PIN); err != nil {
-				return nil, fmt.Errorf("connecting modem: unlocking SIM: %w", err)
+				return nil, err
 			}
 			if _, err := pollUntil(ctx, connectPollInterval, b.SIMInfo, func(info SIMInfo) bool {
 				return info.State == SIMStateReady
 			}); err != nil {
-				return nil, fmt.Errorf("connecting modem: waiting for SIM readiness: %w", err)
+				return nil, fmt.Errorf("waiting for SIM readiness: %w", err)
 			}
 		}
 	}
 	power, err := b.PowerState(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("connecting modem: reading power state: %w", err)
+		return nil, err
 	}
 	if power != PowerStateOn {
 		if err := m.setPowerState(ctx, b, PowerStateOn); err != nil {
-			return nil, fmt.Errorf("connecting modem: powering modem: %w", err)
+			return nil, err
 		}
 	}
 	network, err := b.NetworkStatus(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("connecting modem: reading network: %w", err)
+		return nil, err
 	}
 	registered := network.Registration == RegistrationHome || network.Registration == RegistrationRoaming
 	wrongOperator := cfg.OperatorID != "" && network.OperatorID != cfg.OperatorID
 	if !registered || wrongOperator {
 		if err := b.Register(ctx, RegisterConfig{OperatorID: cfg.OperatorID}); err != nil {
-			return nil, fmt.Errorf("connecting modem: registering network: %w", err)
+			return nil, err
 		}
 		network, err = pollUntil(ctx, connectPollInterval, b.NetworkStatus, func(status NetworkStatus) bool {
 			registered := status.Registration == RegistrationHome || status.Registration == RegistrationRoaming
 			return registered && (cfg.OperatorID == "" || status.OperatorID == cfg.OperatorID)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("connecting modem: waiting for network registration: %w", err)
+			return nil, fmt.Errorf("waiting for network registration: %w", err)
 		}
 	}
 	if network.PacketService != PacketServiceAttached {
 		if err := b.SetPacketServiceState(ctx, PacketServiceAttached); err != nil {
-			return nil, fmt.Errorf("connecting modem: attaching packet service: %w", err)
+			return nil, err
 		}
 		if _, err := pollUntil(ctx, connectPollInterval, b.NetworkStatus, func(status NetworkStatus) bool {
 			return status.PacketService == PacketServiceAttached
 		}); err != nil {
-			return nil, fmt.Errorf("connecting modem: waiting for packet service attachment: %w", err)
+			return nil, fmt.Errorf("waiting for packet service attachment: %w", err)
 		}
 	}
 
