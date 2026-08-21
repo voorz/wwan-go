@@ -309,10 +309,17 @@ func (r *usbfsReader) transmitT1(ctx context.Context, request []byte) ([]byte, e
 	block, consumed := t1.buildBlock(dad, t1BlockI, data)
 	lastSend = consumed
 
+	// Declare all variables up front so goto labels don't jump over declarations.
+	var recvBlock []byte
+	var err error
+	var pcb byte
+	var recvNAD byte
+	var recvLEN byte
+
 	for {
 		retries--
 
-		recvBlock, err := r.t1Xcv(ctx, t1, block)
+		recvBlock, err = r.t1Xcv(ctx, t1, block)
 		if err != nil {
 			if errors.Is(err, errParity) {
 				// ISO 7816-3 Rule 7.4.2
@@ -336,8 +343,8 @@ func (r *usbfsReader) transmitT1(ctx context.Context, request []byte) ([]byte, e
 		if len(recvBlock) < 4 { // minimum: NAD+PCB+LEN+EDC(LRC)
 			goto invalidBlock
 		}
-		recvNAD := recvBlock[0]
-		recvLEN := recvBlock[2]
+		recvNAD = recvBlock[0]
+		recvLEN = recvBlock[2]
 		if recvNAD != swapNibbles(dad) || recvLEN == 0xFF {
 			// Wrong NAD or illegal length.
 			if retries <= 0 {
@@ -364,7 +371,7 @@ func (r *usbfsReader) transmitT1(ctx context.Context, request []byte) ([]byte, e
 			continue
 		}
 
-		pcb := recvBlock[1]
+		pcb = recvBlock[1] //nolint:govet
 		switch t1BlockType(pcb) {
 
 		case t1BlockR:

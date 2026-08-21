@@ -133,7 +133,7 @@ func (r *usbfsReader) transmitT0Character(ctx context.Context, request []byte) (
 				}
 				need := remain - fromBuf
 				if need > 0 {
-					if err := r.t0CharTransmit(ctx, nil, uint16(need)); err != nil {
+					if err := r.t0CharTransmit(ctx, nil, uint8(need)); err != nil {
 						return nil, fmt.Errorf("T=0 CHARACTER: ACK receive transmit: %w", err)
 					}
 					resp, err := r.t0CharReceive(ctx, need)
