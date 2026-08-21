@@ -89,9 +89,10 @@ type usbfsReader struct {
 	sequence       uint8
 	active         bool
 	closed         bool
-	cardTimeout    uint32 // T=0 communication timeout in ms (computed from ATR + reader clock)
-	characterLevel bool   // true if reader is at CHARACTER exchange level (host drives T=0 procedure bytes)
-	protocol       uint8  // active card protocol (0 = T=0, 1 = T=1)
+	cardTimeout    uint32      // T=0 communication timeout in ms (computed from ATR + reader clock)
+	characterLevel bool        // true if reader is at CHARACTER exchange level (host drives T=0 procedure bytes)
+	protocol       uint8       // active card protocol (0 = T=0, 1 = T=1)
+	t1             *t1Protocol // T=1 protocol state machine (nil when T=0)
 }
 
 type usbfsBulkTransfer struct {
@@ -462,13 +463,14 @@ func (r *usbfsReader) activate(ctx context.Context) error {
 		return fmt.Errorf("parsing card ATR: %w", err)
 	}
 	if parsed.protocol != 0 {
-		// T=1 is supported at the detection level, but full T=1 transmission
-		// is not yet implemented (returns ErrT1NotImplemented).
-		// For now, only T=0 is fully functional.
+		// T=1 protocol: initialize the T=1 state machine.
 		if r.device.descriptor.protocols&0x02 != 0 {
 			r.protocol = parsed.protocol
+			r.initT1Protocol(parsed)
+			r.active = true
+			return nil
 		}
-		return fmt.Errorf("built-in CCID currently supports T=0 only, ATR selected T=%d (T=1 not yet implemented)", parsed.protocol)
+		return fmt.Errorf("built-in CCID: card selected T=1 but reader does not support it")
 	}
 	if r.device.descriptor.protocols&0x01 == 0 {
 		return errors.New("reader does not advertise T=0 support")
@@ -823,6 +825,10 @@ func (r *usbfsReader) transmit(ctx context.Context, request []byte) ([]byte, err
 	// CHARACTER exchange level: host must drive T=0 procedure bytes.
 	if r.characterLevel {
 		return r.transmitT0Character(ctx, request)
+	}
+	// T=1 protocol: use the T=1 state machine.
+	if r.protocol == 1 && r.t1 != nil {
+		return r.transmitT1(ctx, request)
 	}
 	response, err := r.command(ctx, ccidTransferBlock, 0, 0, 0, request, ccidDataBlock)
 	if err != nil {
