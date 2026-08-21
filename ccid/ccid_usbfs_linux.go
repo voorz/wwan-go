@@ -41,7 +41,8 @@ const (
 	ccidICCAbsent                = 0x02
 	ccidAutoActivation           = 0x00000004
 	ccidAutoVoltage              = 0x00000008
-	ccidAutoParameterNegotiation = 0x00000040
+	ccidAutoParameterNegotiation = 0x00000040 // CCID_CLASS_AUTO_PPS_PROP: reader auto-handles PPS + SetParameters
+	ccidAutoPPSCurrent           = 0x00000080 // CCID_CLASS_AUTO_PPS_CUR: reader auto-handles PPS exchange only
 	ccidExchangeMask             = 0x00070000
 	ccidExchangeTPDU             = 0x00010000
 	ccidExchangeShortAPDU        = 0x00020000
@@ -65,6 +66,8 @@ type usbfsCCIDDescriptor struct {
 	protocols        uint32
 	features         uint32
 	maxMessageLength uint32
+	defaultClock     uint32 // dwDefaultClock (kHz), offset 10 in CCID class descriptor
+	maxDataRate      uint32 // dwMaxDataRate (bps), offset 23 in CCID class descriptor
 }
 
 type usbfsDevice struct {
@@ -79,11 +82,12 @@ type usbfsDevice struct {
 }
 
 type usbfsReader struct {
-	file     *os.File
-	device   usbfsDevice
-	sequence uint8
-	active   bool
-	closed   bool
+	file        *os.File
+	device      usbfsDevice
+	sequence    uint8
+	active      bool
+	closed      bool
+	cardTimeout uint32 // T=0 communication timeout in ms (computed from ATR + reader clock)
 }
 
 type usbfsBulkTransfer struct {
@@ -301,6 +305,8 @@ func parseUSBFSCCIDDescriptor(raw []byte, interfaceNumber, alternateSetting uint
 					maxSlotIndex:     descriptor[4],
 					voltageSupport:   descriptor[5],
 					protocols:        binary.LittleEndian.Uint32(descriptor[6:10]),
+					defaultClock:     binary.LittleEndian.Uint32(descriptor[10:14]),
+					maxDataRate:      binary.LittleEndian.Uint32(descriptor[23:27]),
 					features:         binary.LittleEndian.Uint32(descriptor[40:44]),
 					maxMessageLength: binary.LittleEndian.Uint32(descriptor[44:48]),
 				}, nil
@@ -456,11 +462,49 @@ func (r *usbfsReader) activate(ctx context.Context) error {
 	if r.device.descriptor.protocols&0x01 == 0 {
 		return errors.New("reader does not advertise T=0 support")
 	}
-	if r.device.descriptor.features&ccidAutoParameterNegotiation == 0 {
-		if err := r.setT0Parameters(ctx, parsed); err != nil {
-			return err
+
+	// --- PPS negotiation & SetParameters (aligned with libccid IFDHSetProtocolParameters) ---
+
+	// If the reader fully auto-handles PPS + SetParameters (CCID_CLASS_AUTO_PPS_PROP = 0x40),
+	// skip everything and let the reader firmware do it.
+	if r.device.descriptor.features&ccidAutoParameterNegotiation != 0 {
+		r.active = true
+		return nil
+	}
+
+	// Determine whether PPS exchange is needed.
+	// libccid: skip PPS if CCID_CLASS_AUTO_PPS_CUR (0x80) is set, or if TA2 is present (specific mode).
+	needsPPS := r.device.descriptor.features&ccidAutoPPSCurrent == 0 && !parsed.ta2Present
+
+	// Compute the PPS1 (TA1) value to negotiate, potentially adapting the baud rate.
+	pps1 := parsed.fiDi
+	if needsPPS {
+		adapted, ok := r.adaptBaudRate(parsed)
+		if ok {
+			pps1 = adapted
 		}
 	}
+
+	// Execute PPS exchange if the requested protocol differs from the default,
+	// or if PPS1 is present (TA1 is non-default 0x11).
+	// libccid: if (((pps[1] & 0x0F) != default_protocol) || (PPS_HAS_PPS1(pps)))
+	if needsPPS {
+		defaultProtocol := parsed.defaultProtocol
+		if parsed.protocol != defaultProtocol || pps1 != 0x11 {
+			if err := r.ppsExchange(ctx, parsed.protocol, pps1); err != nil {
+				return fmt.Errorf("PPS exchange failed: %w", err)
+			}
+		}
+	}
+
+	// Always set T=0 parameters explicitly (libccid does this even when PPS was auto-handled by
+	// the reader via CCID_CLASS_AUTO_PPS_CUR, but not when CCID_CLASS_AUTO_PPS_PROP is set).
+	if err := r.setT0Parameters(ctx, parsed, pps1); err != nil {
+		return err
+	}
+	// Compute a card-specific T=0 communication timeout (libccid: T0_card_timeout).
+	r.cardTimeout = r.t0CardTimeout(parsed, pps1)
+
 	r.active = true
 	return nil
 }
@@ -502,11 +546,13 @@ func powerSelections(voltageSupport uint8, features uint32) []uint8 {
 type ccidATR struct {
 	protocol          uint8
 	inverseConvention bool
-	fiDi              uint8
-	tc1               uint8
-	tc2               uint8
+	fiDi              uint8 // TA1: Fi/Di
+	ta2Present        bool  // TA2 present → specific mode
+	tc1               uint8 // TC1: extra guard time
+	tc2               uint8 // TC2: waiting integer (T=0)
 	specificMode      bool
 	implicitParams    bool
+	defaultProtocol   uint8 // protocol indicated by first TD
 }
 
 func parseCCIDATR(atr []byte) (ccidATR, error) {
@@ -560,6 +606,7 @@ func parseCCIDATR(atr []byte) (ccidATR, error) {
 		}
 		if group == 2 {
 			if ta != nil {
+				result.ta2Present = true
 				result.specificMode = true
 				result.protocol = *ta & 0x0f
 				result.implicitParams = *ta&0x10 != 0
@@ -576,8 +623,11 @@ func parseCCIDATR(atr []byte) (ccidATR, error) {
 		}
 		td := atr[offset]
 		offset++
-		if !protocolSeen && !result.specificMode {
-			result.protocol = td & 0x0f
+		if !protocolSeen {
+			result.defaultProtocol = td & 0x0f
+			if !result.specificMode {
+				result.protocol = td & 0x0f
+			}
 			protocolSeen = true
 		}
 		y = td >> 4
@@ -595,21 +645,154 @@ func parseCCIDATR(atr []byte) (ccidATR, error) {
 	return result, nil
 }
 
-func (r *usbfsReader) setT0Parameters(ctx context.Context, atr ccidATR) error {
+// setT0Parameters sends CCID SetParameters for T=0 protocol, aligned with libccid.
+// pps1 is the negotiated TA1 value (may differ from ATR's TA1 after baud rate adaptation).
+func (r *usbfsReader) setT0Parameters(ctx context.Context, atr ccidATR, pps1 uint8) error {
 	fiDi := uint8(0x11)
-	if atr.specificMode {
-		fiDi = atr.fiDi
+	if atr.specificMode || pps1 != 0x11 {
+		fiDi = pps1
 	}
 	tccks := uint8(0)
 	if atr.inverseConvention {
 		tccks = 0x02
 	}
+	// T=0 parameters: [Fi/Di, TCCKS, GuardTime(TC1), WaitingInteger(TC2), ClockStop]
 	parameters := []byte{fiDi, tccks, atr.tc1, atr.tc2, 0x00}
 	_, err := r.command(ctx, ccidSetParameters, 0, 0, 0, parameters, ccidParameters)
 	if err != nil {
-		return fmt.Errorf("setting conservative T=0 parameters: %w", err)
+		return fmt.Errorf("setting T=0 parameters: %w", err)
 	}
 	return nil
+}
+
+// ppsExchange performs a PPS (Protocol Parameter Selection) exchange with the card.
+// This is the Go equivalent of libccid's PPS_Exchange.
+func (r *usbfsReader) ppsExchange(ctx context.Context, protocol uint8, pps1 uint8) error {
+	// Build PPS request: PPSS = 0xFF, PPS0 = protocol, PPS1 = TA1
+	pps := []byte{0xFF, protocol | 0x10, pps1}
+	// Append PPS1 check byte (XOR of all previous bytes)
+	xor := byte(0)
+	for _, b := range pps {
+		xor ^= b
+	}
+	pps = append(pps, xor)
+
+	response, err := r.command(ctx, ccidTransferBlock, 0, 0, 0, pps, ccidDataBlock)
+	if err != nil {
+		return fmt.Errorf("sending PPS request: %w", err)
+	}
+	if len(response.data) < 4 {
+		return fmt.Errorf("PPS response too short: %d bytes", len(response.data))
+	}
+	// PPS response: PPSS(0xFF), PPS0, [PPS1], PCK
+	// Verify PPSS = 0xFF and PPS0 matches
+	if response.data[0] != 0xFF {
+		return fmt.Errorf("PPS response has invalid PPSS: 0x%02X", response.data[0])
+	}
+	// PPS0 in response should have same protocol bits but without PTS1 indicator
+	// (the response echoes the negotiated parameters, not the request indicators)
+	// Just verify the check byte (PCK) is correct
+	respXOR := byte(0)
+	for i := 0; i < len(response.data)-1; i++ {
+		respXOR ^= response.data[i]
+	}
+	if respXOR != response.data[len(response.data)-1] {
+		return fmt.Errorf("PPS response PCK mismatch: expected 0x%02X, got 0x%02X", respXOR, response.data[len(response.data)-1])
+	}
+	return nil
+}
+
+// adaptBaudRate implements libccid's baud rate adaptation logic.
+// It computes the card's baud rate from ATR's TA1 and compares it with the reader's max data rate.
+// If the card is too fast, it steps down TA1 to find a compatible value.
+// Returns the adapted TA1 value and true if adaptation was done.
+func (r *usbfsReader) adaptBaudRate(atr ccidATR) (uint8, bool) {
+	clock := r.device.descriptor.defaultClock
+	maxRate := r.device.descriptor.maxDataRate
+	if clock == 0 || maxRate == 0 {
+		return atr.fiDi, false
+	}
+
+	f, d := fiDiTable(atr.fiDi)
+	if f == 0 || d == 0 {
+		f, d = 372, 1 // default for TA1=0x11
+	}
+
+	cardBaudRate := uint32(1000 * clock * d / f)
+	defaultBaudRate := uint32(1000 * clock * 1 / 372) // default D=1, F=372
+
+	// If the card can work at a higher baud rate than default, and the reader supports it
+	if cardBaudRate > defaultBaudRate && cardBaudRate <= maxRate {
+		return atr.fiDi, true
+	}
+
+	// If the card is too fast for the reader, try to lower TA1
+	if cardBaudRate > maxRate+2 && atr.fiDi <= 0x97 {
+		ta1 := atr.fiDi
+		for ta1 > 0x94 {
+			ta1--
+			f2, d2 := fiDiTable(ta1)
+			if f2 == 0 || d2 == 0 {
+				continue
+			}
+			rate := uint32(1000 * clock * d2 / f2)
+			if rate <= maxRate {
+				return ta1, true
+			}
+		}
+	}
+
+	return atr.fiDi, false
+}
+
+// t0CardTimeout computes a T=0 communication timeout in milliseconds,
+// aligned with libccid's T0_card_timeout function.
+func (r *usbfsReader) t0CardTimeout(atr ccidATR, pps1 uint8) uint32 {
+	clock := r.device.descriptor.defaultClock
+	if clock == 0 {
+		clock = 4000 // default 4 MHz
+	}
+	f, d := fiDiTable(pps1)
+	if f == 0 || d == 0 {
+		f, d = 372, 1
+	}
+
+	// T=0 block waiting time = (960 * TC2 + 960) * 372 * clock / f
+	// This gives the WWT in clock cycles, convert to ms using clock (kHz)
+	tc2 := atr.tc2
+	if tc2 == 0 {
+		tc2 = 0x0A // default
+	}
+
+	// WWT (clocks) = (960 * TC2 + 960) * F
+	wwtCycles := uint32((960*int(tc2) + 960) * int(f))
+	// WWT (ms) = WWT (clocks) / clock (kHz)
+	if clock == 0 {
+		return uint32(defaultUSBTimeout / time.Millisecond)
+	}
+	timeout := wwtCycles / clock
+	// Add guard time and overhead, ensure minimum 5 seconds
+	if timeout < 5000 {
+		timeout = 5000
+	}
+	// Cap at 60 seconds
+	if timeout > 60000 {
+		timeout = 60000
+	}
+	return timeout
+}
+
+// fiDiTable returns the F and D values for a given TA1 (Fi/Di) byte.
+// Based on ISO 7816-3 Table 7 and Table 8.
+func fiDiTable(fiDi uint8) (f uint32, d uint32) {
+	// Fi (clock rate conversion factor)
+	fiTable := []uint32{372, 372, 558, 744, 1116, 1488, 1860, 0, 0, 512, 768, 1024, 1536, 2048, 0, 0}
+	// Di (baud rate adaptation factor)
+	diTable := []uint32{0, 1, 2, 4, 8, 16, 32, 64, 0, 0, 0, 20, 31, 40, 0, 0}
+
+	fi := fiTable[(fiDi>>4)&0x0F]
+	di := diTable[fiDi&0x0F]
+	return fi, di
 }
 
 func (r *usbfsReader) transmit(ctx context.Context, request []byte) ([]byte, error) {
@@ -788,7 +971,7 @@ func (r *usbfsReader) bulkTransfer(buffer []byte, endpoint uint8, ctx context.Co
 	transfer := usbfsBulkTransfer{
 		Endpoint: uint32(endpoint),
 		Length:   uint32(len(buffer)),
-		Timeout:  usbFSTimeout(ctx),
+		Timeout:  r.usbFSTimeout(ctx),
 		Data:     unsafe.Pointer(&buffer[0]),
 	}
 	for {
@@ -808,8 +991,11 @@ func (r *usbfsReader) clearHalt(endpoint uint8) error {
 	return usbFSIoctl(r.file.Fd(), usbFSClearHaltRequest(), unsafe.Pointer(&value))
 }
 
-func usbFSTimeout(ctx context.Context) uint32 {
+func (r *usbfsReader) usbFSTimeout(ctx context.Context) uint32 {
 	timeout := defaultUSBTimeout
+	if r.cardTimeout > 0 {
+		timeout = time.Duration(r.cardTimeout) * time.Millisecond
+	}
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
