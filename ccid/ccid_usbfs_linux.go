@@ -818,10 +818,6 @@ func (r *usbfsReader) transmit(ctx context.Context, request []byte) ([]byte, err
 	if len(request) == 0 {
 		return nil, errors.New("APDU request is empty")
 	}
-	maxPayload := int(r.device.descriptor.maxMessageLength) - ccidHeaderLength
-	if len(request) > maxPayload {
-		return nil, fmt.Errorf("APDU length %d exceeds reader limit %d", len(request), maxPayload)
-	}
 	// CHARACTER exchange level: host must drive T=0 procedure bytes.
 	if r.characterLevel {
 		return r.transmitT0Character(ctx, request)
@@ -829,6 +825,15 @@ func (r *usbfsReader) transmit(ctx context.Context, request []byte) ([]byte, err
 	// T=1 protocol: use the T=1 state machine.
 	if r.protocol == 1 && r.t1 != nil {
 		return r.transmitT1(ctx, request)
+	}
+	// Extended APDU level: use chained TransferBlock for large APDUs.
+	exchange := r.device.descriptor.features & ccidExchangeMask
+	if exchange == ccidExchangeExtendedAPDU {
+		return r.transmitExtendedAPDU(ctx, request)
+	}
+	maxPayload := int(r.device.descriptor.maxMessageLength) - ccidHeaderLength
+	if len(request) > maxPayload {
+		return nil, fmt.Errorf("APDU length %d exceeds reader limit %d", len(request), maxPayload)
 	}
 	response, err := r.command(ctx, ccidTransferBlock, 0, 0, 0, request, ccidDataBlock)
 	if err != nil {
