@@ -244,7 +244,7 @@ func buildUSBFSDevice(devicePath, interfacePath, usbPath string, bus, address ui
 			BusNumber:        bus,
 			DeviceAddress:    address,
 			ChannelAvailable: true,
-			USBPath:          usbPath,
+			USBPath:          devicePath, // 完整 sysfs 路径（如 /sys/bus/usb/devices/1-2），与模组发现统一
 			USBSerial:        readUSBFSString(devicePath, "serial"),
 			VendorID:         uint16(vendor),
 			ProductID:        uint16(product),
