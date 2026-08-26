@@ -30,6 +30,7 @@ type OpenOptions struct {
 	ShareMode                ShareMode
 	Protocol                 Protocol
 	SendTerminalCapabilities bool
+	USBPath                  string
 }
 
 type ShareMode int

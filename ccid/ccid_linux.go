@@ -28,6 +28,12 @@ type OpenOptions struct {
 	// SendTerminalCapabilities controls whether the terminal capabilities APDU
 	// is sent after connecting. Ignored on Linux.
 	SendTerminalCapabilities bool
+	// USBPath specifies the sysfs USB device path (e.g. "/sys/bus/usb/devices/1-1.4")
+	// to disambiguate readers that share the same reader name and serial number
+	// (common with clone CCID readers that report a fixed serial like "000000000001").
+	// When set, the built-in USBFS driver matches the device by USB path instead of
+	// reader name, ensuring each physical reader opens the correct USB device.
+	USBPath string
 }
 
 // ShareMode controls how a reader connection is shared among callers.
@@ -130,7 +136,7 @@ func OpenWithOptions(ctx context.Context, readerName string, opts OpenOptions) (
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("opening reader: %w", err)
 	}
-	direct, err := openSharedUSBFSReader(ctx, readerName)
+	direct, err := openSharedUSBFSReader(ctx, readerName, opts.USBPath)
 	if err == nil {
 		return &Reader{direct: direct}, nil
 	}
@@ -140,20 +146,27 @@ func OpenWithOptions(ctx context.Context, readerName string, opts OpenOptions) (
 	return nil, fmt.Errorf("opening built-in CCID reader %q: %w", readerName, err)
 }
 
-func openSharedUSBFSReader(ctx context.Context, readerName string) (*sharedUSBFSReader, error) {
+func openSharedUSBFSReader(ctx context.Context, readerName, usbPath string) (*sharedUSBFSReader, error) {
 	readerName = strings.TrimSpace(readerName)
+	usbPath = strings.TrimSpace(usbPath)
+	// When USBPath is set, use it as the sharing key so that multiple readers
+	// with the same name each get their own shared instance.
+	shareKey := readerName
+	if usbPath != "" {
+		shareKey = "usbpath:" + usbPath
+	}
 	directReaders.Lock()
 	defer directReaders.Unlock()
-	if shared := directReaders.byName[readerName]; shared != nil {
+	if shared := directReaders.byName[shareKey]; shared != nil {
 		shared.refs++
 		return shared, nil
 	}
-	reader, err := openUSBFSReader(ctx, readerName)
+	reader, err := openUSBFSReader(ctx, readerName, usbPath)
 	if err != nil {
 		return nil, err
 	}
-	shared := &sharedUSBFSReader{name: readerName, reader: reader, refs: 1}
-	directReaders.byName[readerName] = shared
+	shared := &sharedUSBFSReader{name: shareKey, reader: reader, refs: 1}
+	directReaders.byName[shareKey] = shared
 	return shared, nil
 }
 

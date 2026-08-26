@@ -367,16 +367,50 @@ func extractSerialFromReaderName(name string) string {
 	return strings.TrimSpace(m[1])
 }
 
-func openUSBFSReader(ctx context.Context, readerName string) (*usbfsReader, error) {
+// matchUSBFSPath checks whether two USB path strings refer to the same device.
+// Supports full paths (/sys/bus/usb/devices/1-1.4) and short paths (1-1.4).
+func matchUSBFSPath(a, b string) bool {
+	a = strings.TrimSpace(a)
+	b = strings.TrimSpace(b)
+	if a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	if strings.HasSuffix(a, "/"+b) || strings.HasSuffix(b, "/"+a) {
+		return true
+	}
+	return false
+}
+
+func openUSBFSReader(ctx context.Context, readerName, usbPath string) (*usbfsReader, error) {
 	devices, err := discoverUSBFSDevices(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var selected *usbfsDevice
-	for i := range devices {
-		if devices[i].info.Name == readerName {
-			selected = &devices[i]
-			break
+	// ⚠️ WARNING: USB path matching MUST run before reader name matching.
+	// Clone readers (e.g. Holtek 04d9:c001) share the same serial (000000000001),
+	// producing identical reader names. Without USB path priority, all clone
+	// readers open the first matching device, causing APDU traffic to go to the
+	// wrong reader and returning identical EID/profiles. Do NOT remove or reorder!
+	usbPath = strings.TrimSpace(usbPath)
+	if usbPath != "" {
+		for i := range devices {
+			if matchUSBFSPath(devices[i].info.USBPath, usbPath) {
+				selected = &devices[i]
+				break
+			}
+		}
+	}
+	// Priority 2: match by full reader name
+	if selected == nil {
+		for i := range devices {
+			if devices[i].info.Name == readerName {
+				selected = &devices[i]
+				break
+			}
 		}
 	}
 	// 全名匹配失败时回退到序列号匹配：
